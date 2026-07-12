@@ -18,6 +18,16 @@ FloodMesh is a small answer to that specific silence: cheap, battery-powered pag
 
 It is not a replacement for the fire service or a printed phone tree. It is the layer underneath them — the one that keeps working on the one bad night every few years when everything else is dark.
 
+> ### ⏰ Why this is urgent now
+>
+> A rare, very strong El Niño — what forecasters informally call a **"super" El Niño** — is developing in the Pacific. As of mid-2026, NOAA puts the odds of a strong-to-very-strong event through the coming winter above 80%, forecast to **peak between roughly November 2026 and January 2027** and persist into spring 2027.
+>
+> That peak lands squarely on **Chennai's northeast monsoon** — the Oct–Dec season that brings the city's heaviest rain. It is the *same* climate pattern that was in place during the catastrophic **December 2015 Chennai floods**. El Niño doesn't guarantee a flood — its effect on Tamil Nadu's rainfall is real but variable — but it meaningfully raises the odds of an extreme-rainfall event in precisely the months ahead.
+>
+> **This is the window.** A resilience system that exists *before* the water rises is worth infinitely more than one half-built after. If FloodMesh — even just the Layer 1 alarm — is deployed, tested, and drilled in one colony before this monsoon, it can matter this season. That is the deadline this project is racing.
+>
+> *(Forecasts evolve — check the latest [NOAA CPC ENSO advisory](https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml) and [IMD](https://mausam.imd.gov.in/) updates for current status.)*
+
 ---
 
 ## The vision — what the finished system does
@@ -67,6 +77,32 @@ Designed and specified, **not yet built.** Full technical detail for each is in 
 **Layer 4 — Inter-colony bridging.** The same relay engine plus a `colonyId` byte lets colonies link into a larger network. A designated bridge node acts as a *firewall, not a repeater*: routine local traffic stays local, and only high-priority alerts (*Rescue*/*Medical*) and explicitly-addressed messages cross between colonies — so one colony's chatter never drowns another's channel.
 
 **Roadmap:** we earn each layer by proving the one before it. Phase order — prove the link (range walk) → harden Layer 1 → elevate & power (rooftop solar relays) → voice → emergency override → bridge colonies. A rock-solid single colony that has survived a real drill is worth more than a five-layer system that has never been rained on.
+
+---
+
+## Why not just walkie-talkies? (and why this is essential)
+
+The most reasonable question anyone asks: *why build this when cheap walkie-talkies already exist?* The honest answer is that they solve **different halves** of the problem, and the half FloodMesh solves is the one nobody else covers.
+
+| | Walkie-talkie (licence-free handheld) | FloodMesh pager |
+|---|---|---|
+| **Range past obstructions** | One hop. Blocked by a building or wet concrete, it's blocked. | **Relays around obstructions** — House 4 → rooftop → House 19 even with no direct link. |
+| **Works unattended** | No. Someone must be holding it, on, charged, on the right channel. | **Yes.** Sleeps for weeks, screams when a message arrives. |
+| **Records who needs what** | No. Miss the call and it's gone. | **Yes.** Live roster of every house's last status. |
+| **Standby battery life** | Days. | **Weeks** (Layer 1). |
+| **Cost per unit** | Lower (~₹1,000–2,000) | Higher (~₹4,600) |
+| **Live voice** | **Yes** — its core strength. | No (short *recorded* clips are planned; live voice over LoRa isn't feasible). |
+
+**The decisive gap:** a walkie-talkie is a single radio hop. In a dense colony where everyone is on a ground floor behind wet concrete, the one path that works is often *ground floor → rooftop relay → ground floor* — and only a relaying mesh can do that. Equally, a walkie-talkie in a drawer is **off**; to catch a 3 a.m. rescue call, someone must have kept it on and charged for weeks on the off chance. No 20-household community sustains that. FloodMesh sleeps and wakes itself. **These two properties — relaying around obstructions, and unattended always-on alerting — are exactly what a walkie-talkie structurally cannot provide, and exactly what a flood night needs.**
+
+**This isn't either/or.** The right design uses both, as complementary layers:
+
+- **FloodMesh is the alarm layer** — always-on, can't-be-missed, relays around obstructions, records who needs what. It answers *"is anyone in trouble, and where?"*
+- **A few walkie-talkies (or a rooftop voice repeater) are the coordination layer** — once trouble is known, the response team uses live voice to organise the rescue. It answers *"okay, how do we get to House 19?"*
+
+You don't need 20 walkie-talkies; you need a pager on every household as the trip-wire, plus a handful of radios for the responders. FloodMesh is the piece that doesn't otherwise exist — the reason the project is essential rather than redundant.
+
+*(Meshtastic is the closest existing open project and runs on the same hardware — a great starting point. FloodMesh differs in being purpose-built for this one job: hold-to-confirm rescue, per-status buzzer cadences, the honest relay-ACK, the colony roster, priority-based hop limits, and zero pairing ceremony — an appliance a non-technical neighbour can use in a crisis, not a platform to configure.)*
 
 ---
 
