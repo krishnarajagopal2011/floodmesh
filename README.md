@@ -31,7 +31,7 @@ Imagine every household in a flood-prone colony has a small, weatherproof box th
 - **It works unattended and won't be missed.** Units sleep for weeks and *scream* — buzzer plus screen — the instant a message arrives. Nobody has to be watching.
 - **Speak when a button isn't enough.** Record a few seconds of voice — *"Amma's diabetic, out of insulin, second floor, water's at the stairs"* — and the mesh carries the clip to the whole colony. The screen tells you honestly, before you speak, whether the channel can carry it right now.
 - **Break through in a real emergency.** When it truly matters, a rescue call can seize the channel — briefly, and rate-limited so it can't be abused — pausing routine chatter so the important message gets through.
-- **Colonies call each other for help.** Networks link colony to colony along the riverfront, so a colony with a boat or higher ground learns that the one next door needs it — without either colony's everyday traffic drowning the other.
+- **Colonies call each other for help.** Networks link colony to colony, so a colony with a boat or higher ground learns that the one next door needs it — without either colony's everyday traffic drowning the other.
 - **Everyone can see who needs what.** Each unit holds a live roster of every house's last known status. One glance answers *who needs help, and where*.
 - **It never lies to you.** No fake "message sent." A unit reports a real confirmation — *relayed by House 7* — or honestly says *no relay heard — move higher*.
 
