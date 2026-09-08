@@ -1,0 +1,16 @@
+# PlatformIO build output and downloaded dependencies (~236 MB, all regenerable)
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Bench capture logs
+keylog.txt
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
