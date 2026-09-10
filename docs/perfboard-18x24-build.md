@@ -1,5 +1,12 @@
 # FloodMesh — 18 × 24-hole hand-soldering manual
 
+> **SUPERSEDED IN ONE DETAIL.** This document predates assembly and routes
+> the amplifier shutdown net to GPIO 39. **The board is built with it on
+> GPIO 26**, and the firmware follows the board. See
+> `docs/wiring-as-built.md`, which is authoritative for pin numbers.
+> The routing and grouping advice below remains valid.
+
+
 For the user's 50 × 70 mm perfboard: **Heltec V3, INMP441 and MAX98357A all mount on the same board**. Speaker, buttons, buzzer and battery mount in the enclosure. This supersedes the remote-module placement in `perfboard-routing.md`. Firmware assignments come from `include/floodmesh_pins.h`; no firmware changes are needed.
 
 **Electrical assignments checked; mechanical fit provisional.** Actual breakout dimensions/pad order, perfboard edge margins and socket spacing are not yet measured. Dry-fit before soldering. The drawing is a wire-routing guide, not an etching mask or a 1:1 drilling template.

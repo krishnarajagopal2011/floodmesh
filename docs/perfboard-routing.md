@@ -1,5 +1,12 @@
 # FloodMesh — 5 × 7 cm perfboard routing guide
 
+> **SUPERSEDED IN ONE DETAIL.** This document predates assembly and routes
+> the amplifier shutdown net to GPIO 39. **The board is built with it on
+> GPIO 26**, and the firmware follows the board. See
+> `docs/wiring-as-built.md`, which is authoritative for pin numbers.
+> The routing and grouping advice below remains valid.
+
+
 > **Superseded for the user's actual build:** use [18 × 24-hole build manual](perfboard-18x24-build.md), which mounts the Heltec, microphone and amplifier on the same perfboard. The carrier arrangement below is retained as an earlier remote-module alternative; its assumed 20 × 28 hole count is not the user's board.
 
 This is a **socketed carrier** for the Heltec WiFi LoRa 32 V3/V3.2. It fits a
