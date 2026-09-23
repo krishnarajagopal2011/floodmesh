@@ -12,6 +12,10 @@ queues posts in Buffer.
   happens. Answers replies on X and Instagram.
 - The routine drafts one or two posts twice a week from the repo, writes the
   LinkedIn weekly update on Mondays, and emails them.
+- A second routine scouts Reddit, Hacker News, X and LinkedIn for people
+  describing the problem or asking questions our tests answer, and emails
+  both of us a ranked list with draft replies. Humans post the replies.
+  See `scouting.md`.
 - The partner edits, shoots or picks the visual, queues in Buffer, and moves
   the row to Done in `backlog.md` with the date.
 
@@ -132,6 +136,14 @@ to ask one question instead. Never pad a quiet week.
 
 Visual: one photo from the week. The device, the bench, the test location,
 or a person using it. No schematics, no rendered graphics.
+
+## Scouting
+
+Finding people already talking about the problem is the other half of
+building in public. `scouting.md` is the playbook: sources, queries, how
+items are scored High, Medium or Low, how replies are drafted, and the
+email format. `scouting-log.md` records every link sent so nothing is
+sent twice. Replies are always posted by a person, never by the routine.
 
 ## Publishing
 
