@@ -76,9 +76,17 @@ end, three at most. Say who you are asking for and what you want from them.
 2. No regulatory claims. Type approval and WPC certification are roadmap
    items. Do not announce them until the paperwork exists.
 3. Real photos and clips of the actual build. Ugly perfboard is the point.
-4. Ask one question per post. Two questions get zero answers.
+4. Ask one question per post. Two questions get zero answers. Ask about
+   features and use (what people need, what they would change), never about
+   circuit or design choices.
 5. Reply to every comment within a day. That is where the pilot testers
    come from.
+6. Talk about features and milestones, not internals. Never name chips,
+   modules, part numbers, pins, memory sizes, radio settings, packet sizes
+   or protocol details, and no hashtags for them. "Our own circuit board is
+   designed" is fine; what is on it is not. Visuals show the device or the
+   whole board, never labelled parts or schematic pages. The Facts block may
+   cite technical files; the post text may not repeat them.
 
 ## Publishing
 

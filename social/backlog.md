@@ -26,7 +26,7 @@ row with an empty Draft column unless given a topic.
 | 16 | IP rating pressure test results | #trials #announcement | X, IG reel | when tested | |
 | 17 | Funding support from ... | #announcement #cheers | LinkedIn, X | when it happens | |
 | 18 | Type approval progress | #announcement | LinkedIn, X | only when paperwork exists | |
-| 19 | Custom PCB V1.0 designed | #announcement | X, IG, LinkedIn | docs/hardware/pcb-v1/README.md, schematic/BoM PDFs | drafts/2026-09-custom-pcb-v1.md |
+| 19 | Our own circuit board designed | #announcement | X, IG, LinkedIn | docs/hardware/pcb-v1/README.md (features only) | drafts/2026-09-custom-pcb-v1.md |
 
 ## Done
 
