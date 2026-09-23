@@ -1,0 +1,70 @@
+# Builds every firmware environment and the Android admin app on each push.
+# Download the results from the run's "Artifacts" section on GitHub.
+name: build
+
+on:
+  push:
+    branches: ["9th-Sept-2026", "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [floodmesh, proto_v2, proto_v2_selftest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .pio/libdeps
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+      - name: Build ${{ matrix.env }}
+        run: pio run -e ${{ matrix.env }}
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.env }}
+          path: |
+            .pio/build/${{ matrix.env }}/firmware.bin
+            .pio/build/${{ matrix.env }}/bootloader.bin
+            .pio/build/${{ matrix.env }}/partitions.bin
+          if-no-files-found: error
+
+  admin-app:
+    # Skipped until the app directory exists on the branch.
+    if: ${{ hashFiles('app/floodmesh_admin/pubspec.yaml') != '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/floodmesh_admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --release
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: floodmesh-admin-apk
+          path: app/floodmesh_admin/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
