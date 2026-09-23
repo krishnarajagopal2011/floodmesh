@@ -5,10 +5,8 @@ test mesh, relays, sleep, responder registration, text input and homing
 before the custom PCB is changed. See `docs/architecture.md` for why each part
 is here.
 
-**Status: wiring defined, firmware not yet updated.** The current firmware
-(`include/floodmesh_pins.h`, `fm_input`) still expects the old 2×2 keypad on
-GPIO 4–7. Do not expect keys to work on this build until the pin map and the
-MCP23017 driver are updated.
+**Firmware:** build env `proto_v2` (normal use) and `proto_v2_selftest`
+(checking a freshly soldered unit). See §11.
 
 Build **one reference unit first**, verify every item in §9, then copy it
 exactly.
@@ -178,7 +176,7 @@ LiPo(−) ───────────────────────�
 | 12 | **Deep-sleep current** via J_MEAS, OLED off: ______ µA | |
 | 13 | Light sleep + radio listening current: ______ mA | |
 
-Items 3–7 and 12–13 need the updated firmware.
+Items 3–7 and 12 are covered by the self-test firmware (§11.2).
 
 ---
 
@@ -198,3 +196,58 @@ Items 3–7 and 12–13 need the updated firmware.
 | 2-pin header + jumper (J_MEAS) | 1 |
 | Resistors: 100 kΩ ×3 (divider ×2, amp GAIN), 10 kΩ ×2 (INT, SOS), 4.7 kΩ ×2 (I²C), 1 kΩ ×2 (amp SD, buzzer base) | 9 |
 | Capacitors: 100 nF ×2 (MCP23017, amp), 1000 µF ×1 (amp) | 3 |
+
+---
+
+## 11. Firmware for this build
+
+### 11.1 Flashing
+```bash
+pio run -e proto_v2_selftest -t upload --upload-port COMx   # check a new unit
+pio run -e proto_v2          -t upload --upload-port COMx   # normal firmware
+```
+GitHub Actions also builds both (see `.github/workflows/build.yml`); the
+`firmware-*` artifacts on each run contain `firmware.bin`.
+
+### 11.2 Self-test mode (`proto_v2_selftest`)
+One live screen: keys held, SOS state, battery and USB voltage, keypad chip
+found or not, role, last result, last alarm received.
+
+| Key | Test |
+|---|---|
+| 1 | Buzzer, 300 ms |
+| 2 | Speaker: 1 kHz tone for 1 s |
+| 3 | Mic: record 2 s, show peak/RMS, play it back |
+| 4 | LoRa: send a SAFE alarm (another unit shows `RX SAFE from …`) |
+| 5 | Crypto: generate key, sign, verify, tamper check (`PASS`) |
+| 7 | Deep sleep with OLED, mic rail and radio off. **Measure current at J_MEAS now.** Any key or SOS wakes it (it reboots) |
+
+### 11.3 Normal mode (`proto_v2`)
+| Keys | Action |
+|---|---|
+| 2 / 8 | Channel up / down |
+| 4 | Inbox previous |
+| 5 | Play / stop the selected clip |
+| hold `*` | Record voice (up to 10 s); release opens the 3 s send window: hold 5 to send now, tap 4 to cancel |
+| hold `*` + 2 / 8 / 4 / 5 | Alarm: SAFE / WATER / MEDICAL / EVACUATE |
+| **hold SOS 3 s** | **SOS alarm** (countdown on screen; release to cancel) |
+
+At power-on:
+| Hold | Effect |
+|---|---|
+| `#` | **Bluetooth provisioning mode** for the FloodMesh Admin app (shows a PIN) |
+| SOS + `0` for 10 s | Factory reset: admin key, role, responder key, call-sign override |
+
+The top-right of the standby screen shows the role (`RLY`/`RSP`), a responder
+expiry warning (`!2d`), `USB` when external power is present, and battery %.
+
+Serial console (115200): `help`, `info`, `prov` (reboot into provisioning),
+`alarm <0-4>` (send SAFE/MEDICAL/WATER/EVACUATE/SOS from a laptop, useful
+for stress tests).
+
+### 11.4 What the roles do in this firmware
+Registration, expiry, key handling and the on-screen role are complete.
+**The relay and responder mesh behaviours are not implemented yet** (beacons,
+batched ACKs, signed responder messages, mesh-mode volunteering). A relay or
+responder unit currently behaves like a civilian unit on air. Those are the
+next firmware steps, tested with these same units.

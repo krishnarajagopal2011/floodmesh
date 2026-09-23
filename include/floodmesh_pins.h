@@ -54,6 +54,61 @@
 #define PIN_LORA_DIO1        14
 
 // ==================================================================
+// Board variant
+// ==================================================================
+// FM_BOARD_PROTO_V2 = 1 selects the prototype v2 perfboard build described in
+// docs/prototype-v2-build.md: a 3x4 keypad behind an MCP23017 on its own I2C
+// bus, a side SOS button, and an external-power sense divider. 0 (default) is
+// the original as-built board in docs/wiring-as-built.md.
+#ifndef FM_BOARD_PROTO_V2
+#define FM_BOARD_PROTO_V2 0
+#endif
+
+// Logical face-key indices used by fm_input on both boards. On the as-built
+// board they are the four matrix keys by position; on proto v2 they are keypad
+// keys 2 / 8 / 4 / 5 (see fm_keypad.h).
+#define FM_KEY_TR             0   // top-right    / keypad 2
+#define FM_KEY_BR             1   // bottom-right / keypad 8
+#define FM_KEY_BL             2   // bottom-left  / keypad 4
+#define FM_KEY_TL             3   // top-left     / keypad 5
+#define FM_KEY_COUNT          4
+
+#if FM_BOARD_PROTO_V2
+// ------------------------------------------------------------------ proto v2
+// 12-key pad via MCP23017 (I2C address 0x20) on the SECOND I2C controller, so
+// the OLED bus on 17/18 is untouched. Its INTA output is open-drain with an
+// external 10 k pull-up; GPIO 4 is RTC-capable, so a key press can wake the
+// chip from deep sleep.
+#define PIN_KP_INT            4
+#define PIN_KP_SDA            5
+#define PIN_KP_SCL            6
+#define FM_KP_I2C_ADDR     0x20
+#define FM_KEYPAD_MCP23017    1
+
+// Side SOS button to GND, external 10 k pull-up. RTC-capable for wake.
+#define PIN_BTN_SOS           7
+
+// Heltec 5V pin (USB VBUS) through a 100 k / 100 k divider. ~2.5 V on USB,
+// solar or power bank; ~0 V on battery. ADC1_CH2.
+#define PIN_PWR_SENSE         3
+
+// WHY GPIO 3 IS ACCEPTABLE, THOUGH IT IS A STRAPPING PIN:
+// GPIO 3 selects the JTAG signal source at reset, and only when the
+// EFUSE_STRAP_JTAG_SEL eFuse has been burned. It is not burned on these
+// boards, so the level on GPIO 3 at reset is ignored. The divider can hold it
+// at ~2.5 V during a USB-powered reset without effect.
+#define FM_GPIO3_REVIEWED   PIN_PWR_SENSE
+
+// The PTT (hold to record, and the modifier for alarm chords) is the keypad
+// '*' key, read through the MCP23017. There is no GPIO for it.
+#define FM_TEST_PTT_ON_R2      0
+#define FM_PTT_IS_MATRIX_KEY   0
+#define FM_PTT_ON_KEYPAD       1
+#define PTT_HARDWARE_INSTALLED 1
+
+#else  // as-built board
+
+// ==================================================================
 // 2x2 front keypad - a SCANNED MATRIX, not four switches
 // ==================================================================
 // The module has four pads and NO ground, because each key bridges one column
@@ -82,11 +137,6 @@
 // ------------------------------------------------------------------ PTT
 // Keys are identified by PHYSICAL POSITION, never by the module's line labels.
 // These index the debounced key table in fm_input.
-#define FM_KEY_TR             0   // top-right
-#define FM_KEY_BR             1   // bottom-right
-#define FM_KEY_BL             2   // bottom-left
-#define FM_KEY_TL             3   // top-left
-#define FM_KEY_COUNT          4
 
 // --- Mode A, PTT up ------------------------------------------------------
 //   top-right    channel up
@@ -122,6 +172,8 @@
   #define PTT_HARDWARE_INSTALLED 0        // 0 until the switch is fitted
   #endif
 #endif
+#define FM_PTT_ON_KEYPAD       0
+#endif  // FM_BOARD_PROTO_V2
 
 // ------------------------------------------------------------------ alerting
 #define PIN_BUZZER            2   // 2N2222 NPN base via 1k; active-high.
@@ -197,9 +249,14 @@ constexpr uint8_t kUsedPins[] = {
     PIN_OLED_SDA,  PIN_OLED_SCL, PIN_OLED_RST,
     PIN_LORA_NSS,  PIN_LORA_SCK, PIN_LORA_MOSI, PIN_LORA_MISO,
     PIN_LORA_RST,  PIN_LORA_BUSY, PIN_LORA_DIO1,
+#if FM_BOARD_PROTO_V2
+    PIN_KP_INT,    PIN_KP_SDA,   PIN_KP_SCL,
+    PIN_BTN_SOS,   PIN_PWR_SENSE,
+#else
     PIN_KEY_COL_L1, PIN_KEY_COL_L2, PIN_KEY_ROW_R1, PIN_KEY_ROW_R2,
 #if !FM_PTT_IS_MATRIX_KEY
     PIN_BTN_PTT,                        // dedicated side switch
+#endif
 #endif
     PIN_BUZZER,
     PIN_MIC_WS,    PIN_MIC_SCK,  PIN_MIC_SD,
@@ -232,9 +289,15 @@ constexpr bool usesUart0(size_t i = 0) {
 // Strapping pins are allowed only when they have been individually reviewed and
 // named in an FM_GPIO*_REVIEWED macro. This forces a conscious decision with a
 // written justification rather than a silent assignment.
+#if FM_BOARD_PROTO_V2
+constexpr bool strappingReviewed(uint8_t pin) {
+  return pin == FM_GPIO3_REVIEWED;   // see FM_GPIO3_REVIEWED above
+}
+#else
 constexpr bool strappingReviewed(uint8_t) {
   return false;   // nothing currently sits on a strapping pin
 }
+#endif
 constexpr bool usesUnreviewedStrapping(size_t i = 0) {
   return (i >= kUsedCount) ? false
        : ((kUsedPins[i] == 45 || kUsedPins[i] == 46 || kUsedPins[i] == 3) &&

@@ -59,10 +59,20 @@
 #include "fm_dedup.h"
 #include "fm_ids.h"
 #include "fm_input.h"
+#include "fm_keypad.h"
 #include "fm_mesh.h"
 #include "fm_packet.h"
+#include "fm_prov.h"
 #include "fm_radio.h"
+#include "fm_role.h"
 #include "fm_store.h"
+
+#include <Preferences.h>
+#include <esp_sleep.h>
+
+#if FM_SELFTEST && !FM_BOARD_PROTO_V2
+#error "FM_SELFTEST needs the proto v2 board (keypad + SOS). Build env proto_v2_selftest."
+#endif
 
 // ---------------------------------------------------------------- build knobs
 #ifndef FLOODMESH_VERSION
@@ -139,6 +149,25 @@ static uint32_t g_rxAlarmAt = 0;
 static char     g_rxAlarmFrom[FM_CALLSIGN_LEN + 1] = {0};
 static uint8_t  g_rxAlarmType = 0;
 static uint8_t  g_rxAlarmCh = 0;
+
+// --------------------------------------------------------------- proto v2 extras
+// Boot request that survives a software reset (not a power cycle): set by the
+// serial "prov" command, consumed at the next boot.
+#define FM_BOOTREQ_PROV 0x50524F56UL   // "PROV"
+static RTC_NOINIT_ATTR uint32_t g_bootReq;
+
+#ifndef FM_SOS_HOLD_MS
+#define FM_SOS_HOLD_MS 3000            // side SOS must be held this long to send
+#endif
+#ifndef FM_EXT_POWER_MV
+#define FM_EXT_POWER_MV 4000           // VBUS above this = external power present
+#endif
+
+static uint32_t g_sosDownAt = 0;       // 0 = SOS not held
+static bool     g_sosFired = false;    // one SOS per hold
+static bool     g_extPower = false;
+static uint32_t g_vbusMv = 0;
+static uint32_t g_roleNoticeAt = 0;    // "RESPONDER EXPIRED" banner, 0 = none
 
 /**
  * Point the inbox at the newest clip. fmStoreNewest() returns a not-found
@@ -242,8 +271,22 @@ static void drawStandby(uint8_t pct, uint32_t now) {
   oled.setFont(u8g2_font_5x8_tf);
   snprintf(l, sizeof(l), "CH: %s", chName(g_channel));
   oled.drawStr(0, 7, l);
-  snprintf(l, sizeof(l), "%u%%", pct);
-  drawRight(7, l);
+  {
+    // Right side: role (if not civilian), responder expiry warning, external
+    // power, battery. e.g. "RSP!1d USB 87%"
+    char warn[8] = "";
+    const uint32_t rem = fmRoleRemainingS();
+    if (fmRole() == FM_ROLE_RESPONDER && rem > 0 && rem <= FM_RESPONDER_WARN_S) {
+      if (rem >= 86400UL) snprintf(warn, sizeof(warn), "!%lud", (unsigned long)(rem / 86400UL));
+      else snprintf(warn, sizeof(warn), "!%luh", (unsigned long)(rem / 3600UL));
+    }
+    snprintf(l, sizeof(l), "%s%s%s%u%%",
+             fmRole() == FM_ROLE_CIVILIAN ? "" : fmRoleTag(fmRole()), warn,
+             fmRole() == FM_ROLE_CIVILIAN ? (g_extPower ? "USB " : "")
+                                          : (g_extPower ? " USB " : " "),
+             pct);
+    drawRight(7, l);
+  }
   oled.drawHLine(0, 9, 128);
 
   FmClipMeta m;
@@ -274,7 +317,9 @@ static void drawStandby(uint8_t pct, uint32_t now) {
     snprintf(l, sizeof(l), "PLAYING %u/%u", g_playFrame, g_playFrames);
     oled.drawStr(0, 51, l);
   } else {
-#if FM_TEST_PTT_ON_R2
+#if FM_BOARD_PROTO_V2
+    oled.drawStr(0, 51, "2/8 CH  4 PREV  5 PLAY");
+#elif FM_TEST_PTT_ON_R2
     oled.drawStr(0, 51, "R1 CH  L2 PREV  L1 PLAY");
 #else
     oled.drawStr(0, 51, "R1/R2 CH  L2 PREV");
@@ -317,6 +362,12 @@ static void drawRecording(uint8_t pct, bool capped) {
   // the physical 2x2 keypad, so the operator reads position rather than a list.
   oled.drawHLine(0, 52, 128);
   oled.setFont(u8g2_font_4x6_tf);
+#if FM_BOARD_PROTO_V2
+  oled.drawStr(0, 58, "5 EVAC");
+  drawRight(58, "2 SAFE");
+  oled.drawStr(0, 64, "4 MED");
+  drawRight(64, "8 WATR");
+#else
   oled.drawStr(0, 58, "EVAC");
   drawRight(58, "SAFE");
   oled.drawStr(0, 64, "MED");
@@ -324,6 +375,7 @@ static void drawRecording(uint8_t pct, bool capped) {
   drawRight(64, "WATR");
 #else
   drawRight(64, "[PTT]");   // R2 is the modifier on this build, not an alarm
+#endif
 #endif
 }
 
@@ -364,7 +416,11 @@ static void drawPendingSend(uint8_t pct) {
   }
 
   oled.drawHLine(0, 50, 128);
+#if FM_BOARD_PROTO_V2
+  oled.drawStr(0, 60, "HOLD 5=SEND  4=CANCEL");
+#else
   oled.drawStr(0, 60, "HOLD L1=SEND  L2=CANCEL");
+#endif
 }
 
 // ------------------------------------------- State 4: Layer 1 alarm, outgoing
@@ -414,10 +470,49 @@ static void drawAlarmRx(uint8_t pct, uint32_t now) {
   oled.drawStr(0, 62, "any button to dismiss");
 }
 
+/** Side SOS held but not yet sent: big countdown, so a slip can be released. */
+static void drawSosCountdown(uint32_t now) {
+  const uint32_t held = now - g_sosDownAt;
+  const uint32_t left = held >= FM_SOS_HOLD_MS ? 0 : FM_SOS_HOLD_MS - held;
+  char l[24];
+  oled.drawBox(0, 0, 128, 13);
+  oled.setDrawColor(0);
+  oled.setFont(u8g2_font_7x13B_tf);
+  oled.drawStr(2, 11, "SOS");
+  oled.setDrawColor(1);
+  oled.setFont(u8g2_font_7x13B_tf);
+  snprintf(l, sizeof(l), "sending in %lu.%lu", (unsigned long)(left / 1000),
+           (unsigned long)((left % 1000) / 100));
+  oled.drawStr((128 - oled.getStrWidth(l)) / 2, 34, l);
+  oled.drawFrame(4, 42, 120, 8);
+  oled.drawBox(4, 42, (uint8_t)((120UL * (held > FM_SOS_HOLD_MS ? FM_SOS_HOLD_MS : held)) /
+                                FM_SOS_HOLD_MS),
+               8);
+  oled.setFont(u8g2_font_4x6_tf);
+  oled.drawStr(0, 62, "release to cancel");
+}
+
+static void drawRoleNotice() {
+  oled.drawBox(0, 0, 128, 13);
+  oled.setDrawColor(0);
+  oled.setFont(u8g2_font_7x13B_tf);
+  oled.drawStr(2, 11, "RESPONDER");
+  oled.setDrawColor(1);
+  oled.setFont(u8g2_font_7x13B_tf);
+  oled.drawStr(20, 32, "EXPIRED");
+  oled.setFont(u8g2_font_5x8_tf);
+  oled.drawStr(0, 46, "Now a civilian unit.");
+  oled.drawStr(0, 56, "Re-register with admin.");
+}
+
 static void drawScreen(uint8_t pct, uint32_t now) {
   if (!g_oledOk) return;
   oled.clearBuffer();
-  if (g_rxAlarmShow) {
+  if (g_sosDownAt != 0 && !g_sosFired) {
+    drawSosCountdown(now);
+  } else if (g_roleNoticeAt != 0 && (now - g_roleNoticeAt) < 10000UL) {
+    drawRoleNotice();
+  } else if (g_rxAlarmShow) {
     drawAlarmRx(pct, now);
   } else {
     switch (fmInputState()) {
@@ -576,9 +671,16 @@ static void printBanner() {
   Serial.printf("  reset  : reason %d\n", (int)esp_reset_reason());
   Serial.println("---------------------------------------------------------");
   Serial.println("  INPUT MODEL");
+#if FM_BOARD_PROTO_V2
+  Serial.println("    board    : proto v2 (3x4 keypad via MCP23017, side SOS)");
+  Serial.println("    * up     : 2=CH+  8=CH-  4=INBOX PREV  5=PLAY");
+  Serial.println("    * held   : record; 2=SAFE 8=WATER 4=MEDICAL 5=EVACUATE");
+  Serial.printf ("    SOS      : hold %lu ms -> SOS alarm to responders\n",
+                 (unsigned long)FM_SOS_HOLD_MS);
+  Serial.println("    at boot  : hold # = BLE provisioning, SOS+0 (10 s) = factory reset");
+#elif FM_TEST_PTT_ON_R2
   Serial.println("    keypad   : L1 top-left  L2 bottom-left");
   Serial.println("               R1 top-right R2 bottom-right");
-#if FM_TEST_PTT_ON_R2
   Serial.println("    PTT      : R2 (bottom-right) - hold to record");
   Serial.println("    PTT up   : R1=CH+  L2=INBOX PREV  L1=PLAY");
   Serial.println("    PTT down : R2+R1=SAFE  R2+L2=MEDICAL  R2+L1=EVACUATE");
@@ -735,6 +837,311 @@ static void keypadDiscover() {
 #endif
 
 // ---------------------------------------------------------------- setup
+// ---------------------------------------------------------------- proto v2 helpers
+/** VBUS through the 100k/100k divider on the power-sense pin. */
+static void readPowerSense() {
+#if FM_BOARD_PROTO_V2
+  g_vbusMv = (uint32_t)analogReadMilliVolts(PIN_PWR_SENSE) * 2UL;
+  g_extPower = g_vbusMv >= FM_EXT_POWER_MV;
+#endif
+}
+
+/** Screen callback for provisioning mode (fm_prov). */
+static void provDraw(const char *l1, const char *l2, const char *l3, const char *l4) {
+  if (!g_oledOk) return;
+  oled.clearBuffer();
+  oled.drawBox(0, 0, 128, 13);
+  oled.setDrawColor(0);
+  oled.setFont(u8g2_font_7x13B_tf);
+  oled.drawStr(2, 11, l1);
+  oled.setDrawColor(1);
+  oled.setFont(u8g2_font_7x13B_tf);
+  oled.drawStr(0, 28, l2);
+  oled.setFont(u8g2_font_5x8_tf);
+  oled.drawStr(0, 42, l3);
+  oled.drawStr(0, 54, l4);
+  oled.setFont(u8g2_font_4x6_tf);
+  oled.drawStr(0, 63, "open FloodMesh Admin app");
+  oled.sendBuffer();
+}
+
+/** Wipe identity and roles. Called from the SOS + 0 boot combination. */
+static void factoryReset() {
+  fmRoleFactoryReset();
+  Preferences p;
+  if (p.begin(FM_NVS_NAMESPACE, false)) {
+    p.remove(FM_NVS_KEY_CALLSIGN);   // back to the MAC-derived call sign
+    p.end();
+  }
+}
+
+/**
+ * Boot-time key combinations (proto v2 only):
+ *   '#' held            -> BLE provisioning mode (never returns)
+ *   SOS + '0' held 10 s -> factory reset, then reboot
+ * Plus the serial "prov" request carried across a soft reset.
+ */
+static void bootCombos() {
+  bool wantProv = (g_bootReq == FM_BOOTREQ_PROV);
+  g_bootReq = 0;
+
+#if FM_BOARD_PROTO_V2
+  pinMode(PIN_BTN_SOS, INPUT_PULLUP);
+  const uint16_t keys = fmKeypadScanNow();
+  const bool sos = digitalRead(PIN_BTN_SOS) == LOW;
+
+  if (sos && (keys & FM_KP_BIT(FM_KP_0))) {
+    Serial.println("[BOOT] SOS + 0 held: factory reset in 10 s - release to cancel");
+    const uint32_t t0 = millis();
+    bool held = true;
+    while (millis() - t0 < 10000UL) {
+      const bool still = digitalRead(PIN_BTN_SOS) == LOW &&
+                         (fmKeypadScanNow() & FM_KP_BIT(FM_KP_0));
+      if (!still) { held = false; break; }
+      char l[24];
+      snprintf(l, sizeof(l), "in %lu s", (unsigned long)(10 - (millis() - t0) / 1000));
+      provDraw("FACTORY RESET", l, "release to cancel", "");
+      delay(200);
+    }
+    if (held) {
+      factoryReset();
+      provDraw("FACTORY RESET", "done", "rebooting...", "");
+      buzz(500);
+      delay(800);
+      ESP.restart();
+    }
+    Serial.println("[BOOT] factory reset cancelled");
+  }
+  if (keys & FM_KP_BIT(FM_KP_HASH)) wantProv = true;
+#endif
+
+  if (wantProv) {
+    buzz(40, 3, 60);
+    fmProvRun(provDraw);   // never returns
+  }
+}
+
+/** Side SOS button: hold FM_SOS_HOLD_MS to send one SOS alarm per press. */
+static void pollSos(uint32_t now) {
+#if FM_BOARD_PROTO_V2
+  static uint32_t lastChange = 0;
+  static bool stable = false, raw = false;
+  const bool r = digitalRead(PIN_BTN_SOS) == LOW;
+  if (r != raw) { raw = r; lastChange = now; }
+  if (raw != stable && (now - lastChange) >= FM_DEBOUNCE_MS) {
+    stable = raw;
+    if (stable) {
+      g_sosDownAt = now ? now : 1;
+      g_sosFired = false;
+      buzz(15);
+    } else {
+      g_sosDownAt = 0;
+    }
+  }
+  if (stable && !g_sosFired && g_sosDownAt && (now - g_sosDownAt) >= FM_SOS_HOLD_MS) {
+    g_sosFired = true;
+    Serial.printf("[ALARM] SOS >> side button << on CH %s\n", chName(g_channel));
+    const bool ok = fmMeshSendAlarm((uint8_t)FM_ALARM_SOS, g_channel);
+    if (!ok) Serial.println("[ALARM] !! SOS transmit FAILED");
+    buzz(80, 4, 60);
+  }
+#else
+  (void)now;
+#endif
+}
+
+/**
+ * Bench console, 115200 baud. Commands:
+ *   help            this list
+ *   info            call sign, role, clock, power
+ *   prov            reboot into BLE provisioning mode
+ *   alarm <0-4>     send an alarm (0 SAFE 1 MED 2 WATER 3 EVAC 4 SOS)
+ */
+static void pollSerial() {
+  static char line[48];
+  static size_t n = 0;
+  while (Serial.available()) {
+    const char c = (char)Serial.read();
+    if (c == '\r') continue;
+    if (c != '\n') {
+      if (n + 1 < sizeof(line)) line[n++] = c;
+      continue;
+    }
+    line[n] = '\0';
+    n = 0;
+    if (strcmp(line, "help") == 0) {
+      Serial.println("[CMD] help | info | prov | alarm <0-4>");
+    } else if (strcmp(line, "info") == 0) {
+      char fp[17];
+      fmAdminFingerprint(fp);
+      Serial.printf("[CMD] %s role=%s exp=%lu left=%lus time=%lu admin=%s vbus=%lumV%s\n",
+                    fmCallSign(), fmRoleName(fmRole()), (unsigned long)fmRoleExpiry(),
+                    (unsigned long)fmRoleRemainingS(), (unsigned long)fmTimeNow(),
+                    fp[0] ? fp : "none", (unsigned long)g_vbusMv,
+                    g_extPower ? " (external power)" : "");
+    } else if (strcmp(line, "prov") == 0) {
+      Serial.println("[CMD] rebooting into provisioning mode");
+      g_bootReq = FM_BOOTREQ_PROV;
+      delay(100);
+      ESP.restart();
+    } else if (strncmp(line, "alarm ", 6) == 0) {
+      const int a = atoi(line + 6);
+      if (a >= 0 && a < (int)FM_ALARM_COUNT) {
+        Serial.printf("[CMD] alarm %s -> %s\n", fmAlarmName((FmAlarm)a),
+                      fmMeshSendAlarm((uint8_t)a, g_channel) ? "sent" : "FAILED");
+      } else {
+        Serial.println("[CMD] alarm: 0 SAFE, 1 MEDICAL, 2 WATER, 3 EVACUATE, 4 SOS");
+      }
+    } else if (line[0]) {
+      Serial.printf("[CMD] unknown '%s' - try help\n", line);
+    }
+  }
+}
+
+#if FM_SELFTEST
+// ---------------------------------------------------------------- self-test mode
+// Build env proto_v2_selftest. One screen that exercises every part so a
+// freshly soldered unit can be checked in a minute:
+//   1 buzzer   2 speaker tone   3 mic record 2 s + play back
+//   4 LoRa alarm (SAFE)         5 crypto keygen/sign/verify
+//   7 deep sleep (OLED + radio off) - wakes on any key or SOS
+// Keys held, SOS, USB power, battery and the last received alarm are live.
+static char     g_stResult[40] = "press 1-5 or 7";
+static int16_t  g_stPcm[16000];            // 2 s at 8 kHz
+
+static void stTone() {
+  static const int16_t kSine8[8] = {0, 5792, 8191, 5792, 0, -5792, -8191, -5792};
+  int16_t buf[256];
+  fmAmpEnable(true);
+  fmSpeakerStart();
+  for (int k = 0; k < 8000 / 256; k++) {
+    for (int i = 0; i < 256; i++) buf[i] = kSine8[i & 7];
+    fmSpeakerWrite(buf, 256);
+  }
+  fmSpeakerStop();
+  fmAmpEnable(false);
+  snprintf(g_stResult, sizeof(g_stResult), "2: 1 kHz tone played");
+}
+
+static void stMicLoop() {
+  snprintf(g_stResult, sizeof(g_stResult), "3: recording 2 s...");
+  drawScreen(0, millis());
+  size_t got = 0;
+  const uint32_t t0 = millis();
+  if (!fmMicStart()) {
+    snprintf(g_stResult, sizeof(g_stResult), "3: MIC START FAILED");
+    return;
+  }
+  while (got < 16000 && millis() - t0 < 3000) {
+    got += fmMicRead(g_stPcm + got, 16000 - got);
+  }
+  fmMicStop();
+  int32_t peak = 0;
+  uint64_t e = 0;
+  for (size_t i = 0; i < got; i++) {
+    const int32_t v = g_stPcm[i];
+    const int32_t a = v < 0 ? -v : v;
+    if (a > peak) peak = a;
+    e += (uint64_t)((int64_t)v * v);
+  }
+  const uint32_t rms = got ? (uint32_t)sqrt((double)(e / got)) : 0;
+  fmAmpEnable(true);
+  fmSpeakerStart();
+  for (size_t i = 0; i < got; i += 256) {
+    fmSpeakerWrite(g_stPcm + i, (got - i) < 256 ? (got - i) : 256);
+  }
+  fmSpeakerStop();
+  fmAmpEnable(false);
+  snprintf(g_stResult, sizeof(g_stResult), "3: pk %ld rms %lu %s", (long)peak,
+           (unsigned long)rms, peak < 200 ? "SILENT!" : "ok");
+}
+
+static void stCrypto() {
+  uint8_t priv[FM_P256_PRIV_LEN], pub[FM_P256_PUB_LEN], sig[FM_P256_SIG_LEN];
+  const char *msg = "FMREG1|TEST|responder|1|2|00";
+  const uint32_t t0 = millis();
+  bool ok = fmP256Generate(priv, pub);
+  ok = ok && fmP256Sign(priv, (const uint8_t *)msg, strlen(msg), sig);
+  const bool good = ok && fmP256Verify(pub, (const uint8_t *)msg, strlen(msg), sig);
+  sig[10] ^= 0x01;
+  const bool bad = fmP256Verify(pub, (const uint8_t *)msg, strlen(msg), sig);
+  snprintf(g_stResult, sizeof(g_stResult), "5: crypto %s %lums",
+           (good && !bad) ? "PASS" : "FAIL", (unsigned long)(millis() - t0));
+}
+
+static void stDeepSleep() {
+  snprintf(g_stResult, sizeof(g_stResult), "7: sleeping...");
+  drawScreen(0, millis());
+  delay(500);
+  fmRadioSleep();
+  fmKeypadArmWake();
+  if (g_oledOk) oled.setPowerSave(1);
+  digitalWrite(PIN_VEXT_CTRL, VEXT_OFF);   // OLED + mic rail off
+  digitalWrite(PIN_LED, LOW);
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BTN_SOS, 0);
+  esp_sleep_enable_ext1_wakeup(1ULL << PIN_KP_INT, ESP_EXT1_WAKEUP_ALL_LOW);
+  Serial.println("[TEST] deep sleep - press any key or SOS to wake");
+  Serial.flush();
+  esp_deep_sleep_start();
+}
+
+static void selfTestLoop(uint32_t now) {
+  static uint16_t prev = 0;
+  static uint32_t tUi = 0, tBatt = 0;
+  static float vb = 0;
+  const uint16_t keys = fmKeypadScan(now);
+  const uint16_t down = keys & ~prev;
+  prev = keys;
+
+  if (down & FM_KP_BIT(FM_KP_1)) {
+    buzz(300);
+    snprintf(g_stResult, sizeof(g_stResult), "1: buzzer 300 ms");
+  }
+  if (down & FM_KP_BIT(FM_KP_2)) stTone();
+  if (down & FM_KP_BIT(FM_KP_3)) stMicLoop();
+  if (down & FM_KP_BIT(FM_KP_4)) {
+    const bool ok = fmMeshSendAlarm(FM_ALARM_SAFE, g_channel);
+    snprintf(g_stResult, sizeof(g_stResult), "4: LoRa SAFE %s", ok ? "sent" : "FAILED");
+  }
+  if (down & FM_KP_BIT(FM_KP_5)) stCrypto();
+  if (down & FM_KP_BIT(FM_KP_7)) stDeepSleep();
+
+  fmMeshLoop(now);
+  if (now - tBatt >= 1000) {
+    tBatt = now;
+    vb = readBatteryVolts();
+    readPowerSense();
+  }
+  if (now - tUi >= 150 && g_oledOk) {
+    tUi = now;
+    char l[40], k[16];
+    oled.clearBuffer();
+    oled.setFont(u8g2_font_5x8_tf);
+    snprintf(l, sizeof(l), "SELF-TEST %s", fmCallSign());
+    oled.drawStr(0, 7, l);
+    fmKeypadMaskToString(keys, k, sizeof(k));
+    snprintf(l, sizeof(l), "KEYS:%s SOS:%d", k[0] ? k : "-",
+             digitalRead(PIN_BTN_SOS) == LOW ? 1 : 0);
+    oled.drawStr(0, 17, l);
+    snprintf(l, sizeof(l), "BAT %.2fV  USB %.1fV", vb, g_vbusMv / 1000.0f);
+    oled.drawStr(0, 27, l);
+    snprintf(l, sizeof(l), "KEYPAD %s  ROLE %s", fmKeypadPresent() ? "ok" : "MISSING",
+             fmRoleTag(fmRole()));
+    oled.drawStr(0, 37, l);
+    oled.drawStr(0, 47, g_stResult);
+    if (g_rxAlarmFrom[0]) {
+      snprintf(l, sizeof(l), "RX %s from %s", fmAlarmShort((FmAlarm)g_rxAlarmType),
+               g_rxAlarmFrom);
+    } else {
+      snprintf(l, sizeof(l), "RX: nothing yet");
+    }
+    oled.setFont(u8g2_font_4x6_tf);
+    oled.drawStr(0, 62, l);
+    oled.sendBuffer();
+  }
+}
+#endif  // FM_SELFTEST
+
 void setup() {
   Serial.begin(115200);
   delay(300);
@@ -805,6 +1212,22 @@ void setup() {
   fmIdsBegin();
   Serial.printf("[ID] call sign %s (%s)\n", fmCallSign(),
                 fmCallSignIsDerived() ? "derived from MAC" : "operator-assigned");
+
+  fmRoleBegin();
+#if FM_BOARD_PROTO_V2
+  analogSetPinAttenuation(PIN_PWR_SENSE, ADC_11db);
+  readPowerSense();
+  Serial.printf("[POWER] VBUS %lu mV -> %s\n", (unsigned long)g_vbusMv,
+                g_extPower ? "external power" : "battery");
+  {
+    const esp_sleep_wakeup_cause_t w = esp_sleep_get_wakeup_cause();
+    if (w == ESP_SLEEP_WAKEUP_EXT0 || w == ESP_SLEEP_WAKEUP_EXT1) {
+      Serial.printf("[BOOT] woke from deep sleep by %s\n",
+                    w == ESP_SLEEP_WAKEUP_EXT0 ? "SOS button" : "keypad");
+    }
+  }
+#endif
+  bootCombos();   // may enter provisioning mode, which never returns
 
   uint8_t psk[16];
   if (!parsePsk(psk)) {
@@ -910,6 +1333,18 @@ void loop() {
   const uint32_t now = millis();
   static uint32_t tUi = 0, tBatt = 0, tBeat = 0;
   static uint8_t pct = 0;
+
+  pollSerial();
+#if FM_SELFTEST
+  selfTestLoop(now);
+  return;
+#endif
+
+  pollSos(now);
+  if (fmRoleLoop(now)) {
+    g_roleNoticeAt = now ? now : 1;
+    buzz(200, 2, 100);
+  }
 
   const FmInputEvent ev = fmInputPoll(now);
 
@@ -1019,6 +1454,7 @@ void loop() {
   if (tBatt == 0 || now - tBatt >= kBattPeriodMs) {
     tBatt = now ? now : 1;
     pct = batteryPercent(readBatteryVolts());
+    readPowerSense();
   }
   if (now - tBeat >= kHeartbeatMs) {
     tBeat = now;

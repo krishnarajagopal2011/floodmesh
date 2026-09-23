@@ -19,8 +19,16 @@ Two boards exist. Check which one a change targets.
   (parts, GPIO map, design implications, concerns) before suggesting features
   or components. Pending board changes are in `docs/architecture.md` §9.
 - **Prototype v2 perfboard build** (15 Heltec V3 units, MCP23017 keypad, SOS
-  button, power sense, mic on Vext): `docs/prototype-v2-build.md`. The firmware
-  pin map has not yet been updated to match it.
+  button, power sense, mic on Vext): `docs/prototype-v2-build.md`. Firmware
+  envs `proto_v2` and `proto_v2_selftest` (`-D FM_BOARD_PROTO_V2=1`).
+
+## Firmware and app
+- Build with PlatformIO locally, or let `.github/workflows/build.yml` build
+  all envs and the Android APK. This cloud sandbox cannot build either: its
+  network policy blocks the PlatformIO registry and dl.google.com.
+- BLE role registration: protocol `docs/ble-provisioning-protocol.md`, unit side
+  `src/fm_prov.cpp` + `src/fm_role.cpp`, admin app `app/floodmesh_admin/`
+  (Flutter). Change the protocol doc first, then both sides.
 
 ## Regulatory
 India, 865–867 MHz licence-exempt band. The firmware assumes G.S.R. 853(E) (2021)

@@ -106,6 +106,7 @@ enum FmAlarm : uint8_t {
   FM_ALARM_MEDICAL,
   FM_ALARM_WATER,
   FM_ALARM_EVACUATE,
+  FM_ALARM_SOS,          // side SOS button (proto v2): highest priority, for responders
   FM_ALARM_COUNT,
   FM_ALARM_NONE = 0xFF
 };

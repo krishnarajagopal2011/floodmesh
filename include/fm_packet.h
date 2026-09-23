@@ -43,7 +43,7 @@
  * ---------------------------------------------------------------------------
  * Layer 1 alarm - 22 bytes, PSK-authenticated
  * ---------------------------------------------------------------------------
- *   9   1    alarmType   FM_ALARM_* (0..3)
+ *   9   1    alarmType   FM_ALARM_* (0..4, 4 = SOS)
  *   10  4    counter     monotonic per-sender, anti-replay
  *   14  8    mac         HMAC-SHA256(PSK, authenticated region) truncated
  *

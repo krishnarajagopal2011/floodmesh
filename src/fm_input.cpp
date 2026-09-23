@@ -15,6 +15,7 @@
  * across the 49.7-day millis() rollover. Never compare timestamps directly.
  */
 #include "fm_input.h"
+#include "fm_keypad.h"
 
 namespace {
 
@@ -47,6 +48,25 @@ const FmAlarm kAlarmFor[4] = {FM_ALARM_SAFE,      // top-right
 
 const char *kKeyName[4] = {"top-right", "bottom-right", "bottom-left", "top-left"};
 
+#if FM_BOARD_PROTO_V2
+/**
+ * Proto v2: read the 3x4 keypad through the MCP23017 and map four of its keys
+ * onto the logical face keys, laid out as a cross around 5:
+ *
+ *           2 (TR: CH+ / SAFE)
+ *   4 (BL: PREV / MEDICAL)   5 (TL: PLAY / EVACUATION)
+ *           8 (BR: CH- / WATER)
+ *
+ * The PTT is '*', read separately in fmInputPoll().
+ */
+void scanKeys(bool out[FM_KEY_COUNT]) {
+  const uint16_t m = fmKeypadScan(millis());
+  out[FM_KEY_TR] = (m & FM_KP_BIT(FM_KP_2)) != 0;
+  out[FM_KEY_BR] = (m & FM_KP_BIT(FM_KP_8)) != 0;
+  out[FM_KEY_BL] = (m & FM_KP_BIT(FM_KP_4)) != 0;
+  out[FM_KEY_TL] = (m & FM_KP_BIT(FM_KP_5)) != 0;
+}
+#else
 /**
  * Read the whole matrix. out[] is indexed by FM_KEY_* / FM_BTN_*.
  *
@@ -77,6 +97,8 @@ void scanKeys(bool out[FM_KEY_COUNT]) {
   out[FM_KEY_BL] = k[1][0];   // R2 x L1
   out[FM_KEY_BR] = k[1][1];   // R2 x L2
 }
+
+#endif  // FM_BOARD_PROTO_V2
 
 /**
  * True if face index i is an independent key on this build.
@@ -166,7 +188,11 @@ void openConfirm(uint32_t now, uint32_t clipMs, FmInputEvent &ev) {
 void fmInputBegin() {
   memset(g_btn, 0, sizeof(g_btn));
 
-#if !FM_PTT_IS_MATRIX_KEY
+#if FM_BOARD_PROTO_V2
+  fmKeypadBegin();
+  Serial.println("[KEYS] proto v2 keypad: 2=CH+/SAFE 8=CH-/WATER 4=PREV/MEDICAL "
+                 "5=PLAY/EVAC, * = PTT");
+#elif !FM_PTT_IS_MATRIX_KEY
   if (PTT_HARDWARE_INSTALLED) {
     pinMode(PIN_BTN_PTT, INPUT_PULLUP);
   } else {
@@ -176,8 +202,10 @@ void fmInputBegin() {
   }
 #endif
 
+#if !FM_BOARD_PROTO_V2
   Serial.printf("[KEYS] 2x2 matrix: cols L1=GPIO%u L2=GPIO%u, rows R1=GPIO%u R2=GPIO%u\n",
                 PIN_KEY_COL_L1, PIN_KEY_COL_L2, PIN_KEY_ROW_R1, PIN_KEY_ROW_R2);
+#endif
 
   // A key held (or a shorted line) at boot is a wiring fault worth naming now.
   bool keys[FM_KEY_COUNT];
@@ -205,6 +233,8 @@ FmInputEvent fmInputPoll(uint32_t now) {
 #if PTT_HARDWARE_INSTALLED
   #if FM_PTT_IS_MATRIX_KEY
   const bool pttRaw = keys[FM_PTT_KEY];
+  #elif FM_PTT_ON_KEYPAD
+  const bool pttRaw = fmKeypadHeld(FM_KP_STAR);   // scanned by scanKeys() above
   #else
   const bool pttRaw = (digitalRead(PIN_BTN_PTT) == LOW);
   #endif
@@ -371,6 +401,7 @@ const char *fmAlarmName(FmAlarm a) {
     case FM_ALARM_MEDICAL:  return "NEED MEDICAL";
     case FM_ALARM_WATER:    return "WATER GND FLOOR";
     case FM_ALARM_EVACUATE: return "NEED EVACUATION";
+    case FM_ALARM_SOS:      return "SOS";
     default:                return "-";
   }
 }
@@ -381,6 +412,7 @@ const char *fmAlarmShort(FmAlarm a) {
     case FM_ALARM_MEDICAL:  return "MED";
     case FM_ALARM_WATER:    return "WATR";
     case FM_ALARM_EVACUATE: return "EVAC";
+    case FM_ALARM_SOS:      return "SOS";
     default:                return "-";
   }
 }

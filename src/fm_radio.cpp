@@ -395,3 +395,12 @@ bool fmRadioIsTransmitting() {
   serviceTx();
   return g_txActive;
 }
+
+void fmRadioSleep() {
+  if (!g_ready) return;
+  // Cold sleep: ~0.16 uA typical. Configuration is lost; fmRadioBegin() again
+  // (or a reboot, which is what a deep-sleep wake is) restores it.
+  g_radio.sleep(false);
+  g_ready = false;
+  g_rxWanted = false;
+}

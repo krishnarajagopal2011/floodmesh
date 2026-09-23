@@ -298,3 +298,9 @@ float fmRadioLastSnr();
  * flag can never latch on forever.
  */
 bool fmRadioIsTransmitting();
+
+/**
+ * Put the SX1262 into cold sleep for deep-sleep current measurements. The
+ * radio is unusable until fmRadioBegin() runs again (normally: after reboot).
+ */
+void fmRadioSleep();
