@@ -43,6 +43,12 @@ jobs:
 
   admin-app:
     runs-on: ubuntu-latest
+    env:
+      # Optional fixed signing key (see app/floodmesh_admin/README.md).
+      FM_KS_B64: ${{ secrets.FM_ANDROID_KEYSTORE_B64 }}
+      FM_KEYSTORE_PASSWORD: ${{ secrets.FM_KEYSTORE_PASSWORD }}
+      FM_KEY_ALIAS: ${{ secrets.FM_KEY_ALIAS }}
+      FM_KEY_PASSWORD: ${{ secrets.FM_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - name: Check the app is present
@@ -63,7 +69,13 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.5   # the version the app was written and tested with
           cache: true
+      - name: Decode signing key (only if the secret is set)
+        if: steps.chk.outputs.present == 'true' && env.FM_KS_B64 != ''
+        run: |
+          echo "$FM_KS_B64" | base64 -d > "$RUNNER_TEMP/fm-release.jks"
+          echo "FM_KEYSTORE_PATH=$RUNNER_TEMP/fm-release.jks" >> "$GITHUB_ENV"
       - if: steps.chk.outputs.present == 'true'
         working-directory: app/floodmesh_admin
         run: flutter pub get
