@@ -84,6 +84,9 @@ a separate board variant, not an edit to the existing one.
 
 ## Open concerns for the next revision
 
+The full, current PCB change list, including the keypad, antenna and voice
+hardware decisions, is in [`../../architecture.md`](../../architecture.md) §9.
+
 1. **No battery temperature protection while charging.** The MCP73833 `THERM`
    pin is tied to a fixed 10 kΩ instead of an NTC on the cell. A LiPo charging
    inside a sealed enclosure in direct sun needs one. Highest priority.
