@@ -12,10 +12,11 @@ queues posts in Buffer.
   happens. Answers replies on X and Instagram.
 - The routine drafts one or two posts twice a week from the repo, writes the
   LinkedIn weekly update on Mondays, and emails them.
-- A second routine scouts Reddit, Hacker News, X and LinkedIn for people
-  describing the problem or asking questions our tests answer, and emails
-  both of us a ranked list with draft replies. Humans post the replies.
-  See `scouting.md`.
+- A second routine scouts X and Instagram first, then LinkedIn, with
+  Reddit and Hacker News as a Low-only tail, for people describing the
+  problem or asking questions our tests answer, and emails both of us a
+  ranked list with draft replies. Humans post the replies. See
+  `scouting.md`.
 - The partner edits, shoots or picks the visual, queues in Buffer, and moves
   the row to Done in `backlog.md` with the date.
 
