@@ -13,7 +13,11 @@ Write one draft file for one topic. Do not post anything anywhere.
 1. Read `social/README.md` for the format, footer and rules. Follow them
    exactly. Read `social/backlog.md` for the queue.
 2. Pick the topic: the argument if given, otherwise the first Queue row with
-   an empty Draft column whose Material exists in the repo.
+   an empty Draft column whose Material exists in the repo. If the argument
+   is `weekly`, skip the backlog: write the LinkedIn weekly update for the
+   last seven days to `social/drafts/YYYY-MM-DD-linkedin-weekly.md`,
+   following the "LinkedIn weekly update" section of `social/README.md`
+   exactly, then go to step 6.
 3. Gather material. Run `git log --since="14 days ago" --stat` and read the
    files the topic's Material column names. Read the Status and Known work
    remaining sections of `README.md`. Everything stated in the post must
@@ -37,9 +41,16 @@ Write one draft file for one topic. Do not post anything anywhere.
 
 ## Voice
 
-Plain, first person, an engineer talking to engineers and to neighbours.
-Short sentences. Say what failed as readily as what worked. One question per
-post. No hype words, no "revolutionary", no "game-changing". No em-dashes.
+First person, written for a neighbour who has never heard of LoRa. Short
+sentences, short common words. Explain a technical term only if the post
+cannot work without it, and only once; otherwise leave it out. Features and
+milestones, never internals (README rule 6). Say why the work matters and
+that you care, in plain words. Stay humble: say what is tested and what is
+not, what failed, and what you still do not know. One question per post,
+about what people need or would change, never about design choices. No
+metaphors, no drama, no poetic lines, nothing that sounds written by a
+machine. No hype words, no "revolutionary", no "game-changing". No
+em-dashes.
 
 ## Never
 
@@ -47,5 +58,9 @@ post. No hype words, no "revolutionary", no "game-changing". No em-dashes.
   been measured on hardware.
 - Mention WPC certification or type approval as done or imminent.
 - Invent quotes from users, officials or testers.
+- Name chips, modules, part numbers, pins, radio settings, packet sizes or
+  protocol details in post text.
+- Dress up a result with a metaphor or a dramatic line to make it sound
+  bigger or sadder than it is.
 - Generate images for test results. Rendered cards are only for
   #announcement posts.

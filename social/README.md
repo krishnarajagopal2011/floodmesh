@@ -10,7 +10,8 @@ queues posts in Buffer.
 
 - Krishna builds and tests. Adds topics to `backlog.md` when something
   happens. Answers replies on X and Instagram.
-- The routine drafts one or two posts a week from the repo and emails them.
+- The routine drafts one or two posts twice a week from the repo, writes the
+  LinkedIn weekly update on Mondays, and emails them.
 - The partner edits, shoots or picks the visual, queues in Buffer, and moves
   the row to Done in `backlog.md` with the date.
 
@@ -21,7 +22,7 @@ queues posts in Buffer.
 | GitHub | Home. Every post links here. | Continuous | README, Discussions, test logs |
 | X | Main feed. Makers, LoRa/Meshtastic people, disaster-tech accounts. | 2 to 3 per week | Single post or short thread, 1 photo or clip |
 | Instagram | Visual feed. Reels of tests and builds, carousels of photos. | 1 reel per week, carousels when photos exist | 9:16 vertical, 15 to 45 s, captions burned in |
-| LinkedIn | Announcements and asks only. Officials, NGOs, CSR funders, vendors. | 2 per month | Longer text, first two lines carry the hook |
+| LinkedIn | Weekly update every Monday, plus announcements and asks. Officials, NGOs, CSR funders, vendors. | 1 per week, plus announcements | Longer text, first two lines carry the hook |
 | Reddit | Two specific asks only: 3D printing help, pilot testers. | As needed | Plain text, no marketing voice |
 
 ## Post format
@@ -46,7 +47,7 @@ Tags in use: `#announcement` `#discussion` `#feedback` `#trials` `#pilot`
 
 ```
 Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed together. Neighbours 200 m apart could not reach each other.
-FloodMesh hops alarms and 10-second voice notes around buildings, for days on common lithium cells.
+FloodMesh passes alarms and 10-second voice notes between buildings with no tower and no internet. It is designed to run for days on ordinary batteries.
 Open hardware, built in public: github.com/krishnarajagopal2011/floodmesh
 ```
 
@@ -67,6 +68,7 @@ only. Rendered graphics are for announcement cards, never for test results.
 
 **LinkedIn.** No tag at the very top. Open with the hook line, tags at the
 end, three at most. Say who you are asking for and what you want from them.
+The Monday weekly update follows the "LinkedIn weekly update" section below.
 
 ## Rules for every draft
 
@@ -87,6 +89,40 @@ end, three at most. Say who you are asking for and what you want from them.
    designed" is fine; what is on it is not. Visuals show the device or the
    whole board, never labelled parts or schematic pages. The Facts block may
    cite technical files; the post text may not repeat them.
+7. Simple words, real feeling, no overclaiming. Write for a neighbour who
+   has never heard of LoRa: short, common words, and explain a technical
+   term only if the post cannot work without it. It is fine to say why this
+   matters and that you care. It is not fine to dress it up: no metaphors,
+   no poetic lines, no drama, nothing that sounds written by a machine. Stay
+   humble: say what is tested and what is not, what failed, and what you
+   still do not know. The feeling comes from the reason for the work, not
+   from the wording.
+
+## LinkedIn weekly update
+
+Written every Monday for the week just ended, queued for Tuesday or
+Wednesday morning. File: `drafts/YYYY-MM-DD-linkedin-weekly.md`.
+
+Structure, 150 to 250 words:
+
+1. First line: the single most concrete thing from the week, in plain
+   words. A result, a decision, a thing that now works. No tag on top.
+2. "FloodMesh, week of <date>." then three to five short lines on what
+   happened, one each, each traceable to a commit, doc or test note.
+   Features and milestones only, per rule 6.
+3. One line on what did not work or what is blocked.
+4. One ask, aimed at one named group: people who have lived through a
+   flood, disaster management staff, volunteers, manufacturers, funders, or
+   pilot hosts. What you want from them, in one sentence.
+5. The GitHub link.
+6. Three hashtags on the last line: #disastermanagement #openhardware
+   #chennai. Swap one only if the week's topic calls for it.
+
+If the week had no visible progress, say so in one line and use the post
+to ask one question instead. Never pad a quiet week.
+
+Visual: one photo from the week. The device, the bench, the test location,
+or a person using it. No schematics, no rendered graphics.
 
 ## Publishing
 

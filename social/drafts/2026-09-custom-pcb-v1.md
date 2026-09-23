@@ -66,8 +66,8 @@ life, or tougher against water?
 
 Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
-FloodMesh hops alarms and 10-second voice notes around buildings, for days on
-common lithium cells.
+FloodMesh passes alarms and 10-second voice notes between buildings with no
+tower and no internet. It is designed to run for days on ordinary batteries.
 Open hardware, built in public: link in bio.
 
 #floodmesh #pcbdesign #hardwaredesign #buildinpublic #disastertech #floodsafety #chennai #makerindia

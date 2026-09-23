@@ -2,17 +2,25 @@
 
 Tags: #story
 Channels: X thread, Instagram carousel, LinkedIn
-Visual: photo of the perfboard prototype in hand, OLED lit. Carousel: board,
-keypad close-up, a Chennai 2015 flood photo you hold the rights to, the four
-alarm labels.
+Visual: photo of the prototype in hand with the screen lit. Carousel: the
+device, the four buttons up close, a Chennai 2015 flood photo you hold the
+rights to, the four alarm labels.
 
 ## Facts
 
+Internal only. The posts name no components, radio settings or protocol
+details.
+
 - Chennai 2015 and Cyclone Michaung: towers and power failed together. README intro.
-- Pager, not walkie-talkie; store-and-forward routes around wet concrete. README.
-- Alarms 22 bytes, authenticated, never throttled. Voice 1500 bytes, one 10 s note. README traffic table.
-- Verified on hardware 9 September 2026: two-node link, authenticated alarms, 8 of 8 fragments. README Status.
-- Range and through-concrete performance untested as of README. First 350 m test done since.
+- Pager, not walkie-talkie; messages are stored and passed on, so they get
+  around buildings instead of needing a clear line. README.
+- Four alarms: SAFE, NEED MEDICAL, WATER GROUND FLOOR, NEED EVACUATION. One
+  10-second voice note. README.
+- Verified on the bench 9 September 2026: two devices linked, alarms
+  through, voice notes played back. README Status.
+- Battery life is a design goal, not measured. Footer says "designed to".
+- Range and through-wall performance: first test done, 350 m, see the range
+  test draft. Not claimed here.
 
 ## X thread
 
@@ -21,41 +29,41 @@ alarm labels.
 
 We are building an off-grid pager for floods. This is why.
 
-In Chennai 2015 and again during Cyclone Michaung, the towers and the power
-went down together. People 200 m apart could not tell each other they were
-alive.
+In Chennai in 2015, and again during Cyclone Michaung, the phone network and
+the power went down at the same time. People 200 m apart had no way to tell
+each other they were alive.
 
 [photo: prototype in hand]
 
 **2/**
-Phones need a tower. Walkie-talkies need line of sight, and wet reinforced
-concrete eats radio.
+Phones need a tower. Walkie-talkies need a clear line between the two people
+talking, and flooded streets full of buildings do not give you that.
 
-So this is a pager, not a walkie-talkie. Messages are stored and forwarded,
-building to building, and the radio is idle most of the time.
+So this is a pager. You press a button. The message is passed from one
+device to the next until it reaches someone who can help.
 
 **3/**
-Two kinds of traffic:
+Four buttons: SAFE, NEED MEDICAL, WATER ON GROUND FLOOR, NEED EVACUATION.
 
-Alarms: SAFE, NEED MEDICAL, WATER GROUND FLOOR, NEED EVACUATION. 22 bytes,
-authenticated, never throttled.
-
-Voice: one 10-second note, 1500 bytes, best effort.
+When a button is not enough, you can send a 10-second voice note.
 
 **4/**
-Runs for days on common lithium cells. Built on a Heltec LoRa 32 and a
-handful of parts from Ritchie Street.
+It works on the bench as of 9 September 2026. Two devices talk to each
+other, alarms get through, voice notes play back.
 
-Verified on the bench on 9 Sept 2026: two-node link, authenticated alarms,
-8 of 8 voice fragments reassembled. Range work has just started.
+Range testing has just started. I will post every result, good or bad.
 
 **5/**
-Everything is open and I am building it in public because a safety device
-nobody has kicked is not safe.
+I am building this because I do not want another flood where a family
+cannot tell anyone they need help.
 
-Why: towers and power fail together in floods.
-FloodMesh hops alarms and 10-second voice notes around buildings, for days on
-common lithium cells.
+It is not finished. Tested on a bench, not in a flood. So it is open and
+built in public, so people who know more than me can find what is wrong
+before anyone depends on it.
+
+**6/**
+Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
+together. Neighbours 200 m apart could not reach each other.
 Open hardware: github.com/krishnarajagopal2011/floodmesh
 
 ## Instagram caption
@@ -64,53 +72,64 @@ Open hardware: github.com/krishnarajagopal2011/floodmesh
 
 We are building an off-grid pager for floods. Here is the starting story.
 
-In Chennai 2015, and again during Cyclone Michaung, the mobile towers and
-the power went down together. Families two hundred metres apart had no way
-to say "we are okay" or "we need a boat".
+In Chennai in 2015, and again during Cyclone Michaung, the phone network and
+the power went down at the same time. Families two hundred metres apart had
+no way to say "we are okay" or "we need a boat".
 
-FloodMesh is a handheld that passes short alarms and 10-second voice notes
-from building to building without any network. It is a pager, not a
-walkie-talkie: messages are stored and forwarded, so they route around wet
-concrete instead of needing line of sight.
+FloodMesh is a small handheld with four buttons: SAFE, NEED MEDICAL, WATER
+ON GROUND FLOOR, NEED EVACUATION. Press one and the message is passed from
+device to device, building to building, until it reaches someone who can
+help. No tower, no internet. When a button is not enough, you can send a
+10-second voice note.
 
-Four alarms: SAFE, NEED MEDICAL, WATER GROUND FLOOR, NEED EVACUATION.
-Four channels: Medical, Rescue Boats, Volunteers, Supplies.
+I am building this because I do not want another flood where a family
+cannot tell anyone they need help.
 
-It works on the bench as of 9 September 2026. Range and through-wall tests
-are just starting, and every result gets posted, good or bad.
+It is not finished. It works on the bench as of 9 September 2026, and it
+has not been through a flood. Range testing has just started. Every result
+gets posted, good or bad, because a safety device should be questioned by
+many people before anyone depends on it.
+
+If you were stuck in a flood, which one message would you most need to
+send?
 
 Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
-FloodMesh hops alarms and 10-second voice notes around buildings, for days on
-common lithium cells.
+FloodMesh passes alarms and 10-second voice notes between buildings with no
+tower and no internet. It is designed to run for days on ordinary batteries.
 Open hardware, built in public: link in bio.
 
-#floodmesh #lora #meshnetwork #chennaifloods #disastertech #openhardware #esp32 #buildinpublic #makerindia #floodsafety
+#floodmesh #floodsafety #chennaifloods #disastertech #openhardware #buildinpublic #makerindia #chennai
 
 ## LinkedIn
 
-I am building an off-grid emergency pager for urban floods, in public, and I
-would like your help kicking it.
+I am building an emergency pager for floods that works with no phone
+network, in public, and I would like your help testing the idea.
 
-In Chennai 2015 and during Cyclone Michaung, the towers and the power failed
-together. Communities a couple of hundred metres apart were cut off from
-each other completely. Rescue teams could not hear who needed a boat.
+In Chennai in 2015 and during Cyclone Michaung, the phone network and the
+power failed at the same time. Families a couple of hundred metres apart
+could not reach each other. Rescue teams could not hear who needed a boat.
 
-FloodMesh is a handheld that hops authenticated distress alarms and short
-voice notes from building to building on LoRa radio, with no tower and no
-internet, for days on common lithium cells. Store-and-forward, so it routes
-around wet reinforced concrete instead of needing line of sight.
+FloodMesh is a small handheld with four buttons: SAFE, NEED MEDICAL, WATER
+ON GROUND FLOOR, NEED EVACUATION. Press one and the message is passed from
+device to device until it reaches someone who can help. No tower, no
+internet. A 10-second voice note is there for when a button is not enough.
 
-Where it stands on 9 September 2026: verified on the bench, two-node link,
-authenticated alarms, full voice notes reassembled. Range testing has begun.
-Enclosure, pilot units and regulatory work are next.
+I am building this because I do not want another flood where a family
+cannot tell anyone they need help.
+
+Where it stands on 9 September 2026: it works on the bench. Two devices
+talk to each other, alarms get through, voice notes play back. It has not
+been through a flood yet. Range testing has started. A proper case, pilot
+units and the paperwork come next. It is early, and I would rather hear
+what is wrong now than after someone depends on it.
 
 Who I want to hear from:
-- Disaster management and volunteer network people: which four alarms would
-  you actually want on the buttons?
-- Anyone in a flood-prone colony in Chennai willing to host a pilot this
-  season.
-- Hardware and RF people who can tell me what I have got wrong.
+- People who have lived through a Chennai flood: what did you need to tell
+  someone and could not?
+- Volunteer and disaster management teams: which four messages would you
+  want on the buttons?
+- Anyone in a flood-prone colony willing to host a small pilot this season.
 
 Everything is open: github.com/krishnarajagopal2011/floodmesh
 
