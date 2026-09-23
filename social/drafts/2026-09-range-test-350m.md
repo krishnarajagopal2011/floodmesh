@@ -39,7 +39,7 @@ reaches further.
 If you were in a flood, how far away is the nearest person who could
 actually help you?
 
-github.com/krishnarajagopal2011/floodmesh
+Built in public.
 
 ## Instagram reel script (30 s)
 
@@ -52,7 +52,7 @@ github.com/krishnarajagopal2011/floodmesh
 - 16 to 24 s: the device in hand. Text: "We did not record signal strength.
   Next test will."
 - 24 to 30 s: text: "Next: more power, longer reach setting. Results here,
-  good or bad." End card with the GitHub link.
+  good or bad." End card: "Built in public."
 
 ## Instagram caption
 
@@ -74,6 +74,6 @@ Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
 FloodMesh passes alarms and 10-second voice notes between buildings with no
 tower and no internet. It is designed to run for days on ordinary batteries.
-Open hardware, built in public: link in bio.
+Built in public.
 
-#floodmesh #rangetest #floodsafety #disastertech #openhardware #buildinpublic #chennai
+#floodmesh #rangetest #floodsafety #disastertech #buildinpublic #chennai

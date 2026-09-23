@@ -19,7 +19,6 @@ queues posts in Buffer.
 
 | Channel | Role | Cadence | Format |
 |---|---|---|---|
-| GitHub | Home. Every post links here. | Continuous | README, Discussions, test logs |
 | X | Main feed. Makers, LoRa/Meshtastic people, disaster-tech accounts. | 2 to 3 per week | Single post or short thread, 1 photo or clip |
 | Instagram | Visual feed. Reels of tests and builds, carousels of photos. | 1 reel per week, carousels when photos exist | 9:16 vertical, 15 to 45 s, captions burned in |
 | LinkedIn | Weekly update every Monday, plus announcements and asks. Officials, NGOs, CSR funders, vendors. | 1 per week, plus announcements | Longer text, first two lines carry the hook |
@@ -48,11 +47,20 @@ Tags in use: `#announcement` `#discussion` `#feedback` `#trials` `#pilot`
 ```
 Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed together. Neighbours 200 m apart could not reach each other.
 FloodMesh passes alarms and 10-second voice notes between buildings with no tower and no internet. It is designed to run for days on ordinary batteries.
-Open hardware, built in public: github.com/krishnarajagopal2011/floodmesh
+Built in public: [website link]
 ```
 
 On X the footer goes in the last post of a thread, or is cut to the third
-line only on a single post.
+line only on a single post. On Instagram the third line reads "Built in
+public: link in bio." with the website in the bio.
+
+There is no website yet. Until there is, the third line is just
+"Built in public." with no link, on every channel.
+
+FloodMesh is not open source. Never link to, name or hint at the code
+repository in any post, caption, bio, email or comment reply, and never
+call the project "open", "open hardware" or "open source". The website is
+the only link.
 
 ## Per-platform rules
 
@@ -114,9 +122,10 @@ Structure, 150 to 250 words:
 4. One ask, aimed at one named group: people who have lived through a
    flood, disaster management staff, volunteers, manufacturers, funders, or
    pilot hosts. What you want from them, in one sentence.
-5. The GitHub link.
-6. Three hashtags on the last line: #disastermanagement #openhardware
-   #chennai. Swap one only if the week's topic calls for it.
+5. "Built in public." (with the website link once one exists; never the
+   code repository).
+6. Three hashtags on the last line: #disastermanagement #chennai
+   #floodsafety. Swap one only if the week's topic calls for it.
 
 If the week had no visible progress, say so in one line and use the post
 to ask one question instead. Never pad a quiet week.

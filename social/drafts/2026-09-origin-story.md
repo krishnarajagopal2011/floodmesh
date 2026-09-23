@@ -57,14 +57,14 @@ Range testing has just started. I will post every result, good or bad.
 I am building this because I do not want another flood where a family
 cannot tell anyone they need help.
 
-It is not finished. Tested on a bench, not in a flood. So it is open and
-built in public, so people who know more than me can find what is wrong
+It is not finished. Tested on a bench, not in a flood. So it is built in
+public, so people who know more than me can find what is wrong
 before anyone depends on it.
 
 **6/**
 Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
-Open hardware: github.com/krishnarajagopal2011/floodmesh
+Built in public.
 
 ## Instagram caption
 
@@ -97,9 +97,9 @@ Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
 FloodMesh passes alarms and 10-second voice notes between buildings with no
 tower and no internet. It is designed to run for days on ordinary batteries.
-Open hardware, built in public: link in bio.
+Built in public.
 
-#floodmesh #floodsafety #chennaifloods #disastertech #openhardware #buildinpublic #makerindia #chennai
+#floodmesh #floodsafety #chennaifloods #disastertech #buildinpublic #makerindia #chennai
 
 ## LinkedIn
 
@@ -131,6 +131,6 @@ Who I want to hear from:
   want on the buttons?
 - Anyone in a flood-prone colony willing to host a small pilot this season.
 
-Everything is open: github.com/krishnarajagopal2011/floodmesh
+Built in public.
 
-#disastermanagement #openhardware #chennai
+#disastermanagement #chennai

@@ -43,8 +43,6 @@ SOS press works even if the unit has been sitting idle for hours.
 What matters most to you in the next version: smaller size, longer battery
 life, or tougher against water?
 
-Open hardware, built in public: github.com/krishnarajagopal2011/floodmesh
-
 ## Instagram caption
 
 #announcement
@@ -68,7 +66,7 @@ Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
 FloodMesh passes alarms and 10-second voice notes between buildings with no
 tower and no internet. It is designed to run for days on ordinary batteries.
-Open hardware, built in public: link in bio.
+Built in public.
 
 #floodmesh #pcbdesign #hardwaredesign #buildinpublic #disastertech #floodsafety #chennai #makerindia
 

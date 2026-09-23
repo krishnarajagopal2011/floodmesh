@@ -48,8 +48,6 @@ voice note would eat the shared airtime fast.
 
 Fewer, longer notes or more, shorter ones?
 
-Open hardware, built in public: github.com/krishnarajagopal2011/floodmesh
-
 ## Instagram caption
 
 #discussion
@@ -72,6 +70,6 @@ Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
 FloodMesh passes alarms and 10-second voice notes between buildings with no
 tower and no internet. It is designed to run for days on ordinary batteries.
-Open hardware, built in public: link in bio.
+Built in public.
 
 #floodmesh #floodsafety #disastertech #offgrid #buildinpublic #chennai #makerindia

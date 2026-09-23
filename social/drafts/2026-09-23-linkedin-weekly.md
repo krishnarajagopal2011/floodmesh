@@ -43,6 +43,6 @@ need help.
 If you work or volunteer with a disaster response team in Chennai: what is
 the one message you most need from a family cut off in a flood?
 
-github.com/krishnarajagopal2011/floodmesh
+Built in public.
 
-#disastermanagement #openhardware #chennai
+#disastermanagement #chennai #floodsafety
