@@ -346,9 +346,9 @@ Replaces civilian voice as the information-rich channel.
 - Concerns recorded: excludes people who can't read or type Latin letters;
   typing 60 characters under stress takes minutes, which is why the presets stay
   as a one-press path.
-- Hardware: PROPOSED 12-key pad via a **TCA8418 I²C keypad controller** on the
-  existing I²C bus, with its interrupt on an RTC-capable pin, and a **sealed
-  silicone keypad** for IP67. The side button stays as SOS. (A direct 3×4 matrix
+- Hardware: PROPOSED 12-key pad via an **MCP23017 I²C expander** (TCA8418 is
+  hard to source quickly in India), with its interrupt on an RTC-capable pin,
+  and a **sealed silicone keypad** for IP67. The side button stays as SOS. (A direct 3×4 matrix
   needs 7 GPIOs, which aren't free.)
 
 ### 7.4 Voice (OPEN)
@@ -415,9 +415,10 @@ See `docs/hardware/pcb-v1/README.md` for the board description.
 | 5 | MAX17048 on the `BATT+` side of the power switch | Keeps its learned battery model across power cycles | PROPOSED |
 | 6 | USB data | Not needed: provisioning is over Bluetooth | DECIDED (charge-only stays) |
 | 7 | 2.4 GHz antenna for WROOM-1U, or switch to WROOM-1 | Bluetooth provisioning needs an antenna | OPEN |
-| 8 | 12-key keypad: TCA8418 on I²C + sealed silicone pad, interrupt on an RTC pin | Text input (§7.3) | PROPOSED |
+| 8 | 12-key keypad via I²C expander **MCP23017** (TCA8418 optional) + sealed silicone pad, interrupt on an RTC pin | Text input (§7.3). MCP23017 is easy to source in India and is what the prototypes use | PROPOSED |
 | 9 | Optional 32.768 kHz crystal (move `MIC_WS`/`MIC_SCK` to IO47/IO48 to free IO15/IO16) | Accurate sleep timing, narrower windows. Moot if voice is dropped and the mic removed | OPTIONAL |
 | 10 | Mic, amp and speaker | Remove if voice is dropped entirely (§7.4) | OPEN |
+| 11 | Power the INMP441 mic from a **switched rail**, not always-on 3V3 | The mic draws ~1.4 mA whenever powered, which would dominate deep-sleep current | PROPOSED |
 
 Check GPIO budget once items 2, 3, 8 and 9 are settled together.
 
@@ -444,8 +445,9 @@ Check GPIO budget once items 2, 3, 8 and 9 are settled together.
 1. Gazette text: duty cycle, per device or per channel, listen-before-talk.
 2. Shared window: 20 s every 5 min, or another balance?
 3. Homing details: LOCATE pings + sounding the civilian's buzzer.
-4. Keypad hardware: TCA8418 + silicone pad.
-5. Voice: responders only, or drop entirely?
+4. Keypad hardware: MCP23017 + silicone pad (prototypes use MCP23017).
+5. Voice vs 12-key text: decide **after** the prototype tests (both are built
+   on every prototype; see `docs/prototype-v2-build.md`).
 6. SOS key: visible to neighbours or responders only?
 7. Per-unit alarm keys from optional registration.
 8. Built-in shared alarm key for unregistered units: keep or drop?

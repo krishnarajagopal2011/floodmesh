@@ -18,6 +18,9 @@ Two boards exist. Check which one a change targets.
   **not yet fabricated**): `docs/hardware/pcb-v1/`. Read its `README.md`
   (parts, GPIO map, design implications, concerns) before suggesting features
   or components. Pending board changes are in `docs/architecture.md` §9.
+- **Prototype v2 perfboard build** (15 Heltec V3 units, MCP23017 keypad, SOS
+  button, power sense, mic on Vext): `docs/prototype-v2-build.md`. The firmware
+  pin map has not yet been updated to match it.
 
 ## Regulatory
 India, 865–867 MHz licence-exempt band. The firmware assumes G.S.R. 853(E) (2021)
