@@ -22,6 +22,17 @@ CI builds it too: the `firmware-v3` artifact of `.github/workflows/build.yml`.
 The keypad goes **straight to the Heltec GPIOs** (8 wires). The buzzer needs
 one transistor.
 
+![Keypad and buzzer wiring](docs/keypad-wiring.png)
+
+(`docs/keypad-wiring.svg` is the same diagram as a vector file. Regenerate it
+with `python3 tools/gen_wiring_svg.py`.)
+
+**Check the keypad before soldering.** Use the meter's **resistance** mode,
+not the continuity beep. A pressed membrane key reads about 50–500 Ω, and
+many meters only beep below about 30 Ω. Hold key 1 and measure keypad pin 1
+to pin 5. Do the same for key 5 (pins 2 and 6), key 9 (3 and 7) and key D
+(4 and 8). Push male jumper pins into the connector to probe it.
+
 | Keypad pin (left → right on the ribbon) | Signal | Heltec GPIO |
 |---|---|---|
 | 1 | ROW1 (1 2 3 A) | **39** |

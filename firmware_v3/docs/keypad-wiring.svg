@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 740" width="1100" height="740" font-family="Helvetica, Arial, sans-serif">
+<rect width="1100" height="740" fill="#ffffff"/>
+<text x="30" y="34" font-size="22" font-weight="bold" fill="#111">FloodMesh V3 - 4x4 membrane keypad to Heltec WiFi LoRa 32 V3</text>
+<text x="30" y="56" font-size="13" fill="#555">8 wires, no resistors. Every keypad wire goes to header J3. Row order is reversed (keypad pin 1 goes to J3-10); columns run in order.</text>
+<rect x="52" y="76" width="260" height="252" rx="10" fill="#f3f3f3" stroke="#333" stroke-width="2"/>
+<rect x="70" y="90" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="95.0" y="123.0" font-size="22" text-anchor="middle" fill="#111">1</text>
+<rect x="128" y="90" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="153.0" y="123.0" font-size="22" text-anchor="middle" fill="#111">2</text>
+<rect x="186" y="90" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="211.0" y="123.0" font-size="22" text-anchor="middle" fill="#111">3</text>
+<rect x="244" y="90" width="50" height="50" rx="6" fill="#fde2e2" stroke="#666"/>
+<text x="269.0" y="123.0" font-size="22" text-anchor="middle" fill="#111">A</text>
+<text x="44" y="120.0" font-size="13" font-weight="bold" text-anchor="end" fill="#d62728">R1</text>
+<rect x="70" y="148" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="95.0" y="181.0" font-size="22" text-anchor="middle" fill="#111">4</text>
+<rect x="128" y="148" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="153.0" y="181.0" font-size="22" text-anchor="middle" fill="#111">5</text>
+<rect x="186" y="148" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="211.0" y="181.0" font-size="22" text-anchor="middle" fill="#111">6</text>
+<rect x="244" y="148" width="50" height="50" rx="6" fill="#fde2e2" stroke="#666"/>
+<text x="269.0" y="181.0" font-size="22" text-anchor="middle" fill="#111">B</text>
+<text x="44" y="178.0" font-size="13" font-weight="bold" text-anchor="end" fill="#ff7f0e">R2</text>
+<rect x="70" y="206" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="95.0" y="239.0" font-size="22" text-anchor="middle" fill="#111">7</text>
+<rect x="128" y="206" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="153.0" y="239.0" font-size="22" text-anchor="middle" fill="#111">8</text>
+<rect x="186" y="206" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="211.0" y="239.0" font-size="22" text-anchor="middle" fill="#111">9</text>
+<rect x="244" y="206" width="50" height="50" rx="6" fill="#fde2e2" stroke="#666"/>
+<text x="269.0" y="239.0" font-size="22" text-anchor="middle" fill="#111">C</text>
+<text x="44" y="236.0" font-size="13" font-weight="bold" text-anchor="end" fill="#b8860b">R3</text>
+<rect x="70" y="264" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="95.0" y="297.0" font-size="22" text-anchor="middle" fill="#111">*</text>
+<rect x="128" y="264" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="153.0" y="297.0" font-size="22" text-anchor="middle" fill="#111">0</text>
+<rect x="186" y="264" width="50" height="50" rx="6" fill="#ffffff" stroke="#666"/>
+<text x="211.0" y="297.0" font-size="22" text-anchor="middle" fill="#111">#</text>
+<rect x="244" y="264" width="50" height="50" rx="6" fill="#fde2e2" stroke="#666"/>
+<text x="269.0" y="297.0" font-size="22" text-anchor="middle" fill="#111">D</text>
+<text x="44" y="294.0" font-size="13" font-weight="bold" text-anchor="end" fill="#8c564b">R4</text>
+<text x="95.0" y="70" font-size="13" font-weight="bold" text-anchor="middle" fill="#1f77b4">C1</text>
+<text x="153.0" y="70" font-size="13" font-weight="bold" text-anchor="middle" fill="#17becf">C2</text>
+<text x="211.0" y="70" font-size="13" font-weight="bold" text-anchor="middle" fill="#2ca02c">C3</text>
+<text x="269.0" y="70" font-size="13" font-weight="bold" text-anchor="middle" fill="#9467bd">C4</text>
+<text x="324" y="110" font-size="12" fill="#555">keypad face up,</text>
+<text x="324" y="126" font-size="12" fill="#555">ribbon hanging down</text>
+<text x="324" y="150" font-size="12" fill="#555">A = up   B = down</text>
+<text x="324" y="166" font-size="12" fill="#555">C = OK   D = back</text>
+<text x="324" y="190" font-size="12" fill="#555">SOS = hold * and # 3 s</text>
+<path d="M72,328 L284,328 L284,358 L72,358 Z" fill="#e8e0c8" stroke="#999"/>
+<line x1="80" y1="328" x2="80" y2="358" stroke="#b0a070" stroke-width="2"/>
+<line x1="108" y1="328" x2="108" y2="358" stroke="#b0a070" stroke-width="2"/>
+<line x1="136" y1="328" x2="136" y2="358" stroke="#b0a070" stroke-width="2"/>
+<line x1="164" y1="328" x2="164" y2="358" stroke="#b0a070" stroke-width="2"/>
+<line x1="192" y1="328" x2="192" y2="358" stroke="#b0a070" stroke-width="2"/>
+<line x1="220" y1="328" x2="220" y2="358" stroke="#b0a070" stroke-width="2"/>
+<line x1="248" y1="328" x2="248" y2="358" stroke="#b0a070" stroke-width="2"/>
+<line x1="276" y1="328" x2="276" y2="358" stroke="#b0a070" stroke-width="2"/>
+<text x="292" y="350.0" font-size="12" fill="#555">ribbon</text>
+<rect x="66" y="358" width="224" height="22" fill="#222" rx="3"/>
+<rect x="75" y="363" width="10" height="10" fill="#bbb"/>
+<text x="80" y="352" font-size="0"></text>
+<rect x="103" y="363" width="10" height="10" fill="#bbb"/>
+<text x="108" y="352" font-size="0"></text>
+<rect x="131" y="363" width="10" height="10" fill="#bbb"/>
+<text x="136" y="352" font-size="0"></text>
+<rect x="159" y="363" width="10" height="10" fill="#bbb"/>
+<text x="164" y="352" font-size="0"></text>
+<rect x="187" y="363" width="10" height="10" fill="#bbb"/>
+<text x="192" y="352" font-size="0"></text>
+<rect x="215" y="363" width="10" height="10" fill="#bbb"/>
+<text x="220" y="352" font-size="0"></text>
+<rect x="243" y="363" width="10" height="10" fill="#bbb"/>
+<text x="248" y="352" font-size="0"></text>
+<rect x="271" y="363" width="10" height="10" fill="#bbb"/>
+<text x="276" y="352" font-size="0"></text>
+<text x="298" y="374" font-size="12" fill="#555">keypad connector (female, 2.54 mm)</text>
+<text x="60" y="374" font-size="12" text-anchor="end" fill="#111">pin</text>
+<rect x="30" y="538" width="666" height="118" rx="10" fill="#1d3b5a" stroke="#0d2338" stroke-width="2"/>
+<text x="348.0" y="630" font-size="15" fill="#fff" text-anchor="middle">Heltec WiFi LoRa 32 V3  -  header J3</text>
+<text x="348.0" y="647" font-size="11" fill="#cfd8e3" text-anchor="middle">count pins from the GND / 3V3 / 3V3 end of J3</text>
+<rect x="88" y="553" width="14" height="14" fill="#9aa7b4" stroke="#000"/>
+<text x="95" y="586" font-size="11" fill="#fff" text-anchor="middle">1</text>
+<text x="95" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">GND</text>
+<rect x="121" y="553" width="14" height="14" fill="#9aa7b4" stroke="#000"/>
+<text x="128" y="586" font-size="11" fill="#fff" text-anchor="middle">2</text>
+<text x="128" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">3V3</text>
+<rect x="154" y="553" width="14" height="14" fill="#9aa7b4" stroke="#000"/>
+<text x="161" y="586" font-size="11" fill="#fff" text-anchor="middle">3</text>
+<text x="161" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">3V3</text>
+<rect x="187" y="553" width="14" height="14" fill="#ff6b6b" stroke="#000"/>
+<text x="194" y="586" font-size="11" fill="#fff" text-anchor="middle">4</text>
+<text x="194" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">37</text>
+<rect x="220" y="553" width="14" height="14" fill="#ff6b6b" stroke="#000"/>
+<text x="227" y="586" font-size="11" fill="#fff" text-anchor="middle">5</text>
+<text x="227" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">46</text>
+<rect x="253" y="553" width="14" height="14" fill="#ff6b6b" stroke="#000"/>
+<text x="260" y="586" font-size="11" fill="#fff" text-anchor="middle">6</text>
+<text x="260" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">45</text>
+<rect x="286" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="293" y="586" font-size="11" fill="#fff" text-anchor="middle">7</text>
+<text x="293" y="604" font-size="11" fill="#ffd700" text-anchor="middle">42</text>
+<rect x="319" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="326" y="586" font-size="11" fill="#fff" text-anchor="middle">8</text>
+<text x="326" y="604" font-size="11" fill="#ffd700" text-anchor="middle">41</text>
+<rect x="352" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="359" y="586" font-size="11" fill="#fff" text-anchor="middle">9</text>
+<text x="359" y="604" font-size="11" fill="#ffd700" text-anchor="middle">40</text>
+<rect x="385" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="392" y="586" font-size="11" fill="#fff" text-anchor="middle">10</text>
+<text x="392" y="604" font-size="11" fill="#ffd700" text-anchor="middle">39</text>
+<rect x="418" y="553" width="14" height="14" fill="#9aa7b4" stroke="#000"/>
+<text x="425" y="586" font-size="11" fill="#fff" text-anchor="middle">11</text>
+<text x="425" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">38</text>
+<rect x="451" y="553" width="14" height="14" fill="#9aa7b4" stroke="#000"/>
+<text x="458" y="586" font-size="11" fill="#fff" text-anchor="middle">12</text>
+<text x="458" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">1</text>
+<rect x="484" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="491" y="586" font-size="11" fill="#fff" text-anchor="middle">13</text>
+<text x="491" y="604" font-size="11" fill="#ffd700" text-anchor="middle">2</text>
+<rect x="517" y="553" width="14" height="14" fill="#ff6b6b" stroke="#000"/>
+<text x="524" y="586" font-size="11" fill="#fff" text-anchor="middle">14</text>
+<text x="524" y="604" font-size="11" fill="#cfd8e3" text-anchor="middle">3</text>
+<rect x="550" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="557" y="586" font-size="11" fill="#fff" text-anchor="middle">15</text>
+<text x="557" y="604" font-size="11" fill="#ffd700" text-anchor="middle">4</text>
+<rect x="583" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="590" y="586" font-size="11" fill="#fff" text-anchor="middle">16</text>
+<text x="590" y="604" font-size="11" fill="#ffd700" text-anchor="middle">5</text>
+<rect x="616" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="623" y="586" font-size="11" fill="#fff" text-anchor="middle">17</text>
+<text x="623" y="604" font-size="11" fill="#ffd700" text-anchor="middle">6</text>
+<rect x="649" y="553" width="14" height="14" fill="#ffd700" stroke="#000"/>
+<text x="656" y="586" font-size="11" fill="#fff" text-anchor="middle">18</text>
+<text x="656" y="604" font-size="11" fill="#ffd700" text-anchor="middle">7</text>
+<text x="36" y="586" font-size="10" fill="#cfd8e3" text-anchor="start"></text>
+<text x="71" y="586" font-size="10" fill="#cfd8e3" text-anchor="end">J3-</text>
+<text x="71" y="604" font-size="10" fill="#cfd8e3" text-anchor="end">GPIO</text>
+<path d="M276,374 L276,395 L656,395 L656,553" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M276,374 L276,395 L656,395 L656,553" fill="none" stroke="#9467bd" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="656" cy="553" r="4" fill="#9467bd"/>
+<circle cx="276" cy="374" r="4" fill="#9467bd"/>
+<path d="M248,374 L248,407 L623,407 L623,553" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M248,374 L248,407 L623,407 L623,553" fill="none" stroke="#2ca02c" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="623" cy="553" r="4" fill="#2ca02c"/>
+<circle cx="248" cy="374" r="4" fill="#2ca02c"/>
+<path d="M220,374 L220,419 L590,419 L590,553" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M220,374 L220,419 L590,419 L590,553" fill="none" stroke="#17becf" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="590" cy="553" r="4" fill="#17becf"/>
+<circle cx="220" cy="374" r="4" fill="#17becf"/>
+<path d="M192,374 L192,431 L557,431 L557,553" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M192,374 L192,431 L557,431 L557,553" fill="none" stroke="#1f77b4" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="557" cy="553" r="4" fill="#1f77b4"/>
+<circle cx="192" cy="374" r="4" fill="#1f77b4"/>
+<path d="M80,374 L80,455 L392,455 L392,553" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M80,374 L80,455 L392,455 L392,553" fill="none" stroke="#d62728" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="392" cy="553" r="4" fill="#d62728"/>
+<circle cx="80" cy="374" r="4" fill="#d62728"/>
+<path d="M108,374 L108,469 L359,469 L359,553" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M108,374 L108,469 L359,469 L359,553" fill="none" stroke="#ff7f0e" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="359" cy="553" r="4" fill="#ff7f0e"/>
+<circle cx="108" cy="374" r="4" fill="#ff7f0e"/>
+<path d="M136,374 L136,483 L326,483 L326,553" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M136,374 L136,483 L326,483 L326,553" fill="none" stroke="#b8860b" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="326" cy="553" r="4" fill="#b8860b"/>
+<circle cx="136" cy="374" r="4" fill="#b8860b"/>
+<path d="M164,374 L164,497 L293,497 L293,553" fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M164,374 L164,497 L293,497 L293,553" fill="none" stroke="#8c564b" stroke-width="3.5" stroke-linejoin="round"/>
+<circle cx="293" cy="553" r="4" fill="#8c564b"/>
+<circle cx="164" cy="374" r="4" fill="#8c564b"/>
+<text x="80" y="396" font-size="12" font-weight="bold" fill="#111" text-anchor="middle" stroke="#fff" stroke-width="3" paint-order="stroke">1</text>
+<text x="108" y="396" font-size="12" font-weight="bold" fill="#111" text-anchor="middle" stroke="#fff" stroke-width="3" paint-order="stroke">2</text>
+<text x="136" y="396" font-size="12" font-weight="bold" fill="#111" text-anchor="middle" stroke="#fff" stroke-width="3" paint-order="stroke">3</text>
+<text x="164" y="396" font-size="12" font-weight="bold" fill="#111" text-anchor="middle" stroke="#fff" stroke-width="3" paint-order="stroke">4</text>
+<text x="192" y="396" font-size="12" font-weight="bold" fill="#111" text-anchor="middle" stroke="#fff" stroke-width="3" paint-order="stroke">5</text>
+<text x="220" y="396" font-size="12" font-weight="bold" fill="#111" text-anchor="middle" stroke="#fff" stroke-width="3" paint-order="stroke">6</text>
+<text x="248" y="396" font-size="12" font-weight="bold" fill="#111" text-anchor="middle" stroke="#fff" stroke-width="3" paint-order="stroke">7</text>
+<text x="276" y="396" font-size="12" font-weight="bold" fill="#111" text-anchor="middle" stroke="#fff" stroke-width="3" paint-order="stroke">8</text>
+<line x1="491" y1="553" x2="491" y2="500" stroke="#444" stroke-width="3" stroke-dasharray="6,4"/>
+<text x="497" y="496" font-size="12" fill="#444">to buzzer (see right)</text>
+<text x="760" y="90" font-size="15" font-weight="bold" fill="#111">Connections</text>
+<text x="760" y="110" font-size="12" font-weight="bold" fill="#333">Keypad pin</text>
+<text x="845" y="110" font-size="12" font-weight="bold" fill="#333">Signal</text>
+<text x="945" y="110" font-size="12" font-weight="bold" fill="#333">Heltec</text>
+<rect x="752" y="118" width="4" height="17" fill="#d62728"/>
+<text x="780" y="132" font-size="12" fill="#111" text-anchor="middle">1</text>
+<text x="845" y="132" font-size="12" fill="#111" xml:space="preserve">R1  1 2 3 A</text>
+<text x="945" y="132" font-size="12" fill="#111" xml:space="preserve">J3-10  GPIO 39</text>
+<rect x="752" y="139" width="4" height="17" fill="#ff7f0e"/>
+<text x="780" y="153" font-size="12" fill="#111" text-anchor="middle">2</text>
+<text x="845" y="153" font-size="12" fill="#111" xml:space="preserve">R2  4 5 6 B</text>
+<text x="945" y="153" font-size="12" fill="#111" xml:space="preserve">J3-9   GPIO 40</text>
+<rect x="752" y="160" width="4" height="17" fill="#b8860b"/>
+<text x="780" y="174" font-size="12" fill="#111" text-anchor="middle">3</text>
+<text x="845" y="174" font-size="12" fill="#111" xml:space="preserve">R3  7 8 9 C</text>
+<text x="945" y="174" font-size="12" fill="#111" xml:space="preserve">J3-8   GPIO 41</text>
+<rect x="752" y="181" width="4" height="17" fill="#8c564b"/>
+<text x="780" y="195" font-size="12" fill="#111" text-anchor="middle">4</text>
+<text x="845" y="195" font-size="12" fill="#111" xml:space="preserve">R4  * 0 # D</text>
+<text x="945" y="195" font-size="12" fill="#111" xml:space="preserve">J3-7   GPIO 42</text>
+<rect x="752" y="202" width="4" height="17" fill="#1f77b4"/>
+<text x="780" y="216" font-size="12" fill="#111" text-anchor="middle">5</text>
+<text x="845" y="216" font-size="12" fill="#111" xml:space="preserve">C1  1 4 7 *</text>
+<text x="945" y="216" font-size="12" fill="#111" xml:space="preserve">J3-15  GPIO 4</text>
+<rect x="752" y="223" width="4" height="17" fill="#17becf"/>
+<text x="780" y="237" font-size="12" fill="#111" text-anchor="middle">6</text>
+<text x="845" y="237" font-size="12" fill="#111" xml:space="preserve">C2  2 5 8 0</text>
+<text x="945" y="237" font-size="12" fill="#111" xml:space="preserve">J3-16  GPIO 5</text>
+<rect x="752" y="244" width="4" height="17" fill="#2ca02c"/>
+<text x="780" y="258" font-size="12" fill="#111" text-anchor="middle">7</text>
+<text x="845" y="258" font-size="12" fill="#111" xml:space="preserve">C3  3 6 9 #</text>
+<text x="945" y="258" font-size="12" fill="#111" xml:space="preserve">J3-17  GPIO 6</text>
+<rect x="752" y="265" width="4" height="17" fill="#9467bd"/>
+<text x="780" y="279" font-size="12" fill="#111" text-anchor="middle">8</text>
+<text x="845" y="279" font-size="12" fill="#111" xml:space="preserve">C4  A B C D</text>
+<text x="945" y="279" font-size="12" fill="#111" xml:space="preserve">J3-18  GPIO 7</text>
+<rect x="750" y="306" width="320" height="200" rx="8" fill="#fafafa" stroke="#bbb"/>
+<text x="760" y="326" font-size="15" font-weight="bold" fill="#111">Buzzer (ACTIVE type)</text>
+<text x="940" y="354" font-size="12" fill="#111">3V3  (J3-2)</text>
+<line x1="930" y1="350" x2="930" y2="370" stroke="#111" stroke-width="2"/>
+<line x1="920" y1="350" x2="938" y2="350" stroke="#111" stroke-width="2"/>
+<circle cx="930" cy="388" r="18" fill="#333"/>
+<text x="930" y="392" font-size="10" fill="#fff" text-anchor="middle">BZ</text>
+<text x="954" y="378" font-size="11" fill="#111">+</text>
+<text x="954" y="406" font-size="11" fill="#111">-</text>
+<line x1="930" y1="406" x2="930" y2="430" stroke="#111" stroke-width="2"/>
+<circle cx="920" cy="448" r="20" fill="none" stroke="#111" stroke-width="2"/>
+<line x1="912" y1="435" x2="912" y2="461" stroke="#111" stroke-width="3"/>
+<line x1="912" y1="442" x2="930" y2="430" stroke="#111" stroke-width="2"/>
+<line x1="912" y1="454" x2="930" y2="466" stroke="#111" stroke-width="2"/>
+<line x1="930" y1="466" x2="930" y2="486" stroke="#111" stroke-width="2"/>
+<line x1="920" y1="486" x2="940" y2="486" stroke="#111" stroke-width="2"/>
+<text x="946" y="490" font-size="12" fill="#111">GND  (J3-1)</text>
+<text x="946" y="452" font-size="12" fill="#111">2N2222</text>
+<text x="946" y="434" font-size="10" fill="#555">C</text>
+<text x="946" y="472" font-size="10" fill="#555">E</text>
+<line x1="780" y1="448" x2="820" y2="448" stroke="#111" stroke-width="2"/>
+<rect x="820" y="441" width="44" height="14" fill="#fff" stroke="#111" stroke-width="2"/>
+<text x="842" y="434" font-size="11" fill="#111" text-anchor="middle">1 kΩ</text>
+<line x1="864" y1="448" x2="912" y2="448" stroke="#111" stroke-width="2"/>
+<text x="764" y="430" font-size="12" fill="#111">J3-13</text>
+<text x="764" y="470" font-size="12" fill="#111">GPIO 2</text>
+<text x="760" y="502" font-size="11" fill="#555">Use 3V3, not 5V (no 5V on battery).</text>
+<rect x="187" y="614" width="0" height="0"/>
+<rect x="30" y="679" width="12" height="12" fill="#ffd700" stroke="#000"/><text x="48" y="690" font-size="12" fill="#111">used by V3</text>
+<rect x="140" y="679" width="12" height="12" fill="#ff6b6b" stroke="#000"/><text x="158" y="690" font-size="12" fill="#111">never connect: J3-4 (37 battery sense), J3-5/6 (46/45 strapping), J3-14 (GPIO 3 strapping)</text>
+<text x="30" y="710" font-size="12" fill="#555">Check first: hold key 1 and measure keypad pin 1 to pin 5 in resistance mode (about 100 Ω pressed, open released).</text>
+</svg>
