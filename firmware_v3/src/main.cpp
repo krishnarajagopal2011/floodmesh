@@ -77,7 +77,7 @@
 #define FM_PING_PERIOD_MS 30000    // range-test ping interval
 #endif
 #ifndef FM_KEY_CLICK_MS
-#define FM_KEY_CLICK_MS 6          // 0 = silent keys
+#define FM_KEY_CLICK_MS 15         // 0 = silent keys; active buzzers need ~10 ms to sound
 #endif
 
 static const uint32_t kUiPeriodMs = 80;
@@ -986,7 +986,7 @@ static void pollSerial() {
     line[n] = '\0';
     n = 0;
     if (strcmp(line, "help") == 0) {
-      Serial.println("[CMD] help | info | prov | alarm <0-4> | text <msg> | ping on|off | heard");
+      Serial.println("[CMD] help | info | prov | alarm <0-4> | text <msg> | ping on|off | heard | beep");
     } else if (strcmp(line, "info") == 0) {
       char fp[17];
       fmAdminFingerprint(fp);
@@ -1011,6 +1011,15 @@ static void pollSerial() {
       setPing(true);
     } else if (strcmp(line, "ping off") == 0) {
       setPing(false);
+    } else if (strcmp(line, "beep") == 0) {
+      // Buzzer bench check: GPIO held HIGH for 3 s, long enough to measure.
+      Serial.printf("[BUZZ] GPIO %d HIGH for 3 s - measure base and collector now\n",
+                    PIN_BUZZER);
+      buzzStop();
+      digitalWrite(PIN_BUZZER, HIGH);
+      delay(3000);
+      digitalWrite(PIN_BUZZER, LOW);
+      Serial.println("[BUZZ] off");
     } else if (strcmp(line, "heard") == 0) {
       printHeard();
     } else if (line[0]) {

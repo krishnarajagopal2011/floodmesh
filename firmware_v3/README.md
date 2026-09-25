@@ -142,7 +142,7 @@ neighbour`, `[MESH] ... FAILED authentication` (a different PSK),
 
 **Serial commands:** `help`, `info`, `prov`, `alarm <0-4>` (0 SAFE,
 1 MEDICAL, 2 WATER, 3 EVACUATE, 4 SOS), `text <message>`,
-`ping on` / `ping off`, `heard`.
+`ping on` / `ping off`, `heard`, `beep` (buzzer on for 3 s, for checking the buzzer circuit).
 
 Suggested test plan:
 
