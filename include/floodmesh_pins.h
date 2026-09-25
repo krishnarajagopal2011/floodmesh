@@ -82,7 +82,9 @@
 #define PIN_KP_INT            4
 #define PIN_KP_SDA            5
 #define PIN_KP_SCL            6
-#define FM_KP_I2C_ADDR     0x20
+#ifndef FM_KP_I2C_ADDR
+#define FM_KP_I2C_ADDR     0x20   // override with -D FM_KP_I2C_ADDR=0x21 etc. if the
+#endif                            // module's address pads are bridged
 #define FM_KEYPAD_MCP23017    1
 
 // Side SOS button to GND, external 10 k pull-up. RTC-capable for wake.

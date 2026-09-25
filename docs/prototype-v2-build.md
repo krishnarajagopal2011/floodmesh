@@ -80,6 +80,24 @@ Columns are inputs (internal pull-ups, interrupt on change). Rows are outputs,
 held **low** while idle and asleep, so any key press pulls a column low and
 fires INTA.
 
+### 3.1b Using an MCP23017 breakout module instead of the bare chip
+Modules label the I/O pins **A0–A7 / B0–B7** (= GPA0–7 / GPB0–7, not the
+address pins) and handle RESET and the address on the module itself.
+
+| Module pin | Connect to |
+|---|---|
+| VCC | Heltec 3V3 (never 5V) |
+| GND | Heltec GND |
+| SDA | GPIO 5 (add 4.7 kΩ to 3V3 only if the module has no pull-ups) |
+| SCL | GPIO 6 (same) |
+| INTA | GPIO 4 + 10 kΩ to 3V3 (modules rarely pull INTA up) |
+| A0 / A1 / A2 | keypad COL1 / COL2 / COL3 |
+| A3 / A4 / A5 / A6 | keypad ROW1 / ROW2 / ROW3 / ROW4 |
+| A7, B0–B7, INTB | not connected |
+
+Default address 0x20. If the module's address pads are bridged, build with
+`-D FM_KP_I2C_ADDR=0x21` (…`0x27`) in `platformio.ini` under `[env:proto_v2]`.
+
 ### 3.2 Keypad pinout: measure it, don't trust the listing
 3×4 membrane keypads have 7 pins, but the order varies between sellers.
 Usually it's R1 R2 R3 R4 C1 C2 C3, left to right, but **check with a
