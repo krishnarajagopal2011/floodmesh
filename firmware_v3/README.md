@@ -114,6 +114,10 @@ upper case.
 
 ## 3. Testing with it
 
+**Hardware status (2026-09-25):** first unit built and flashed. All 16 keys,
+the T9 / ABC / 123 editor, the menus, the buzzer and the SOS hold screen work.
+Still to test: radio between units, relaying, range and battery current.
+
 **Sent messages show whether they were passed on.** Every unit relays (up to 3
 hops). When your unit hears its own message relayed by a neighbour, the inbox
 entry shows `passed on: <dBm> SNR <x>`. This is the only delivery signal:
