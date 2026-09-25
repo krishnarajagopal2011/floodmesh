@@ -379,6 +379,15 @@ static uint8_t wordWrap(const char *s, uint8_t cols, char lines[][22], uint8_t m
   return n;
 }
 
+/** One-line preview: "Me: HELLO", "KXQ2R: !SOS"; with an age, "KXQ2R 5m: ...". */
+static void msgPreview(const Msg *m, const char *age, char *out, size_t n) {
+  const char *who = m->mine ? "Me" : m->from;
+  const char *bang = m->type == FM_TYPE_ALARM ? "!" : "";
+  if (age) snprintf(out, n, "%s %s: %s%s", who, age, bang, m->text);
+  else     snprintf(out, n, "%s: %s%s", who, bang, m->text);
+  if (n > 25) out[25] = '\0';   // 25 columns of the 5x8 font
+}
+
 // ---------------------------------------------------------------- mesh callbacks
 static void logRx(const char *kind, const FmHeader &h, uint8_t hops, float rssi, float snr,
                   const char *text) {
@@ -557,11 +566,7 @@ static void drawHome(uint32_t now) {
   } else {
     for (uint8_t i = 0; i < 2 && i < g_msgCount; i++) {
       const Msg *m = msgAt(i);
-      char age[8];
-      fmtAge(now - m->at, age, sizeof(age));
-      snprintf(t, sizeof(t), "%c%s %s %s", m->mine ? '>' : ' ', m->from,
-               m->type == FM_TYPE_ALARM ? "!" : "", m->text);
-      t[25] = '\0';
+      msgPreview(m, nullptr, t, sizeof(t));
       oled.drawStr(0, 41 + i * 10, t);
     }
     if (g_unread) {
@@ -625,9 +630,7 @@ static void drawInbox(uint32_t now) {
       const Msg *m = msgAt(top + r);
       char age[8];
       fmtAge(now - m->at, age, sizeof(age));
-      snprintf(t, sizeof(t), "%c%s %-4s%s%s", m->mine ? '>' : ' ', m->from, age,
-               m->type == FM_TYPE_ALARM ? "!" : "", m->text);
-      t[25] = '\0';
+      msgPreview(m, age, t, sizeof(t));
       const uint8_t y = (uint8_t)(20 + r * 9);
       if (top + r == g_inboxSel) {
         oled.drawBox(0, y - 8, 128, 9);
