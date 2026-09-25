@@ -17,8 +17,8 @@ exactly.
 
 | Change | Why |
 |---|---|
-| 2×2 keypad on GPIO 4–7 **removed** | Replaced by a 12-key pad |
-| **3×4 keypad via MCP23017** on a second I²C bus (GPIO 5/6), interrupt on GPIO 4 | 12 keys on 3 ESP32 pins; any key wakes from deep sleep |
+| 2×2 keypad on GPIO 4–7 **removed** | Replaced by a 16-key pad |
+| **4×4 keypad (1–9, 0, *, #, A–D) via MCP23017** on a second I²C bus (GPIO 5/6), interrupt on GPIO 4 | 16 keys on 3 ESP32 pins; any key wakes from deep sleep. A–D are the navigation keys |
 | **SOS side button on GPIO 7** | Must be an RTC-capable pin to wake from deep sleep. GPIO 47 (old PTT) is not. |
 | **External-power sense on GPIO 3** | Automatic relay mode when on solar/power bank |
 | **INMP441 VDD moved from 3V3 to Vext** | The mic draws ~1.4 mA whenever powered. On 3V3 it stays on in deep sleep and swamps every sleep-current measurement. |
@@ -51,7 +51,15 @@ Unchanged: LoRa, OLED, battery sense, mic data pins, amplifier, buzzer.
 
 ---
 
-## 3. Keypad: MCP23017 (DIP-28) + 3×4 membrane keypad
+## 3. Keypad: MCP23017 + 4×4 membrane keypad
+
+```
+ [1] [2] [3] [A]   A = UP     (channel up)
+ [4] [5] [6] [B]   B = DOWN   (channel down)
+ [7] [8] [9] [C]   C = OK     (play; hold to send)
+ [*] [0] [#] [D]   D = BACK   (inbox previous; cancel)
+```
+The digits stay free for text entry. `*` is the push-to-talk / alarm modifier.
 
 ### 3.1 MCP23017 connections
 
@@ -66,14 +74,14 @@ Unchanged: LoRa, OLED, battery sense, mic data pins, amplifier, buzzer.
 | 20 | INTA | GPIO 4, **10 kΩ pull-up to 3V3** (firmware sets open-drain) |
 | 19 | INTB | Not connected |
 | 11, 14 | NC | Not connected |
-| 21 | GPA0 | Keypad column 1 |
-| 22 | GPA1 | Keypad column 2 |
-| 23 | GPA2 | Keypad column 3 |
-| 24 | GPA3 | Keypad row 1 |
-| 25 | GPA4 | Keypad row 2 |
-| 26 | GPA5 | Keypad row 3 |
-| 27 | GPA6 | Keypad row 4 |
-| 28 | GPA7 | **Not used.** Recent datasheet revisions make GPA7/GPB7 output-only, so keep inputs off them |
+| 21 | GPA0 | Keypad column 1 (1 4 7 *) |
+| 22 | GPA1 | Keypad column 2 (2 5 8 0) |
+| 23 | GPA2 | Keypad column 3 (3 6 9 #) |
+| 24 | GPA3 | Keypad column 4 (A B C D) |
+| 25 | GPA4 | Keypad row 1 (1 2 3 A) |
+| 26 | GPA5 | Keypad row 2 (4 5 6 B) |
+| 27 | GPA6 | Keypad row 3 (7 8 9 C) |
+| 28 | GPA7 | Keypad row 4 (* 0 # D). A row is an output, which is fine on GPA7; recent datasheets make GPA7/GPB7 output-only, so it must never be a column |
 | 1–8 | GPB0–GPB7 | Spare |
 
 Columns are inputs (internal pull-ups, interrupt on change). Rows are outputs,
@@ -91,16 +99,16 @@ address pins) and handle RESET and the address on the module itself.
 | SDA | GPIO 5 (add 4.7 kΩ to 3V3 only if the module has no pull-ups) |
 | SCL | GPIO 6 (same) |
 | INTA | GPIO 4 + 10 kΩ to 3V3 (modules rarely pull INTA up) |
-| A0 / A1 / A2 | keypad COL1 / COL2 / COL3 |
-| A3 / A4 / A5 / A6 | keypad ROW1 / ROW2 / ROW3 / ROW4 |
-| A7, B0–B7, INTB | not connected |
+| A0 / A1 / A2 / A3 | keypad COL1 / COL2 / COL3 / COL4 |
+| A4 / A5 / A6 / A7 | keypad ROW1 / ROW2 / ROW3 / ROW4 |
+| B0–B7, INTB | not connected |
 
 Default address 0x20. If the module's address pads are bridged, build with
 `-D FM_KP_I2C_ADDR=0x21` (…`0x27`) in `platformio.ini` under `[env:proto_v2]`.
 
 ### 3.2 Keypad pinout: measure it, don't trust the listing
-3×4 membrane keypads have 7 pins, but the order varies between sellers.
-Usually it's R1 R2 R3 R4 C1 C2 C3, left to right, but **check with a
+4×4 membrane keypads have 8 pins, but the order varies between sellers.
+Usually it's R1 R2 R3 R4 C1 C2 C3 C4, left to right, but **check with a
 multimeter in continuity mode**: hold a key and find which two pins connect.
 Write the result on the reference unit's sheet. Every keypad in the batch
 should match, but check the first three.
@@ -183,7 +191,7 @@ LiPo(−) ───────────────────────�
 | 1 | Boots, OLED shows the call sign | |
 | 2 | Battery voltage on the OLED is plausible | |
 | 3 | I²C scan on bus 2 finds **0x20** | |
-| 4 | All 12 keys detected, correct positions | |
+| 4 | All 16 keys detected, correct positions | |
 | 5 | A key press wakes the unit from deep sleep | |
 | 6 | SOS button wakes the unit from deep sleep | |
 | 7 | GPIO 3 reads ~2.5 V on USB, ~0 V on battery | |
@@ -204,7 +212,7 @@ Items 3–7 and 12 are covered by the self-test firmware (§11.2).
 |---|---|
 | Heltec WiFi LoRa 32 V3 + 868 MHz antenna | 1 |
 | MCP23017 (DIP-28) + 28-pin socket (recommended) | 1 |
-| 3×4 membrane keypad | 1 |
+| 4×4 membrane keypad (1–9, 0, *, #, A–D) | 1 |
 | Tactile/panel push button (SOS) | 1 |
 | INMP441 module | 1 |
 | MAX98357A module + small speaker | 1 |
@@ -243,11 +251,11 @@ found or not, role, last result, last alarm received.
 ### 11.3 Normal mode (`proto_v2`)
 | Keys | Action |
 |---|---|
-| 2 / 8 | Channel up / down |
-| 4 | Inbox previous |
-| 5 | Play / stop the selected clip |
-| hold `*` | Record voice (up to 10 s); release opens the 3 s send window: hold 5 to send now, tap 4 to cancel |
-| hold `*` + 2 / 8 / 4 / 5 | Alarm: SAFE / WATER / MEDICAL / EVACUATE |
+| A / B | Channel up / down |
+| D | Inbox previous |
+| C | Play / stop the selected clip |
+| hold `*` | Record voice (up to 10 s); release opens the 3 s send window: hold C to send now, tap D to cancel |
+| hold `*` + A / B / D / C | Alarm: SAFE / WATER / MEDICAL / EVACUATE |
 | **hold SOS 3 s** | **SOS alarm** (countdown on screen; release to cancel) |
 
 At power-on:

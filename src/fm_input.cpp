@@ -50,21 +50,22 @@ const char *kKeyName[4] = {"top-right", "bottom-right", "bottom-left", "top-left
 
 #if FM_BOARD_PROTO_V2
 /**
- * Proto v2: read the 3x4 keypad through the MCP23017 and map four of its keys
- * onto the logical face keys, laid out as a cross around 5:
+ * Proto v2: read the 4x4 keypad through the MCP23017. The navigation column
+ * drives the four logical face keys, so the digits stay free for text:
  *
- *           2 (TR: CH+ / SAFE)
- *   4 (BL: PREV / MEDICAL)   5 (TL: PLAY / EVACUATION)
- *           8 (BR: CH- / WATER)
+ *   A = UP    (TR: channel up   / SAFE with *)
+ *   B = DOWN  (BR: channel down / WATER with *)
+ *   C = OK    (TL: play, hold to send / EVACUATION with *)
+ *   D = BACK  (BL: inbox prev, cancel / MEDICAL with *)
  *
  * The PTT is '*', read separately in fmInputPoll().
  */
 void scanKeys(bool out[FM_KEY_COUNT]) {
   const uint16_t m = fmKeypadScan(millis());
-  out[FM_KEY_TR] = (m & FM_KP_BIT(FM_KP_2)) != 0;
-  out[FM_KEY_BR] = (m & FM_KP_BIT(FM_KP_8)) != 0;
-  out[FM_KEY_BL] = (m & FM_KP_BIT(FM_KP_4)) != 0;
-  out[FM_KEY_TL] = (m & FM_KP_BIT(FM_KP_5)) != 0;
+  out[FM_KEY_TR] = (m & FM_KP_BIT(FM_KP_A)) != 0;
+  out[FM_KEY_BR] = (m & FM_KP_BIT(FM_KP_B)) != 0;
+  out[FM_KEY_BL] = (m & FM_KP_BIT(FM_KP_D)) != 0;
+  out[FM_KEY_TL] = (m & FM_KP_BIT(FM_KP_C)) != 0;
 }
 #else
 /**
@@ -190,8 +191,8 @@ void fmInputBegin() {
 
 #if FM_BOARD_PROTO_V2
   fmKeypadBegin();
-  Serial.println("[KEYS] proto v2 keypad: 2=CH+/SAFE 8=CH-/WATER 4=PREV/MEDICAL "
-                 "5=PLAY/EVAC, * = PTT");
+  Serial.println("[KEYS] proto v2 keypad: A=CH+/SAFE B=CH-/WATER D=PREV/MEDICAL "
+                 "C=PLAY/EVAC, * = PTT");
 #elif !FM_PTT_IS_MATRIX_KEY
   if (PTT_HARDWARE_INSTALLED) {
     pinMode(PIN_BTN_PTT, INPUT_PULLUP);

@@ -318,7 +318,7 @@ static void drawStandby(uint8_t pct, uint32_t now) {
     oled.drawStr(0, 51, l);
   } else {
 #if FM_BOARD_PROTO_V2
-    oled.drawStr(0, 51, "2/8 CH  4 PREV  5 PLAY");
+    oled.drawStr(0, 51, "A/B CH  D PREV  C PLAY");
 #elif FM_TEST_PTT_ON_R2
     oled.drawStr(0, 51, "R1 CH  L2 PREV  L1 PLAY");
 #else
@@ -363,10 +363,10 @@ static void drawRecording(uint8_t pct, bool capped) {
   oled.drawHLine(0, 52, 128);
   oled.setFont(u8g2_font_4x6_tf);
 #if FM_BOARD_PROTO_V2
-  oled.drawStr(0, 58, "5 EVAC");
-  drawRight(58, "2 SAFE");
-  oled.drawStr(0, 64, "4 MED");
-  drawRight(64, "8 WATR");
+  oled.drawStr(0, 58, "C EVAC");
+  drawRight(58, "A SAFE");
+  oled.drawStr(0, 64, "D MED");
+  drawRight(64, "B WATR");
 #else
   oled.drawStr(0, 58, "EVAC");
   drawRight(58, "SAFE");
@@ -417,7 +417,7 @@ static void drawPendingSend(uint8_t pct) {
 
   oled.drawHLine(0, 50, 128);
 #if FM_BOARD_PROTO_V2
-  oled.drawStr(0, 60, "HOLD 5=SEND  4=CANCEL");
+  oled.drawStr(0, 60, "HOLD C=SEND  D=CANCEL");
 #else
   oled.drawStr(0, 60, "HOLD L1=SEND  L2=CANCEL");
 #endif
@@ -672,9 +672,9 @@ static void printBanner() {
   Serial.println("---------------------------------------------------------");
   Serial.println("  INPUT MODEL");
 #if FM_BOARD_PROTO_V2
-  Serial.println("    board    : proto v2 (3x4 keypad via MCP23017, side SOS)");
-  Serial.println("    * up     : 2=CH+  8=CH-  4=INBOX PREV  5=PLAY");
-  Serial.println("    * held   : record; 2=SAFE 8=WATER 4=MEDICAL 5=EVACUATE");
+  Serial.println("    board    : proto v2 (4x4 keypad via MCP23017, side SOS)");
+  Serial.println("    * up     : A=CH+  B=CH-  D=INBOX PREV  C=PLAY");
+  Serial.println("    * held   : record; A=SAFE B=WATER D=MEDICAL C=EVACUATE");
   Serial.printf ("    SOS      : hold %lu ms -> SOS alarm to responders\n",
                  (unsigned long)FM_SOS_HOLD_MS);
   Serial.println("    at boot  : hold # = BLE provisioning, SOS+0 (10 s) = factory reset");
@@ -1114,7 +1114,7 @@ static void selfTestLoop(uint32_t now) {
   }
   if (now - tUi >= 150 && g_oledOk) {
     tUi = now;
-    char l[40], k[16];
+    char l[40], k[20];
     oled.clearBuffer();
     oled.setFont(u8g2_font_5x8_tf);
     snprintf(l, sizeof(l), "SELF-TEST %s", fmCallSign());

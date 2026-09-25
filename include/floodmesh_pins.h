@@ -57,7 +57,7 @@
 // Board variant
 // ==================================================================
 // FM_BOARD_PROTO_V2 = 1 selects the prototype v2 perfboard build described in
-// docs/prototype-v2-build.md: a 3x4 keypad behind an MCP23017 on its own I2C
+// docs/prototype-v2-build.md: a 4x4 keypad behind an MCP23017 on its own I2C
 // bus, a side SOS button, and an external-power sense divider. 0 (default) is
 // the original as-built board in docs/wiring-as-built.md.
 #ifndef FM_BOARD_PROTO_V2

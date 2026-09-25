@@ -1,5 +1,5 @@
 /**
- * FloodMesh - MCP23017 3x4 keypad driver. See fm_keypad.h for wiring and the
+ * FloodMesh - MCP23017 4x4 keypad driver. See fm_keypad.h for wiring and the
  * scanning scheme.
  */
 #include "fm_keypad.h"
@@ -25,9 +25,9 @@ const uint8_t kOLATA    = 0x14;
 // the level and INTA can share a wire-OR later if needed.
 const uint8_t kIoconValue = 0x04;
 
-const uint8_t kColMask = 0x07;   // GPA0..GPA2
-const uint8_t kRowShift = 3;     // rows on GPA3..GPA6
-const uint8_t kRowMask = 0x78;
+const uint8_t kColMask = 0x0F;   // columns on GPA0..GPA3
+const uint8_t kRowShift = 4;     // rows on GPA4..GPA7
+const uint8_t kRowMask = 0xF0;
 
 // Physical cable order fix-ups: kRowPin[r] is the GPA row line (0..3) wired to
 // logical row r; kColPin[c] likewise for columns.
@@ -35,10 +35,10 @@ const uint8_t kRowMask = 0x78;
 #define FM_KP_ROW_ORDER {0, 1, 2, 3}
 #endif
 #ifndef FM_KP_COL_ORDER
-#define FM_KP_COL_ORDER {0, 1, 2}
+#define FM_KP_COL_ORDER {0, 1, 2, 3}
 #endif
-const uint8_t kRowPin[4] = FM_KP_ROW_ORDER;
-const uint8_t kColPin[3] = FM_KP_COL_ORDER;
+const uint8_t kRowPin[FM_KP_ROWS] = FM_KP_ROW_ORDER;
+const uint8_t kColPin[FM_KP_COLS] = FM_KP_COL_ORDER;
 
 TwoWire &bus = Wire1;
 bool     g_present = false;
@@ -65,7 +65,7 @@ bool readReg(uint8_t reg, uint8_t *val) {
 /** Idle: columns inputs, rows outputs driven LOW. */
 void idleRows() {
   writeReg(kOLATA, 0x00);
-  writeReg(kIODIRA, (uint8_t)(0xFF & ~kRowMask));   // rows out, everything else in
+  writeReg(kIODIRA, kColMask);   // columns in, rows out
 }
 
 }  // namespace
@@ -101,15 +101,15 @@ bool fmKeypadPresent() { return g_present; }
 uint16_t fmKeypadScanNow() {
   if (!g_present) return 0;
   uint16_t mask = 0;
-  for (uint8_t r = 0; r < 4; r++) {
+  for (uint8_t r = 0; r < FM_KP_ROWS; r++) {
     const uint8_t rowBit = (uint8_t)(1u << (kRowShift + kRowPin[r]));
     // Only the selected row is an output (latched LOW); others float.
-    if (!writeReg(kIODIRA, (uint8_t)(0xFF & ~rowBit))) continue;
+    if (!writeReg(kIODIRA, (uint8_t)(0xFF & ~rowBit))) continue;   // only this row drives
     delayMicroseconds(30);
     uint8_t port = 0xFF;
     if (!readReg(kGPIOA, &port)) continue;
-    for (uint8_t c = 0; c < 3; c++) {
-      if ((port & (1u << kColPin[c])) == 0) mask |= FM_KP_BIT(r * 3 + c);
+    for (uint8_t c = 0; c < FM_KP_COLS; c++) {
+      if ((port & (1u << kColPin[c])) == 0) mask |= FM_KP_BIT(r * FM_KP_COLS + c);
     }
   }
   idleRows();
@@ -153,8 +153,8 @@ void     fmKeypadArmWake() {}
 #endif  // FM_BOARD_PROTO_V2
 
 char fmKeypadChar(uint8_t idx) {
-  static const char kMap[FM_KP_KEYS] = {'1', '2', '3', '4', '5', '6',
-                                        '7', '8', '9', '*', '0', '#'};
+  static const char kMap[FM_KP_KEYS] = {'1', '2', '3', 'A', '4', '5', '6', 'B',
+                                        '7', '8', '9', 'C', '*', '0', '#', 'D'};
   return idx < FM_KP_KEYS ? kMap[idx] : '?';
 }
 

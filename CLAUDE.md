@@ -18,7 +18,7 @@ Two boards exist. Check which one a change targets.
   **not yet fabricated**): `docs/hardware/pcb-v1/`. Read its `README.md`
   (parts, GPIO map, design implications, concerns) before suggesting features
   or components. Pending board changes are in `docs/architecture.md` §9.
-- **Prototype v2 perfboard build** (15 Heltec V3 units, MCP23017 keypad, SOS
+- **Prototype v2 perfboard build** (15 Heltec V3 units, 4×4 keypad via MCP23017, SOS
   button, power sense, mic on Vext): `docs/prototype-v2-build.md`. Firmware
   envs `proto_v2` and `proto_v2_selftest` (`-D FM_BOARD_PROTO_V2=1`).
 
