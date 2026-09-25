@@ -21,6 +21,13 @@ Two boards exist. Check which one a change targets.
 - **Prototype v2 perfboard build** (15 Heltec V3 units, 4×4 keypad via MCP23017, SOS
   button, power sense, mic on Vext): `docs/prototype-v2-build.md`. Firmware
   envs `proto_v2` and `proto_v2_selftest` (`-D FM_BOARD_PROTO_V2=1`).
+- **Firmware V3** (`firmware_v3/`, a separate PlatformIO project): Heltec V3 +
+  4×4 membrane keypad wired straight to GPIOs (cols 4–7, rows 39–42) + active
+  buzzer on GPIO 2. No voice. This is the field-test build for range, relays,
+  60-char T9/multi-tap texts (frame type 0x03), SOS (hold * + #) and BLE roles.
+  Build: `pio run -d firmware_v3 -e v3`. Read `firmware_v3/README.md`. It
+  copies modules from the root firmware; don't edit the root firmware for V3
+  changes, or the reverse.
 
 ## Firmware and app
 - Build with PlatformIO locally, or let `.github/workflows/build.yml` build

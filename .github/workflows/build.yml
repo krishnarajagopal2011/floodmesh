@@ -41,6 +41,36 @@ jobs:
             .pio/build/${{ matrix.env }}/partitions.bin
           if-no-files-found: error
 
+  firmware-v3:
+    # Firmware V3 (keypad + buzzer field-test build) is its own PlatformIO
+    # project in firmware_v3/.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            firmware_v3/.pio/libdeps
+          key: pio-v3-${{ runner.os }}-${{ hashFiles('firmware_v3/platformio.ini') }}
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+      - name: Build v3
+        run: pio run -d firmware_v3 -e v3
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-v3
+          path: |
+            firmware_v3/.pio/build/v3/firmware.bin
+            firmware_v3/.pio/build/v3/bootloader.bin
+            firmware_v3/.pio/build/v3/partitions.bin
+          if-no-files-found: error
+
   admin-app:
     runs-on: ubuntu-latest
     env:
