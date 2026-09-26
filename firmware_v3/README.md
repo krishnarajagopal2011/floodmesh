@@ -110,7 +110,9 @@ upper case.
 
 - hold **#**: BLE provisioning with the FloodMesh Admin app (roles:
   civilian / relay / responder, the same protocol as prototype v2);
-- hold **\*** and **0** for 10 s: factory reset (role, keys, call sign).
+- hold **B**: WiFi update mode for 10 minutes (§7);
+- hold **\*** and **0** for 10 s: factory reset (role, keys, call sign, stored
+  WiFi network).
 
 ## 3. Testing with it
 
@@ -142,7 +144,10 @@ neighbour`, `[MESH] ... FAILED authentication` (a different PSK),
 
 **Serial commands:** `help`, `info`, `prov`, `alarm <0-4>` (0 SAFE,
 1 MEDICAL, 2 WATER, 3 EVACUATE, 4 SOS), `text <message>`,
-`ping on` / `ping off`, `heard`, `beep` (buzzer on for 3 s, for checking the buzzer circuit).
+`ping on` / `ping off`, `heard`, `beep` (buzzer on for 3 s, for checking the buzzer circuit),
+`callsign <name>` (1–5 of A–Z 0–9, stored in flash; factory reset returns to
+the MAC-derived one), `wifi` / `wifi ssid <name>` / `wifi pass <password>` /
+`wifi forget`, `ota` / `ota off` (§7).
 
 Suggested test plan:
 
@@ -218,3 +223,36 @@ compare the delivery rate.
 - Sleep: see §5.
 - The duty-cycle exemption for alarms is still in place. See
   `docs/architecture.md` §1.1.
+
+## 7. WiFi updates (no cable)
+
+After one USB flash with this build, a unit can be updated over WiFi.
+
+1. **Store a 2.4 GHz network** (router or phone hotspot; the ESP32-S3 has no
+   5 GHz) over serial: `wifi ssid <name>`, then `wifi pass <password>`. The
+   password is kept in NVS and never printed. Factory reset forgets it.
+2. **Open update mode:** hold **B** at power-on, or send `ota`. The unit joins
+   the network and shows its IP and host name (`fm-<callsign>`) for 10 min.
+   `ota off` closes it early. WiFi is off at all other times (~100 mA).
+3. **Push the image** from a PC on the same network:
+   - `GET  /id` returns `FloodMesh <callsign> <version> <image> <mac> up=<s>`;
+     `<image>` is the first 8 hex digits of the SHA-256 of `firmware.elf`,
+     so the PC can check which build a unit runs.
+   - `POST /update` (multipart field `update`, HTTP auth `fm` /
+     `FM_OTA_PASSWORD`) takes `firmware.bin`. The image goes into the other
+     OTA slot and the unit only switches after the whole image has arrived and
+     verified; a dropped connection leaves the old firmware running.
+   - After an update the unit reboots and reopens the window for 5 min so the
+     PC can read `/id` again. `GET /close` (same auth) ends it at once.
+
+The PC only makes outgoing connections, so no inbound firewall rule is needed.
+
+**Password:** `FM_OTA_PASSWORD` is not in `platformio.ini` on purpose. Pass it
+at build time, e.g. `PLATFORMIO_BUILD_FLAGS="-D FM_OTA_PASSWORD='\"<token>\"'"`.
+A build without it (including CI) refuses to open update mode, because an
+unauthenticated update server would let anyone on the same WiFi reflash the
+unit. HTTP auth over plain WiFi is bench-grade only; units given to users need
+signed images and flash encryption (`docs/architecture.md` §6.2).
+
+Updating over LoRa is not practical: ~1.1 MB at the 2.5% duty cycle would take
+many hours per unit, per hop.

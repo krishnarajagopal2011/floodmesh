@@ -42,6 +42,7 @@
 #include "fm_ids.h"
 #include "fm_keypad.h"
 #include "fm_mesh.h"
+#include "fm_ota.h"
 #include "fm_packet.h"
 #include "fm_prov.h"
 #include "fm_radio.h"
@@ -925,7 +926,10 @@ static void factoryReset() {
     p.remove(FM_NVS_KEY_CALLSIGN);   // back to the MAC-derived call sign
     p.end();
   }
+  fmOtaForget();                     // and no stored WiFi network
 }
+
+static bool g_otaAtBoot = false;   // B held at power-on: open the WiFi update window
 
 static void bootCombos() {
   bool wantProv = (g_bootReq == FM_BOOTREQ_PROV);
@@ -954,6 +958,10 @@ static void bootCombos() {
     Serial.println("[BOOT] factory reset cancelled");
   }
   if (keys & FM_KP_BIT(FM_KP_HASH)) wantProv = true;
+  if (keys & FM_KP_BIT(FM_KP_B)) {
+    Serial.println("[BOOT] B held: WiFi update window");
+    g_otaAtBoot = true;
+  }
 
   if (wantProv) {
     beepBlocking(40, 3, 60);
@@ -976,17 +984,54 @@ static void printHeard() {
 static void pollSerial() {
   static char line[96];
   static size_t n = 0;
+  static bool overflow = false;
   while (Serial.available()) {
     const char c = (char)Serial.read();
     if (c == '\r') continue;
     if (c != '\n') {
       if (n + 1 < sizeof(line)) line[n++] = c;
+      else overflow = true;
       continue;
     }
     line[n] = '\0';
     n = 0;
+    if (overflow) {
+      // Never run a truncated command: a clipped WiFi password would be stored
+      // and fail later with no clue why. And never echo it back.
+      overflow = false;
+      memset(line, 0, sizeof(line));
+      Serial.printf("[CMD] line longer than %u characters - ignored\n",
+                    (unsigned)(sizeof(line) - 1));
+      continue;
+    }
     if (strcmp(line, "help") == 0) {
-      Serial.println("[CMD] help | info | prov | alarm <0-4> | text <msg> | ping on|off | heard | beep");
+      Serial.println("[CMD] help | info | prov | alarm <0-4> | text <msg> | ping on|off | heard"
+                     " | beep | callsign <1-5 of A-Z 0-9> | wifi | wifi ssid <name>"
+                     " | wifi pass <pw> | wifi forget | ota | ota off");
+    } else if (strncmp(line, "wifi", 4) == 0) {
+      // Every "wifi..." line ends here, so a mistyped one can never reach the
+      // "unknown" branch below, which would echo a password to the log.
+      if (strncmp(line, "wifi ssid ", 10) == 0) {
+        if (fmOtaSetSsid(line + 10)) Serial.printf("[WIFI] network set to '%s'\n", fmOtaSsid());
+        else Serial.println("[WIFI] network refused - 1 to 32 printable characters");
+      } else if (strncmp(line, "wifi pass ", 10) == 0 || strcmp(line, "wifi pass") == 0) {
+        if (fmOtaSetPass(line[9] ? line + 10 : "")) Serial.println("[WIFI] password saved");
+        else Serial.println("[WIFI] password refused - 8 to 63 printable characters");
+      } else if (strcmp(line, "wifi forget") == 0) {
+        fmOtaForget();
+        Serial.println("[WIFI] network forgotten");
+      } else if (strcmp(line, "wifi") == 0) {
+        Serial.printf("[WIFI] network %s, password %s, update window %s\n",
+                      fmOtaHasSsid() ? fmOtaSsid() : "not set",
+                      fmOtaHasPass() ? "saved" : "not set", fmOtaActive() ? "OPEN" : "closed");
+      } else {
+        Serial.println("[WIFI] usage: wifi | wifi ssid <name> | wifi pass <pw> | wifi forget");
+      }
+      memset(line, 0, sizeof(line));
+    } else if (strcmp(line, "ota") == 0) {
+      if (fmOtaStart(FM_OTA_WINDOW_MS)) popup("UPDATE MODE", "joining WiFi", fmOtaSsid(), false, 30000);
+    } else if (strcmp(line, "ota off") == 0) {
+      fmOtaStop();
     } else if (strcmp(line, "info") == 0) {
       char fp[17];
       fmAdminFingerprint(fp);
@@ -996,6 +1041,11 @@ static void pollSerial() {
                     (unsigned long)fmRoleRemainingS(), g_battV, fmAirtimePermille(),
                     (unsigned long)fmMeshFramesRelayed(),
                     (unsigned long)fmMeshFramesSuppressed(), fp[0] ? fp : "none");
+    } else if (strncmp(line, "callsign ", 9) == 0) {
+      // Operator override, stored in NVS; * + 0 factory reset returns to the MAC one.
+      if (fmSetCallSign(line + 9)) Serial.printf("[CMD] call sign now %s\n", fmCallSign());
+      else Serial.printf("[CMD] callsign refused - 1-5 characters, A-Z 0-9 only, still %s\n",
+                         fmCallSign());
     } else if (strcmp(line, "prov") == 0) {
       Serial.println("[CMD] rebooting into provisioning mode");
       g_bootReq = FM_BOOTREQ_PROV;
@@ -1083,6 +1133,8 @@ void setup() {
                 fmCallSignIsDerived() ? "derived from MAC" : "operator-assigned");
   fmRoleBegin();
   bootCombos();   // may enter provisioning mode, which never returns
+  fmOtaBegin(provDraw);
+  const bool otaResume = fmOtaResumePending();   // read once: it clears the flag
 
   uint8_t psk[16];
   if (!parsePsk(psk)) {
@@ -1114,6 +1166,16 @@ void setup() {
   Serial.println("[CMD] type 'help' for serial commands");
   beepBlocking(30, 2, 60);
   g_lastActivity = millis();
+
+  if (otaResume || g_otaAtBoot) {
+    if (otaResume) Serial.println("[OTA] rebooted after an update - reopening the window");
+    if (fmOtaStart(otaResume ? FM_OTA_RESUME_MS : FM_OTA_WINDOW_MS)) {
+      popup("UPDATE MODE", "joining WiFi", fmOtaSsid(), false, 30000);
+    } else {
+      popup("UPDATE MODE", "cannot open", fmOtaHasSsid() ? "see serial" : "no WiFi network stored",
+            false);
+    }
+  }
 }
 
 void loop() {
@@ -1121,6 +1183,25 @@ void loop() {
 
   pollSerial();
   fmMeshLoop(now);
+
+  switch (fmOtaLoop(now)) {
+    case FM_OTA_EV_JOINED: {
+      char meta[40], body[40];
+      snprintf(meta, sizeof(meta), "%s %s", fmOtaIp(), fmOtaHost());
+      snprintf(body, sizeof(body), "Open %lu min for WiFi updates.",
+               (unsigned long)fmOtaMinutesLeft(now));
+      popup("UPDATE MODE", meta, body, false, 30000);
+      break;
+    }
+    case FM_OTA_EV_FAILED:
+      popup("UPDATE MODE", "WiFi join failed", "Hotspot on? 2.4 GHz? Password right?", false);
+      break;
+    case FM_OTA_EV_CLOSED:
+      popup("UPDATE MODE", "closed", "WiFi is off again.", false, 4000);
+      break;
+    default:
+      break;
+  }
 
   if (fmRoleLoop(now)) {
     popup("ROLE EXPIRED", "responder grant ended", "Now a civilian unit. Renew in the admin app.",
