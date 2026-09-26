@@ -118,7 +118,9 @@ upper case.
 
 **Hardware status (2026-09-25):** first unit built and flashed. All 16 keys,
 the T9 / ABC / 123 editor, the menus, the buzzer and the SOS hold screen work.
-Still to test: radio between units, relaying, range and battery current.
+Radio between units and relaying were tested outdoors on 2026-09-26: 350 m
+direct and 550 m through one road-level relay (`docs/field-tests.md`). Still to
+test: a raised relay and battery current.
 
 **Sent messages show whether they were passed on.** Every unit relays (up to 3
 hops). When your unit hears its own message relayed by a neighbour, the inbox

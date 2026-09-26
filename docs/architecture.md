@@ -151,6 +151,9 @@ load. Per relay, with 3 relays: beacons ~3 s + batched ACKs ~3 s + summaries
   ACK per household (~20 s → ~3 s per relay per hour).
 - The actual range through wet concrete is unknown. **A two-unit rooftop/ground
   walk test decides placement.**
+- First results (26 Sep 2026, relay at road level only): **350 m** direct and
+  **550 m** through one relay (300 m + 250 m, line of sight). The raised-relay
+  half of the test is still to do. Details: `docs/field-tests.md`.
 
 ### 4.3 Who hosts relays (DECIDED, mechanism PROPOSED)
 Priority: **households with solar or UPS power first**, then the highest floor
