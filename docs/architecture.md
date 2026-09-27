@@ -440,6 +440,7 @@ Check GPIO budget once items 2, 3, 8 and 9 are settled together.
 | Sleep | Continuous receive | Deep sleep + synchronised 20 s / 5 min windows |
 | Auth | One PSK (public placeholder) | Per-unit alarm keys for registered units; Ed25519 responder signatures; super-admin public key built in |
 | Voice | Codec2 Layer 2 | Responders only or removed (§7.4) |
+| Message ID (V3) | 8-bit, RAM only, resets at boot; separate 32-bit auth counter in NVS | One 16-bit per-sender ID, flash block reservation of 16, receiver table saved to flash every ~5 min (§12.2) |
 
 ---
 
@@ -513,6 +514,7 @@ policy (for example, keep the newest SOS per call sign).
   responder-side **category filter**.
 - **6-digit numeric call signs** (3 bytes on air).
 - **Verified Responder broadcasts** as a feature; the mechanism is OPEN (§12.4).
+- **16-bit per-sender message ID**, persisted in flash (27 Sep; details below).
 
 **PROPOSED layout (67 B, the same airtime as today's V3 text frame):**
 
@@ -523,7 +525,7 @@ policy (for example, keep the newest SOS per call sign).
 | Hops | 8 | limit + taken; relays change it, so it is outside the auth tag |
 | Source | 24 | 6-digit call sign |
 | Destination | 24 | reserved values: all units, all responders, all relays |
-| Message ID | 16 | per-sender counter (OPEN below) |
+| Message ID | 16 | per-sender counter, persisted in flash (DECIDED below) |
 | Category + head count | 8 | 4 + 4 bits |
 | Battery % | 8 | |
 | Age in minutes | 8 | relays add their holding time; outside the auth tag |
@@ -535,15 +537,64 @@ SF7 and ~4.5 ms at SF9. Signal strength is **not** sent for the relay race:
 each receiver measures it itself (§4.4). PROPOSED: the ACK carries the RSSI/SNR
 it heard (1 B), for adaptive power control.
 
-**OPEN: message ID.** The owner asked for a random 5–10 bit ID. Claude
-recommends a **16-bit per-sender counter**. Random 10-bit IDs reach a 50%
-collision after ~38 messages (network-wide, or from one sender within the dedup
-window), and a collision silently drops a real message as a duplicate. The
-counter repeats only after 65,536 messages from one unit (over 47 h at the
-airtime cap). Duplicate detection needs no reference state either way; **replay
-protection** does (the last counter per sender, ~1 KB for 128 senders, already
-in `fm_auth`), and random IDs cannot provide it. Dedup entries need an expiry,
-so a later retry passes, and must live in RTC memory to survive deep sleep.
+**DECIDED (owner, 27 Sep): message ID is a 16-bit per-sender counter, kept in
+flash so that switching the unit off and on never breaks it.** Build this in the
+next firmware version.
+
+*Why not a random ID.* The owner first asked for a random 5–10 bit ID. Random
+IDs collide by the birthday paradox (50% chance after ~7 messages at 5 bits,
+~38 at 10 bits, ~300 at 16 bits, ~4,800 at 24 bits), and a collision silently
+drops a real message as a "duplicate". A counter cannot collide until it wraps
+(65,536 messages from one unit; over 47 h even at the airtime cap). Only a
+counter gives replay protection and ordering (a responder can tell #43 is newer
+than #41 and that #42 is missing), and it needs fewer bits than a random ID
+large enough to be safe.
+
+*Rules (sender):*
+- Each **new** message takes the next ID. A **retry keeps its ID** and raises the
+  retry field. Forwarding someone else's message never uses the relay's counter.
+- **Flash (NVS) is the source of truth, not RAM and not RTC memory.** Users will
+  switch units off often, and a power switch or battery pull wipes both RAM and
+  the ESP32-S3's internal RTC memory. The design must not depend on RTC memory
+  or on any external RTC chip (the PCB has none); RTC memory may only be used as
+  a speed-up.
+- **Block reservation**, as Firmware V3's `fm_ids.cpp` already does for its
+  32-bit auth counter: flash holds a high-water mark meaning "no ID at or above
+  this has been used". Before handing out the first ID of a block, the unit
+  writes mark + `BLOCK` to flash, then hands out IDs from RAM until the block is
+  used up. The flash write happens **before** the frame is sent, so a power cut at
+  any moment can never make the unit reuse an ID; it can only skip unused ones.
+- **Block size 16** (not V3's 256). Frequent power cycling skips at most 15 IDs
+  per boot that sends something, so 16 bits last ~4,000 such boots before
+  wrapping, and wrapping is handled below. That is 1 flash write per 16
+  messages, well inside NVS wear limits.
+- **Lazy reservation:** a boot that sends nothing writes nothing (most boots).
+- Deep-sleep wake is treated like a boot: reload the mark from flash.
+- If the flash write fails, still send (a suppressed SOS is worse), and log it
+  loudly, as V3 does.
+- **Factory reset** starts a new epoch: registration or the unit's first frame
+  after reset tells receivers to forget that call sign's old counter (mechanism
+  to settle with the key design, §6.3).
+
+*Rules (receiver):*
+- Duplicate check on **(call sign, message ID)**, never on the ID alone.
+- Per sender, keep the **last ID and the time it was heard**. Compare IDs with
+  wrap-around (serial-number) arithmetic: newer if `(id − last) mod 65536` is
+  between 1 and 32,767. Equal = duplicate or retry (not shown again). Older =
+  replay, dropped. **Gaps are normal** (skipped block remainders); never expect
+  `last + 1`.
+- Entries **expire after 24 h**, so a unit that wrapped or was off for a long time
+  is accepted again. Known limit: a replay older than 24 h is not caught until
+  frames carry a time (relay beacon time, §5).
+- Receivers also get switched off. Save the per-sender table to flash **every
+  ~5 minutes if it changed**, and reload it at boot. After a power cut a
+  responder may at worst re-show an SOS heard in the last few minutes.
+- Size: ≥128 senders × (3 B call sign + 2 B ID + 4 B time) ≈ 1.2 KB.
+
+*Current code to change:* Firmware V3's `fmNextMsgId()` is a RAM-only counter,
+reset at every boot and truncated to 8 bits in `fm_mesh.cpp`; the separate
+32-bit auth counter is persisted. The next version merges them into this single
+persisted 16-bit ID, which is also the replay counter covered by the auth tag.
 
 **PROPOSED: ACK as its own frame** (~21 B, ~65–70 ms at SF7), only for SOS and
 unit-addressed messages, never for broadcasts (100 ACKs would jam the channel).
@@ -604,7 +655,7 @@ users.
 
 ### 12.5 Decisions still needed
 
-1. Message ID: 16-bit counter (recommended) or a random ID.
+1. ~~Message ID~~: DECIDED 27 Sep, 16-bit per-sender counter in flash (§12.2).
 2. ACK frame rules as in §12.2.
 3. The SOS category list.
 4. Verified label: signature from the start, or bits-only for bench tests first.
