@@ -515,6 +515,7 @@ policy (for example, keep the newest SOS per call sign).
 - **6-digit numeric call signs** (3 bytes on air).
 - **Verified Responder broadcasts** as a feature; the mechanism is OPEN (§12.4).
 - **16-bit per-sender message ID**, persisted in flash (27 Sep; details below).
+- **SOS category list** (27 Sep; table below).
 
 **PROPOSED layout (67 B, the same airtime as today's V3 text frame):**
 
@@ -602,11 +603,39 @@ Relays batch several ACKs (~5 B each, §4.2). ACKs drive the NOT SENT /
 NOT CONFIRMED / DELIVERED states. Retries keep the same message ID with the
 retry count raised.
 
-**PROPOSED: SOS categories** (at most ~6, so a stressed user can choose):
-General SOS, Medical, Trapped / water rising, Evacuation, Food and water,
-Hazard. Safeguards: relays never filter; responders see a count of SOS in other
-categories; an uncategorised SOS shows to everyone; responder units default to
-"All". OPEN: the final list.
+**DECIDED (owner, 27 Sep): SOS categories.** Six categories, 4 bits on air
+(codes 7–15 reserved):
+
+| Code | Category | Typical responder team | Matching preset (§7.1) |
+|---|---|---|---|
+| 0 | General SOS (also "not chosen") | everyone | – |
+| 1 | Medical | ambulance, medical team | NEED MEDICAL |
+| 2 | Trapped / water rising | boat, rescue team | WATER GROUND FLOOR |
+| 3 | Evacuation | boat, evacuation team | NEED EVACUATION |
+| 4 | Food and water | relief team | – |
+| 5 | Hazard (live wire, gas, collapse) | electricity board, fire service | – |
+
+**PROPOSED: how categories are used** (awaiting owner confirmation):
+- **Choosing never delays an SOS.** During the 3 s SOS hold and countdown
+  (§7.2) the OLED shows the list; pressing 1–5 sets the category. If nothing is
+  pressed, the SOS goes out as **0 General**. Presets carry their matching
+  category automatically.
+- **Changing it later:** choosing a category after sending sends a new SOS
+  (new message ID) that replaces the earlier one on responder screens; retries
+  of the old one stop.
+- **Relays and civilian units never filter or reorder by category.** Every
+  category gets the same priority and forwarding; the category only affects
+  what a responder unit shows.
+- **Responder filter:** a responder unit is set to "All" (default) or a set of
+  categories, e.g. medical team = Medical, boat team = Trapped + Evacuation.
+  **General (0) always shows** under any filter. Hidden SOS are never silent:
+  the screen shows a count, e.g. "+4 SOS in other categories", and one key
+  switches to "All".
+- **Display:** a short tag per SOS (MED, TRAP, EVAC, FOOD, HAZ, SOS) next to
+  call sign, age and retry count, so a responder can triage at a glance;
+  order stays by receive time (§12.2, no queue number).
+- **Counts per category** are available to responders and coordinators as a
+  summary of the situation (for example "12 Trapped, 3 Medical in zone B").
 
 ### 12.3 SF choice (OPEN)
 
@@ -657,7 +686,7 @@ users.
 
 1. ~~Message ID~~: DECIDED 27 Sep, 16-bit per-sender counter in flash (§12.2).
 2. ACK frame rules as in §12.2.
-3. The SOS category list.
+3. ~~SOS category list~~: DECIDED 27 Sep (§12.2). Usage rules PROPOSED.
 4. Verified label: signature from the start, or bits-only for bench tests first.
 5. Certificate in every responder broadcast; PIN to send; A + D combination;
    urgent broadcasts wake sleeping units.
