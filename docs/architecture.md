@@ -5,7 +5,9 @@ owner and Claude (acting as reviewing mesh architect). It records what was
 decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
-Updated 27 September 2026: voice removed from version 1 (§7.4).
+Updated 27 September 2026: voice removed from version 1 (§7.4); radio wake,
+no relay role, forwarding and display rules, heartbeats and Bluetooth firmware
+updates decided (§13).
 
 **Status legend**
 - **DECIDED**: the owner stated or confirmed it.
@@ -68,13 +70,14 @@ clip flooded over 3 hops with 4–6 rebroadcasts uses 10–15 s of it, so roughl
 ## 2. Roles
 
 **DECIDED:** all units use the **same hardware**; the role comes from firmware
-state.
+state. Relay is not a role: a unit on external power stays awake and forwards
+everything (§13.2).
 
-| | Civilian (default) | Relay | Responder |
+| | Civilian (default) | Powered unit (any unit on external power, §13.2) | Responder |
 |---|---|---|---|
-| Setup | **None required.** Works out of the box. Optional registration (§6.3) | See §4.3 | Bluetooth registration by the super admin |
-| Sends | Presets, SOS key, text (§7) | Beacons, batched ACKs, zone summaries, forwarded traffic | Text/preset replies, bulletins, LOCATE |
-| Sleep | Deep sleep + shared listening windows (§5) | Always listening | Always listening |
+| Setup | **None required.** Works out of the box. Optional registration (§6.3) | None; plug into solar, a power bank or a UPS (§4.3) | Bluetooth registration by the super admin |
+| Sends | Presets, SOS key, text (§7) | Heartbeat every 30 min (§13.5), batched ACKs, zone summaries, forwarded traffic | Text/preset replies, bulletins, LOCATE |
+| Sleep | Deep sleep + radio wake (§13.1) | Always listening | Always listening |
 | Expiry | None | None | 10 days (§6.2) |
 
 ---
@@ -98,8 +101,8 @@ Location comes from four layers, coarse to fine:
    responder screen flags "⚠ location mismatch". This catches families who
    evacuated and took the unit with them.
 3. **Hot/cold homing (DECIDED in principle, details PROPOSED).** The responder
-   presses LOCATE on a distress. The civilian unit (reached in the listening
-   window after one of its SOS retries) sends a 10-byte ping every 3 s for up to
+   presses LOCATE on a distress. The civilian unit (woken by the LOCATE's
+   wake-up preamble, §13.1) sends a 10-byte ping every 3 s for up to
    15 min: ~15 s of its hourly budget. Pings are **never relayed**. The
    responder beeps faster as the signal gets stronger and shows a bar plus
    "warmer/colder". Limits: it shows closeness, not direction (use the
@@ -120,6 +123,9 @@ landmark text).
 
 ## 4. Relays
 
+**Update 27 Sep 2026:** relay is no longer a role or a mode. Any unit on
+external power does this job (§13.2); "relay" below means such a powered unit.
+
 ### 4.1 Relays help but are never required (DECIDED)
 Cell towers fail in floods because grid power fails, generators flood, backhaul
 is cut, and all sites share those causes. The lesson: **nothing may depend on a
@@ -128,7 +134,7 @@ life-safety function must work with **zero relays**:
 
 | Function | With relays | Relays gone |
 |---|---|---|
-| Distress reaches responders | Relay collects, summarises, forwards | Civilian volunteers pass it along (mesh mode §4.4) |
+| Distress reaches responders | Relay collects, summarises, forwards | Every unit forwards SOS (§13.3) |
 | Location | Registry + relay zone | Registry + homing |
 | ACK | Relay ACKs within seconds | Responder ACKs end to end; volunteers cache and replay |
 | Density map | Relay summarises by zone | Responder counts raw messages |
@@ -158,7 +164,7 @@ load. Per relay, with 3 relays: beacons ~3 s + batched ACKs ~3 s + summaries
   **550 m** through one relay (300 m + 250 m, line of sight). The raised-relay
   half of the test is still to do. Details: `docs/field-tests.md`.
 
-### 4.3 Who hosts relays (DECIDED, mechanism PROPOSED)
+### 4.3 Who hosts relays (DECIDED)
 Priority: **households with solar or UPS power first**, then the highest floor
 and best battery.
 
@@ -168,18 +174,20 @@ board's charger works as a small UPS. A household UPS gets drained by lights and
 phones during an outage, so a dedicated small panel plus power bank is more
 dependable.
 
-PROPOSED: relay mode switches on **automatically when external power is
-detected**, with a manual override on the keypad. This needs the charger's PG
-pin routed to a GPIO (PCB change 2, §9). Fallback without it: infer charging
-from the fuel gauge's charge rate. OPEN until confirmed.
+**DECIDED 27 Sep:** there is no relay mode. A unit on external power stays
+awake and forwards everything (§13.2). Detecting external power needs the
+charger's PG pin routed to a GPIO (PCB change 2, §9). Fallback without it: infer
+charging from the fuel gauge's charge rate.
 
-### 4.4 Mesh mode when relays go quiet (DECIDED)
-- Relays send a beacon every few minutes. A unit that misses about 3 in a row
-  switches to mesh mode. A unit that sends an SOS and gets no ACK after retries
-  switches immediately.
+### 4.4 Forwarding without relays (DECIDED; partly superseded by §13.3)
+- ~~Relays send a beacon every few minutes; a unit that misses about 3 switches
+  to mesh mode.~~ **Superseded 27 Sep:** there is no mode switch. Every unit
+  forwards SOS, and battery units forward text when no powered unit is heard
+  nearby (§13.3, §13.5).
 - **No election.** Units above a battery threshold **volunteer**: start at ~50%,
   stop at ~35% (the gap prevents flip-flopping). The MAX17048 fuel gauge on the
-  PCB gives a real state of charge.
+  PCB gives a real state of charge. Whether a battery floor still applies under
+  §13.3 is OPEN.
 - **Who repeats first is decided by a race, not coordination.** Each volunteer
   computes its own rebroadcast delay from its **own** battery, floor and the
   signal strength it heard, plus a random part. The first timer to expire
@@ -191,7 +199,9 @@ from the fuel gauge's charge rate. OPEN until confirmed.
 - **Always listening, regardless of battery:** a unit that has heard no other
   volunteer for a while (lowers its own threshold), and a unit with its own
   unacknowledged distress.
-- **Only distress-sized packets are relayed** by civilian volunteers.
+- ~~Only distress-sized packets are relayed by civilian volunteers.~~
+  **Superseded 27 Sep:** battery units also forward text when no powered unit
+  is nearby (§13.3).
 - Batteries only fall during a flood, so over days the volunteer pool shrinks.
   After that, responders physically passing by (boats collecting stored
   messages) carry the load.
@@ -199,6 +209,10 @@ from the fuel gauge's charge rate. OPEN until confirmed.
 ---
 
 ## 5. Sleep and listening
+
+**Superseded 27 Sep 2026 (§13.1):** radio wake replaces the shared listening
+window. The window analysis below is kept for the record; wake on button still
+applies.
 
 - **Wake on button:** all PCB buttons are on RTC-capable GPIOs, so an SOS press
   wakes the unit from deep sleep.
@@ -312,8 +326,8 @@ secret.
 - **Bluetooth antenna:** the WROOM-1U module has no built-in antenna, only a
   U.FL connector. Either add a small 2.4 GHz antenna to the BoM, or switch to
   the WROOM-1 (built-in PCB antenna, same pinout). **OPEN.**
-- Firmware updates: in provisioning mode, over WiFi via the volunteer's phone
-  hotspot (faster than Bluetooth). The PCB has no USB data lines.
+- Firmware updates (**DECIDED 27 Sep**, §13.6): over Bluetooth from the app,
+  with signed images and automatic rollback. The PCB has no USB data lines.
 
 ---
 
@@ -329,9 +343,9 @@ hold 3 s, with a countdown and cancel; highest priority of all traffic;
 addressed to responders; other civilian units relay it silently. It still hops
 through the mesh; "direct" changes who **sees** it, not the path it takes.
 
-OPEN: whether neighbours also see it. Neighbours are often the fastest
-rescuers, but a sleeping neighbour only sees it at their next listening window
-(§5).
+**DECIDED 27 Sep (§13.4):** neighbours don't see it. Civilian units forward an
+SOS silently; only responder units show it and sound the buzzer. Texts, not
+SOS, are how neighbours are asked for help.
 
 ### 7.3 Text via a 12-key keypad (DECIDED)
 Replaces voice as the information-rich channel. It is the only free-form
@@ -386,9 +400,9 @@ No free keyboard needed on the civilian side. Responders send **preset messages
 with a parameter** chosen from OLED menus ("Help coming", "Stay where you are",
 "Boat arriving in 15/30/60 min", "Go to relief camp ▸ [list]", "Evacuate now").
 On air it's 2 bytes plus the signature. They are sent as a **reply** to a
-specific distress or a **broadcast** to a zone. Replies are delivered in the
-civilian's post-retry listening window, cached by relays and volunteers.
-Broadcasts are delivered as bulletins (§5). With the 12-key keypad, responders
+specific distress or a **broadcast** to a zone. Replies and broadcasts carry
+the wake-up preamble, so they reach sleeping units directly (§13.1); powered
+units and volunteers cache replies. With the 12-key keypad, responders
 can also send free text.
 
 ### 7.6 Acknowledgements
@@ -417,6 +431,11 @@ can also send free text.
 | Web Bluetooth app | Replaced by Flutter | No iPhone support |
 | Alarm exemption from duty cycle | To be replaced | Legal risk; use a reserved budget |
 | Voice in version 1 (civilian and responder) | Removed | ~6× the airtime of a text and tied to SF7's short range; text covers the need (§7.4) |
+| Shared listening window (20 s / 5 min, or 10 min / hour) | Replaced | Radio wake: lower current, sub-second delay, no clock sync (§13.1) |
+| Relay as a role or mode; self-election; beacon-driven mesh mode | Replaced | Any unit on external power stays awake and forwards everything (§13.2, §13.3) |
+| Relay beacon every few minutes | Replaced | Heartbeat to responders every 30 min (§13.5) |
+| SOS shown to neighbours | Rejected | Responders only; neighbours see texts (§13.4) |
+| Firmware updates over a phone hotspot | Replaced | Bluetooth from the app, signed images, rollback (§13.6) |
 
 ---
 
@@ -427,18 +446,19 @@ See `docs/hardware/pcb-v1/README.md` for the board description.
 | # | Change | Why | Status |
 |---|---|---|---|
 | 1 | NTC thermistor on the MCP73833 `THERM` pin (3-wire LiPo pack) | No battery temperature protection while charging in a hot sealed enclosure | PROPOSED, high priority |
-| 2 | Charger `PG` pin → spare GPIO (e.g. IO47) | Firmware must know about external power to pick relay hosts | PROPOSED |
-| 3 | `LORA_DIO1` IO38 → **IO19** (RTC-capable) | Radio can wake the ESP32 from deep sleep | PROPOSED (no USB data, so IO19 is free) |
+| 2 | Charger `PG` pin → spare GPIO (e.g. IO47) | Firmware must know about external power: powered units stay awake and forward everything (§13.2) | PROPOSED (power detection is required) |
+| 3 | `LORA_DIO1` IO38 → **IO19** (RTC-capable) | Radio can wake the ESP32 from deep sleep | **DECIDED: required** for radio wake (§13.1). No USB data, so IO19 is free |
 | 4 | Reverse-polarity protection on J3 | JST-PH LiPo packs are wired both ways by different vendors | PROPOSED |
 | 5 | MAX17048 on the `BATT+` side of the power switch | Keeps its learned battery model across power cycles | PROPOSED |
 | 6 | USB data | Not needed: provisioning is over Bluetooth | DECIDED (charge-only stays) |
 | 7 | 2.4 GHz antenna for WROOM-1U, or switch to WROOM-1 | Bluetooth provisioning needs an antenna | OPEN |
 | 8 | 12-key keypad via I²C expander **MCP23017** (TCA8418 optional) + sealed silicone pad, interrupt on an RTC pin; or a direct matrix on the 7 GPIOs freed by #10 (enough for 3×4; a 4×4 needs one more) | Text input (§7.3). MCP23017 is easy to source in India and is what the prototypes use. A direct matrix saves a chip but uses all the freed pins (no room for #9) | PROPOSED |
-| 9 | Optional 32.768 kHz crystal on IO15/IO16 (free once the mic is removed, #10) | Accurate sleep timing, narrower windows. Competes with a direct keypad matrix (#8) for those pins | OPTIONAL |
+| 9 | Optional 32.768 kHz crystal on IO15/IO16 (free once the mic is removed, #10) | Accurate sleep timing, narrower windows. Competes with a direct keypad matrix (#8) for those pins | Not needed (no shared window, §13.1) |
 | 10 | Remove the mic, amp and speaker | Voice is removed from version 1 (§7.4). Frees IO4–IO6 and IO15–IO18 | DECIDED |
 | 11 | Power the INMP441 mic from a **switched rail**, not always-on 3V3 | The mic draws ~1.4 mA whenever powered, which would dominate deep-sleep current | Not needed (mic removed, #10) |
 
-Check GPIO budget once items 2, 3, 8 and 9 are settled together. Removing voice
+Check GPIO budget once items 2, 3 and 8 are settled together (9 is no longer
+needed). Removing voice
 frees IO4–IO6 and IO15–IO18, all RTC-capable.
 
 ---
@@ -452,27 +472,30 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 | `FM_DEDUP_SLOTS` (`include/fm_dedup.h`) | 32 | **~256** to survive a burst of 100 distress + retries (~3 KB) |
 | Pin map | Heltec V3 only (`include/floodmesh_pins.h`) | Separate board variant for PCB V1 |
 | Input | 2×2 matrix + PTT | Keypad (MCP23017 or direct matrix, §9 #8) + side SOS button; no PTT |
-| Mesh | SNR-biased delay | Add battery + floor weighting; volunteer thresholds; ACK caching; batched ACKs |
-| Sleep | Continuous receive | Deep sleep + synchronised 20 s / 5 min windows |
+| Mesh | SNR-biased delay | Add power + battery + floor weighting; forwarding rules (§13.3); ACK caching; batched ACKs; 30-min heartbeat (§13.5) |
+| Sleep | Continuous receive | Deep sleep + SX1262 receive duty cycle, wake on `DIO1`; wake-up preamble on packets for sleeping units (§13.1) |
 | Auth | One PSK (public placeholder) | Per-unit alarm keys for registered units; Ed25519 responder signatures; super-admin public key built in |
 | Voice | Codec2 Layer 2, PTT, voice ring buffer | Remove (§7.4) |
 | Spreading factor | Fixed SF7 (`FM_LORA_SF`), chosen for voice | Choose again for text only (§12.3) |
+| Display | – | SOS shown and sounded only on responder units; text shown on every unit (§13.4) |
+| Firmware update | Root: USB only. V3: WiFi update mode (bench) | Bluetooth from the app, signed images, rollback (§13.6) |
 
 ---
 
 ## 11. Open questions (summary)
 
 1. Gazette text: duty cycle, per device or per channel, listen-before-talk.
-2. Shared window: 20 s every 5 min, or another balance?
+2. ~~Shared window.~~ **Decided 27 Sep:** radio wake, no window (§13.1).
 3. Homing details: LOCATE pings + sounding the civilian's buzzer.
 4. Keypad hardware: MCP23017 + silicone pad (prototypes use MCP23017), or a
    direct matrix on the GPIOs freed by removing voice.
 5. ~~Voice vs 12-key text.~~ **Decided 27 September 2026:** text only, no voice
    in version 1 (§7.4).
-6. SOS key: visible to neighbours or responders only?
+6. ~~SOS visibility.~~ **Decided 27 Sep:** responders only (§13.4).
 7. Per-unit alarm keys from optional registration.
 8. Built-in shared alarm key for unregistered units: keep or drop?
-9. Relay mode: automatic on external power + manual override?
+9. ~~Relay mode.~~ **Decided 27 Sep:** no relay role; a unit on external power
+   stays awake and forwards everything (§13.2).
 10. Bluetooth antenna: WROOM-1U + antenna, or WROOM-1?
 11. Retry limit for unacknowledged distress.
 12. Repository: `main` holds an unrelated older history (`docs/ARCHITECTURE.md`,
@@ -482,6 +505,7 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
     that is the owner's organisation.
 14. Frame format, message IDs, ACKs, SOS categories, the Verified Responder
     label and the owner's 26 Sep proposal: see §12.5.
+15. Details left open by the 27 Sep decisions: see §13.7.
 
 Measurements needed from the bench: deep-sleep current at the battery (OLED
 off); light-sleep + radio-receive current; buzzer loudness at 3.3 V; a
@@ -629,7 +653,128 @@ users.
 4. Verified label: signature from the start, or bits-only for bench tests first.
 5. Certificate in every responder broadcast; PIN to send; A + D combination;
    urgent broadcasts wake sleeping units.
-6. Sleep: 10 min per hour vs 20 s per 5 min, and the SOS-only wake-up preamble.
+6. ~~Sleep windows.~~ **Decided 27 Sep:** radio wake for all traffic that
+   sleeping units must hear, no window (§13.1).
 7. Registration required or optional; responder registration by organisations.
-8. Relay fallback: the owner's self-election vs §4.4 volunteering.
+8. ~~Relay fallback.~~ **Decided 27 Sep:** no relay role; forwarding rules in
+   §13.2 and §13.3.
 9. Fox hunt: automatic 100 m buzzer vs an explicit BUZZ command.
+
+---
+
+## 13. Decisions of 27 September 2026
+
+Confirmed by the owner on 27 September 2026. Where these change earlier
+sections, those sections point here. Airtime figures are for BW 125 kHz, CR 4/5;
+current and airtime estimates are still to be measured.
+
+### 13.1 Radio wake replaces the shared listening window (DECIDED)
+- **No shared listening window** of any length. A sleeping unit keeps the ESP32
+  in deep sleep while the SX1262 runs its own receive duty cycle: it listens for
+  a few milliseconds every T and wakes the ESP32 through `DIO1` only when a
+  complete, valid FloodMesh packet arrives. The unit shows, forwards or ACKs it,
+  then sleeps again after a quiet period.
+- Every packet that sleeping units must hear carries a **wake-up preamble at
+  least T long**, so it can't fall between two checks. This extends the §12.1
+  counter-proposal (SOS and LOCATE only) to all such traffic, because no window
+  is left for normal traffic.
+- PROPOSED: T ≈ 0.5 s. Estimated radio average ~0.1–0.15 mA, against ~0.5 mA
+  for 20 s every 5 min, and under a second per hop instead of up to ~5 min. The
+  cost is ~0.5 s of airtime on every such packet: an SOS goes from 70 ms to
+  ~0.55 s at SF7, or from 239 ms to ~0.66 s at SF9.
+- Only a valid packet with FloodMesh's own sync word wakes the processor. Other
+  LoRa equipment in 865–867 MHz (Meshtastic's India band is the same) must not.
+- No clock sync is needed for listening, so the 32 kHz crystal (§9 #9) isn't
+  needed.
+- **PCB change 3 (`LORA_DIO1` IO38 → IO19) is required.** The Heltec V3 already
+  has `DIO1` on GPIO14, which can wake the chip, so the prototypes can test this
+  now.
+- Supersedes the §5 window, the 10 min per hour in §12.1 and §12.5 item 6.
+
+### 13.2 No relay role: powered units (DECIDED)
+- Relay is no longer a role, a mode or a menu. **Any unit on external power**
+  (solar, a power bank or a UPS on USB-C) **stays awake and forwards
+  everything.** On battery the same unit sleeps (§13.1) and forwards by §13.3.
+- The hosting advice in §4.3 stands: solar or UPS households first, high up.
+  Height is the biggest range lever (`docs/field-tests.md`).
+- The unit must detect external power: PCB change 2 (charger `PG` → GPIO), or
+  infer charging from the fuel gauge.
+- The jobs §4 gave relays (batched ACKs, zone summaries, caching for sleeping
+  units, the §3 zone cross-check) become jobs of powered units.
+- PROPOSED: external power gets the strongest weight in the §4.4 race, so
+  powered units forward first and battery units hear them and cancel.
+- Supersedes the relay mode in §4.3, the beacon-driven mesh mode in §4.4, and
+  the self-election proposal in §12.1 and §12.5 item 8.
+
+### 13.3 Forwarding rules (DECIDED)
+- **SOS: every unit forwards it**, on external power or on battery, whether or
+  not a powered unit is nearby, hop by hop until it reaches a responder (within
+  the frame's hop limit).
+- **Text: powered units always forward it. A battery unit forwards text only
+  when it has not heard a powered unit's heartbeat nearby** (§13.5).
+- Forwarding keeps the §4.4 race: each unit that would forward waits its own
+  weighted delay and cancels if it hears someone else forward the packet first.
+  An area sends each packet about once per hop, not once per unit.
+- PROPOSED: "nearby" means a heartbeat heard directly (hops taken = 0) within
+  the last ~65 min, i.e. two heartbeat periods.
+- Supersedes the §4.4 mode switch and "only distress-sized packets are relayed
+  by civilian volunteers".
+
+### 13.4 Who sees what (DECIDED)
+- **SOS: only responder units show it** (the call sign resolved to its registry
+  address, plus category and battery) **and sound the buzzer.** Civilian units
+  forward it silently, with nothing on the display and no buzzer. This settles
+  §7.2, §11 item 6 and the §12.1 "SOS hidden" proposal.
+- **Text is shown on every unit that receives it**, so anyone nearby can help
+  instead of waiting for responders. A civilian who wants neighbours' help sends
+  a text; the SOS is for responders.
+- Text is public to every unit in range. User guidance should say so.
+
+### 13.5 Heartbeat from powered units to responders (DECIDED)
+- Every powered unit sends a **heartbeat every 30 min**, addressed to all
+  responders. Any unit forwards it, hop by hop, until it reaches responders.
+- Responder units list which powered units were heard and when, mapped to their
+  registered addresses, so responders see which areas still have coverage.
+- Battery units use the same heartbeats for the text rule in §13.3.
+- Replaces the relay beacon every few minutes (§4.4). Bulletins are no longer
+  announced in beacons; they go out as broadcasts with the wake-up preamble.
+- Airtime estimate: a ~20 B heartbeat with the wake-up preamble is ~0.55 s per
+  transmission at SF7. 10 powered units × 2 per hour × ~5 forwards ≈ 55 s per
+  hour of channel time, ~5% of the ~1,200 s usable (§1.3). It grows with the
+  number of powered units and hops.
+- PROPOSED: heartbeats have the lowest priority and are dropped first when a
+  unit's airtime budget runs low; they carry a hop limit and are de-duplicated
+  like other frames.
+
+### 13.6 Firmware updates over Bluetooth (DECIDED)
+- Firmware updates go **over Bluetooth from the Flutter app**, with **signed
+  images** and **automatic rollback**. The app downloads the image over mobile
+  data and pushes it to the unit; nobody renames a hotspot.
+- The unit writes the image to its spare app slot (both firmware builds already
+  use a two-slot partition table) and marks it good only after a self-test;
+  otherwise it boots the previous image.
+- PROPOSED: updates only in provisioning mode (button combination + PIN on the
+  OLED); a release-signing key separate from the super-admin key, both backed up
+  offline; a battery check before starting; the app checks for new versions and
+  notifies users; volunteer update drives for units whose owners don't have the
+  app. Estimate: ~1.1 MB in roughly 0.5–1.5 min (slower on iPhone).
+- Units that never update must keep working, so the on-air frame format must
+  stay backward compatible (the version field, §12.2), and the network's SF must
+  never change through an update.
+- The V3 WiFi update mode (`firmware_v3/README.md` §7) stays a bench tool.
+  Supersedes the hotspot updates in §6.3.
+
+### 13.7 Still open from these decisions
+1. Wake check interval T (0.5 s proposed), with measured current and airtime.
+2. Battery floor for forwarding. §4.4's 50% on / 35% off was for relaying
+   without relays. Claude's suggestion: forward SOS at any charge above a small
+   reserve kept for the unit's own SOS (e.g. 15–20%), and keep 50% / 35% for
+   forwarding text.
+3. The one-press presets (§7.1): treated as SOS (responders only) or as text
+   (every unit sees them)?
+4. Heartbeat authentication. With the shared network key anyone can forge one:
+   responders would think an area is covered, and nearby battery units would
+   stop forwarding text (SOS is unaffected). Sign with a per-unit key from
+   registration (§6.3), or accept the risk for v1.
+5. Time source for responder expiry (§6.2) now that relay beacons, which were to
+   carry time, are gone.

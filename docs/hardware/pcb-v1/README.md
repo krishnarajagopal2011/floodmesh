@@ -95,7 +95,9 @@ hardware decisions, is in [`../../architecture.md`](../../architecture.md) §9.
    vendors are wired both ways round. Fix with a P-FET, or buy packs from one
    vendor only.
 3. **`LORA_DIO1` on a non-RTC pin** (see above). Moving it to IO19 — free,
-   and USB data is not used — would allow deep-sleep wake on radio activity.
+   and USB data is not used — allows deep-sleep wake on radio activity. This is
+   now **required**: radio wake replaced the shared listening window
+   (`architecture.md` §13.1).
 4. **Fuel gauge after the power switch.** It re-learns the cell after every
    power-on, so readings are less accurate for a while each time. On the
    `BATT+` side its hibernate current is only a few µA.

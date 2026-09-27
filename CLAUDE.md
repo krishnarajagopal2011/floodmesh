@@ -45,17 +45,19 @@ see `docs/architecture.md` §1.1.
 
 ## Architecture in one paragraph
 Same hardware for every role. Civilian units work out of the box (optional
-registration via a Flutter app with OTP), deep-sleep, and wake for a shared
-listening window. They send one-press presets, a side-button SOS to responders,
-and 60-character text from a 12-key keypad (T9 English, multi-tap Tanglish, no
-Tamil script). Location comes from a call-sign → address registry, a relay-zone
-cross-check and hot/cold homing, with no GPS. At least 3 relays per 100
-households, preferring solar/UPS hosts; relays help but are never required, and
-civilian units fall back to a mesh mode where units above a battery threshold
-volunteer to relay (no election; the first to transmit wins a weighted-delay
-race). Responders are made by one super admin over Bluetooth, sign messages
-with their own key, and expire after 10 days. Details and caveats are in
-`docs/architecture.md`.
+registration via a Flutter app with OTP), deep-sleep, and wake by radio: the
+SX1262 wakes the ESP32 when a packet with a wake-up preamble arrives (no shared
+listening window). They send one-press presets, a side-button SOS and
+60-character text (T9 English, multi-tap Tanglish, no Tamil script); no voice in
+v1. Every unit forwards SOS, which only responder units show; text shows on
+every unit. There is no relay role: any unit on external power stays awake,
+forwards everything and sends responders a heartbeat every 30 min; battery units
+forward text only when no powered unit is nearby (no election; the first to
+transmit wins a weighted-delay race). Location comes from a call-sign → address
+registry, a zone cross-check and hot/cold homing, with no GPS. Firmware updates
+go over Bluetooth from the app, signed, with rollback. Responders are made by
+one super admin over Bluetooth, sign messages with their own key, and expire
+after 10 days. Details and caveats are in `docs/architecture.md`.
 
 ## Branches
 `9th-Sept-2026` holds the PlatformIO firmware and these docs. `main` has an
