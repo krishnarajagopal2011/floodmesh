@@ -423,9 +423,6 @@ static bool pskIsPlaceholder(const uint8_t k[16]) {
 // ---------------------------------------------------------------- helpers
 static bool isResponder() { return fmRole() == FM_ROLE_RESPONDER; }
 
-/** "RSP" or "CIV". The relay role is gone in V4 (§13.2): power decides forwarding. */
-static const char *roleTag() { return isResponder() ? "RSP" : "CIV"; }
-
 static void fmtAge(uint32_t ms, char *out, size_t n) {
   const uint32_t s = ms / 1000;
   if (s < 60)        snprintf(out, n, "%lus", (unsigned long)s);
