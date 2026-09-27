@@ -76,7 +76,7 @@ everything (§13.2).
 | | Civilian (default) | Powered unit (any unit on external power, §13.2) | Responder |
 |---|---|---|---|
 | Setup | **None required.** Works out of the box. Optional registration (§6.3) | None; plug into solar, a power bank or a UPS (§4.3) | Bluetooth registration by the super admin |
-| Sends | Presets, SOS key, text (§7) | Heartbeat every 30 min (§13.5), batched ACKs, zone summaries, forwarded traffic | Text/preset replies, bulletins, LOCATE |
+| Sends | SOS with a channel, text (§7, §13.8) | Heartbeat every 30 min (§13.5), batched ACKs, zone summaries, forwarded traffic | Text/preset replies, bulletins, LOCATE |
 | Sleep | Deep sleep + radio wake (§13.1) | Always listening | Always listening |
 | Expiry | None | None | 10 days (§6.2) |
 
@@ -335,11 +335,12 @@ secret.
 
 ## 7. What users can send
 
-### 7.1 Presets (DECIDED to keep as the fast path)
-One-press distress presets (the existing four: SAFE, NEED MEDICAL, WATER GROUND
-FLOOR, NEED EVACUATION), carrying head count and flags where possible.
-PROPOSED 27 Sep: the three distress presets become SOS channels and SAFE
-becomes a status text that everyone sees (§13.8).
+### 7.1 Presets (DECIDED 27 Sep: removed for civilians)
+~~One-press distress presets (the existing four: SAFE, NEED MEDICAL, WATER
+GROUND FLOOR, NEED EVACUATION), carrying head count and flags where possible.~~
+**Removed 27 Sep 2026:** civilians have the SOS with a channel (§13.8) and
+60-character text, which cover the same needs. Responder units keep preset
+replies (§7.5).
 
 ### 7.2 SOS key (DECIDED)
 A dedicated SOS on the **side button** (S1 on the PCB). On the V3 keypad build
@@ -353,7 +354,7 @@ through the mesh; "direct" changes who **sees** it, not the path it takes.
 SOS silently; only responder units show it and sound the buzzer. Texts, not
 SOS, are how neighbours are asked for help.
 
-### 7.3 Text via a 12-key keypad (DECIDED)
+### 7.3 Text via a 4×4 keypad (DECIDED)
 Replaces voice as the information-rich channel. It is the only free-form
 channel in version 1, which has no voice (§7.4).
 - **Maximum 60 characters**, packed 6 bits per character (capital letters,
@@ -371,13 +372,15 @@ channel in version 1, which has no voice (§7.4).
   learning in version 1.
 - The OLED fits 4 lines × 21 characters, so 60 characters shows on one screen.
 - Concerns recorded: excludes people who can't read or type Latin letters;
-  typing 60 characters under stress takes minutes, which is why the presets stay
-  as a one-press path.
-- Hardware: PROPOSED 12-key pad via an **MCP23017 I²C expander** (TCA8418 is
+  typing 60 characters under stress takes minutes, which is why the SOS with a
+  channel is the fast path (§13.8).
+- Hardware: **4×4 keypad (DECIDED 27 Sep):** 1–9, 0, `*`, `#`, and A–D as
+  navigation keys (UP, DOWN, OK, BACK), as on prototype v2 and V3. PROPOSED for
+  the PCB: via an **MCP23017 I²C expander** (TCA8418 is
   hard to source quickly in India), with its interrupt on an RTC-capable pin,
-  and a **sealed silicone keypad** for IP67. The side button stays as SOS. (A direct 3×4 matrix
-  needs 7 GPIOs and a 4×4 needs 8. Removing voice frees 7 RTC-capable GPIOs on
-  the PCB, so a direct matrix without the MCP23017 is now possible; see §9 #8.)
+  and a **sealed silicone keypad** for IP67. The side button stays as SOS. (A direct 4×4 matrix
+  needs 8 GPIOs. Removing voice frees 7 RTC-capable GPIOs on the PCB, so a
+  direct matrix needs one more pin, e.g. IO47 as a column; see §9 #8.)
 
 ### 7.4 Voice (DECIDED: removed from version 1)
 **Decided 27 September 2026:** version 1 has **no voice for anyone**, civilian or
@@ -402,6 +405,9 @@ If voice returns in a later version: rate limit 1 per hour; a
 volunteers; **off in mesh mode**.
 
 ### 7.5 Responder → civilian messages (PROPOSED)
+**DECIDED 27 Sep:** "Help coming" is a preset reply on responder units (§13.8).
+The rest of this section is PROPOSED.
+
 No free keyboard needed on the civilian side. Responders send **preset messages
 with a parameter** chosen from OLED menus ("Help coming", "Stay where you are",
 "Boat arriving in 15/30/60 min", "Go to relief camp ▸ [list]", "Evacuate now").
@@ -460,7 +466,7 @@ See `docs/hardware/pcb-v1/README.md` for the board description.
 | 5 | MAX17048 on the `BATT+` side of the power switch | Keeps its learned battery model across power cycles; with the switch off-board (#12) it would also see the switch lead's resistance | PROPOSED |
 | 6 | USB data | Not needed: provisioning is over Bluetooth | DECIDED (charge-only stays) |
 | 7 | 2.4 GHz antenna for WROOM-1U: adhesive flex ("sticker") antenna on a U.FL/MHF1 lead, stuck inside the case (Molex 146153-0100 in the priced BoM). WROOM-1 is not a drop-in: about 6 mm longer at the antenna end | Bluetooth provisioning and firmware updates need an antenna; the sticker needs no PCB change | PROPOSED (owner, 27-09-2026) |
-| 8 | 12-key keypad via I²C expander **MCP23017** (TCA8418 optional) + sealed silicone pad, interrupt on an RTC pin; or a direct matrix on the 7 GPIOs freed by #10 (enough for 3×4; a 4×4 needs one more) | Text input (§7.3). MCP23017 is easy to source in India and is what the prototypes use. A direct matrix saves a chip but uses all the freed pins (no room for #9) | PROPOSED |
+| 8 | **4×4 keypad** via I²C expander **MCP23017** + sealed silicone pad, interrupt on an RTC pin; or a direct matrix on the 7 GPIOs freed by #10 plus one more (e.g. IO47 as a column) | Text input and navigation (§7.3). MCP23017 is easy to source in India and is what prototype v2 uses; V3 wires the matrix directly | 4×4 DECIDED; MCP23017 vs direct matrix PROPOSED |
 | 9 | Optional 32.768 kHz crystal on IO15/IO16 (free once the mic is removed, #10) | Accurate sleep timing, narrower windows. Competes with a direct keypad matrix (#8) for those pins | Not needed (no shared window, §13.1) |
 | 10 | Remove the mic, amp and speaker | Voice is removed from version 1 (§7.4). Frees IO4–IO6 and IO15–IO18 | DECIDED |
 | 11 | Power the INMP441 mic from a **switched rail**, not always-on 3V3 | The mic draws ~1.4 mA whenever powered, which would dominate deep-sleep current | Not needed (mic removed, #10) |
@@ -482,14 +488,14 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 | `FM_REPLAY_SLOTS` (`include/fm_auth.h`) | 32 | **≥128** for 100 senders (~2 KB) |
 | `FM_DEDUP_SLOTS` (`include/fm_dedup.h`) | 32 | **~256** to survive a burst of 100 distress + retries (~3 KB) |
 | Pin map | Heltec V3 only (`include/floodmesh_pins.h`) | Separate board variant for PCB V1 |
-| Input | 2×2 matrix + PTT | Keypad (MCP23017 or direct matrix, §9 #8) + side SOS button; no PTT |
+| Input | 2×2 matrix + PTT | 4×4 keypad (MCP23017 or direct matrix, §9 #8) + side SOS button; no PTT |
 | Mesh | SNR-biased delay | Add power + battery + floor weighting; forwarding rules (§13.3); ACK caching; batched ACKs; 30-min heartbeat (§13.5) |
 | Sleep | Continuous receive | Deep sleep + SX1262 receive duty cycle, wake on `DIO1`; wake-up preamble on packets for sleeping units (§13.1) |
 | Auth | One PSK (public placeholder) | Per-unit alarm keys for registered units; Ed25519 responder signatures; super-admin public key built in |
 | Voice | Codec2 Layer 2, PTT, voice ring buffer | Remove (§7.4) |
 | Spreading factor | Fixed SF7 (`FM_LORA_SF`), chosen for voice | One network SF chosen by field tests; retune the `fm_mesh` contention slot. v1.1: SF step-up retries for SOS, dual-SF scan on powered units (§13.7) |
 | Display | – | SOS shown and sounded only on responder units; text shown on every unit (§13.4) |
-| SOS channels | V3: SOS has no category; alerts menu (A) sends 4 presets | Channel screen after the SOS hold; presets become channels; responder channel filter kept in NVS (§13.8) |
+| SOS channels | V3: SOS has no category; alerts menu (A) sends 4 presets | Channel screen after the SOS hold; remove the civilian alerts menu; responder channel filter in NVS; "Help coming" preset reply; escalation (§13.8) |
 | Firmware update | Root: USB only. V3: WiFi update mode (bench) | Bluetooth from the app, signed images, rollback (§13.6) |
 
 ---
@@ -499,8 +505,8 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 1. Gazette text: duty cycle, per device or per channel, listen-before-talk.
 2. ~~Shared window.~~ **Decided 27 Sep:** radio wake, no window (§13.1).
 3. Homing details: LOCATE pings + sounding the civilian's buzzer.
-4. Keypad hardware: MCP23017 + silicone pad (prototypes use MCP23017), or a
-   direct matrix on the GPIOs freed by removing voice.
+4. Keypad: **4×4 decided 27 Sep.** Still open for the PCB: MCP23017 + silicone
+   pad, or a direct matrix on the GPIOs freed by removing voice plus one more.
 5. ~~Voice vs 12-key text.~~ **Decided 27 September 2026:** text only, no voice
    in version 1 (§7.4).
 6. ~~SOS visibility.~~ **Decided 27 Sep:** responders only (§13.4).
@@ -605,11 +611,13 @@ Relays batch several ACKs (~5 B each, §4.2). ACKs drive the NOT SENT /
 NOT CONFIRMED / DELIVERED states. Retries keep the same message ID with the
 retry count raised.
 
-**PROPOSED: SOS categories** (at most ~6, so a stressed user can choose):
+**SOS categories: DECIDED 27 Sep as channels** General, Medical, Evacuation,
+Hazard, Food supply (§13.8). Original proposal (at most ~6, so a stressed user
+can choose):
 General SOS, Medical, Trapped / water rising, Evacuation, Food and water,
 Hazard. Safeguards: relays never filter; responders see a count of SOS in other
 categories; an uncategorised SOS shows to everyone; responder units default to
-"All". OPEN: the final list.
+"All".
 
 ### 12.3 SF choice (DECIDED 27 Sep: one network SF chosen by field tests, §13.7)
 
@@ -661,7 +669,7 @@ users.
 
 1. Message ID: 16-bit counter (recommended) or a random ID.
 2. ACK frame rules as in §12.2.
-3. The SOS category list.
+3. ~~The SOS category list.~~ **Decided 27 Sep** (§13.8).
 4. Verified label: signature from the start, or bits-only for bench tests first.
 5. Certificate in every responder broadcast; PIN to send; A + D combination;
    urgent broadcasts wake sleeping units.
@@ -799,62 +807,58 @@ current and airtime estimates are still to be measured.
   packet (§12.2, PROPOSED). The network SF must never change through a firmware
   update (§13.6).
 
-### 13.8 SOS channels (DECIDED; sender screen PROPOSED)
-The SOS category in §12.2 is called a **channel** here: Medical, Evacuation,
-Food and water, and so on. It is a field in the SOS frame (4 bits, up to 16
-values), not a separate radio channel; every SOS still uses the one network SF.
+### 13.8 SOS channels (DECIDED)
+The SOS category in §12.2 is called a **channel** here. It is a field in the
+SOS frame (4 bits, up to 16 values), not a separate radio channel; every SOS
+still uses the one network SF.
 
 **DECIDED (owner, 27 Sep):**
-- Holding **`*` + `#`** (V3) or the side button (PCB) is the SOS. It is for
-  responders only (§13.4).
-- **Responder units choose which SOS channels they receive, and can change the
-  choice at any time** from the unit's menu. This extends the category filter
-  decided on 26 Sep (§12.2).
-
-**PROPOSED: how the sender picks a channel.**
-- The SOS hold works as now (bar fills; release early to cancel). When it
-  completes, a channel screen appears:
+- Holding **`*` + `#`** for 3 s (V3's 4×4 keypad) or the side button (PCB) is
+  the SOS. It is for responders only (§13.4).
+- **Channels: General, Medical, Evacuation, Hazard, Food supply.**
+- **The sender picks a channel after the hold.** The bar fills as now (release
+  early to cancel), then a channel screen appears:
   ```
   SOS: PICK HELP TYPE
-  1 MED  2 TRAP 3 EVAC
-  4 FOOD 5 HAZ  0 GEN
+  1 MED  2 EVAC 3 HAZ
+  4 FOOD 0 GENERAL
   SENDS GENERAL IN 5s
   ```
-  One digit sends the SOS with that channel. With no key pressed, it goes out
-  as **General** after 5 s, so a user who panics or can't read the screen still
+  One digit sends the SOS on that channel. With no key pressed it goes out as
+  **General** after 5 s, so a user who panics or can't read the screen still
   gets an SOS out. D cancels.
-- The three distress presets become channels: NEED MEDICAL → Medical, WATER
-  GROUND FLOOR → Trapped / water rising, NEED EVACUATION → Evacuation. The A
-  menu keeps them as a second way in (pick, then OK), for users who find the
-  hold hard. **SAFE becomes a status text** that every unit shows, because
-  neighbours want to know who is safe and it isn't an emergency.
 - The unit label prints the legend ("Hold * + # for SOS, then 1 Medical,
-  2 Trapped…").
+  2 Evacuation…").
 - One channel per SOS. A user who needs two sends the most urgent one and
   describes the rest in a text.
-- Channel list: §12.2's proposal (General, Medical, Trapped / water rising,
-  Evacuation, Food and water, Hazard) fits the six digits above. The final list
-  is OPEN.
-
-**PROPOSED: the responder filter.**
-- A menu on responder units (e.g. B → SOS channels): digits toggle channels, OK
-  saves. Stored in NVS, so it survives reboot and sleep. Default: all channels.
-  The admin app can preset it at registration (e.g. a medical team); the unit's
-  menu can change it at any time.
-- The status bar shows the active filter (e.g. "SOS: MED EVAC"), so a responder
-  doesn't forget they are filtering.
-- Safeguards, so a filter never loses an SOS:
+- **No civilian presets** (§7.1). A civilian has the SOS with a channel, and
+  60-character text.
+- **Responder units choose which channels they receive, and can change the
+  choice at any time:** a menu (e.g. B → SOS channels) where digits toggle
+  channels and OK saves. It is kept in NVS, so it survives reboot and sleep.
+  Default: all channels. The admin app can preset it at registration (e.g. a
+  medical team). The status bar shows the active filter (e.g. "SOS: MED EVAC"),
+  so a responder doesn't forget they are filtering.
+- **"Help coming" is a preset reply on responder units** (§7.5): one key press,
+  sent as a reply to a specific SOS. It tells the civilian someone is on the
+  way, and tells other responder units that hear it that the SOS is being
+  handled.
+- **Safeguards, so a filter never loses an SOS:**
   1. Filtering is on the responder's display only. Every unit still forwards
      every SOS (§13.3); powered units never filter.
-  2. **General SOS always shows** on every responder unit; it can't be
-     filtered out.
-  3. Hidden SOS are counted ("3 SOS in other channels"), with a key to view them.
-  4. **Escalation:** an SOS that no responder has answered with "Help coming"
-     (§7.5) within ~15 min shows on every responder unit, whatever its filter.
+  2. **General SOS always shows** on every responder unit; it can't be filtered
+     out.
+  3. Hidden SOS are counted ("3 SOS in other channels"), with a key to view
+     them.
+  4. **Escalation:** if no responder has answered an SOS with "Help coming"
+     within ~15 min, it appears on every responder unit that received it, even
+     units whose filter hides that channel. Example: a Food supply SOS when
+     every responder in range has chosen Medical only. After 15 min with no
+     "Help coming", all of them see it and one can pick it up or pass it on.
   5. A responder unit sends the delivery ACK for every SOS it receives, shown or
      not, with the usual race so only one responder ACKs per area. The civilian
      sees DELIVERED, and a filter never triggers retries or the SF step-up
-     (§13.7). "Help coming" is the separate signal that someone is acting.
+     (§13.7).
 
 ### 13.9 Still open from these decisions
 1. Wake check interval T (0.5 s proposed), with measured current and airtime.
@@ -862,8 +866,8 @@ values), not a separate radio channel; every SOS still uses the one network SF.
    without relays. Claude's suggestion: forward SOS at any charge above a small
    reserve kept for the unit's own SOS (e.g. 15–20%), and keep 50% / 35% for
    forwarding text.
-3. ~~The one-press presets.~~ PROPOSED in §13.8: the distress presets become
-   SOS channels, SAFE becomes a status text. The final channel list is OPEN.
+3. ~~The one-press presets.~~ **Decided 27 Sep:** removed for civilians; the
+   channel list is decided (§13.8).
 4. Heartbeat authentication. With the shared network key anyone can forge one:
    responders would think an area is covered, and nearby battery units would
    stop forwarding text (SOS is unaffected). Sign with a per-unit key from
@@ -872,3 +876,7 @@ values), not a separate radio channel; every SOS still uses the one network SF.
    carry time, are gone.
 6. The network SF (field tests; SF9 likely), and for v1.1 the retry count N and
    the step-up SF.
+7. "I'm safe". The removed SAFE preset let a household tell everyone it was
+   safe, so responders could strike it off their search list. A user can still
+   type SAFE as text, but responder units can't count free text by area. Keep a
+   one-key "I'm safe" status, or leave it to text?
