@@ -865,8 +865,8 @@ still uses the one network SF.
      sees DELIVERED, and a filter never triggers retries or the SF step-up
      (§13.7).
 
-**PROPOSED: the responder SOS screen.** Both boards have a monochrome 128×64
-OLED, so "highlight" means an inverted label (white box, black text), not a
+**DECIDED 27 Sep: the responder SOS screen.** Both boards have a monochrome
+128×64 OLED, so "highlight" means an inverted label (white box, black text), not a
 colour.
 ```
 GEN MED EVAC [haz•] food
@@ -884,7 +884,9 @@ C-04 ground  GEN   12 min
   first, with registry address, channel and age.
 - Digits jump to a tab, matching the sender's channel screen (0 General,
   1 Medical, 2 Evacuation, 3 Hazard, 4 Food supply). Holding a digit for 1 s
-  adds or removes that channel from the selection.
+  adds or removes that channel from the selection. A / B move up and down the
+  list, C opens an SOS, D goes back to the home screen (where digits start a
+  text, as on civilian units).
 - Buzzer: SOS in selected channels sound it; a highlighted tab stays silent
   until the SOS escalates (safeguard 4), which sounds the buzzer and moves it
   into the list.
