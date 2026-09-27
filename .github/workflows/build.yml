@@ -71,6 +71,41 @@ jobs:
             firmware_v3/.pio/build/v3/partitions.bin
           if-no-files-found: error
 
+  firmware-v4:
+    # Firmware V4 (the 27 September decisions on the V3 hardware) is its own
+    # PlatformIO project in firmware_v4/. Every env is built: v4 is the default,
+    # v4_sf9 and v4_wake are the spreading-factor and radio-wake experiments.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [v4, v4_sf9, v4_wake]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            firmware_v4/.pio/libdeps
+          key: pio-v4-${{ runner.os }}-${{ hashFiles('firmware_v4/platformio.ini') }}
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+      - name: Build ${{ matrix.env }}
+        run: pio run -d firmware_v4 -e ${{ matrix.env }}
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.env }}
+          path: |
+            firmware_v4/.pio/build/${{ matrix.env }}/firmware.bin
+            firmware_v4/.pio/build/${{ matrix.env }}/bootloader.bin
+            firmware_v4/.pio/build/${{ matrix.env }}/partitions.bin
+          if-no-files-found: error
+
   admin-app:
     runs-on: ubuntu-latest
     env:

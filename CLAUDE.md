@@ -28,6 +28,15 @@ Two boards exist. Check which one a change targets.
   Build: `pio run -d firmware_v3 -e v3`. Read `firmware_v3/README.md`. It
   copies modules from the root firmware; don't edit the root firmware for V3
   changes, or the reverse.
+- **Firmware V4** (`firmware_v4/`, a separate PlatformIO project, same
+  hardware and wiring as V3): the 27 Sep decisions (`docs/architecture.md`
+  §13) - SOS channel screen, SOS shown only on responder units with channel
+  tabs, delivery ACK / "Help coming" frames (0x04), SOS retries, powered-unit
+  heartbeats (0x05) and the text-forwarding rule, light sleep with DIO1/keypad
+  wake, SF as a build setting, OTA trial + rollback. Envs `v4`, `v4_sf9`,
+  `v4_wake`. Build: `pio run -d firmware_v4 -e v4`. Read
+  `firmware_v4/README.md`. V3 stays as it is for comparison; keep V3 and V4
+  changes separate.
 
 ## Firmware and app
 - Build with PlatformIO locally, or let `.github/workflows/build.yml` build

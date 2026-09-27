@@ -912,3 +912,13 @@ C-04 ground  GEN   12 min
    safe, so responders could strike it off their search list. A user can still
    type SAFE as text, but responder units can't count free text by area. Keep a
    one-key "I'm safe" status, or leave it to text?
+
+### 13.10 Firmware V4
+`firmware_v4/` (Heltec V3 + 4×4 keypad, the V3 wiring) implements the
+decisions above that need only firmware: 13.1 as light sleep with DIO1 and
+keypad wake (the RX duty-cycle wake-up preamble is the `v4_wake` build, since
+T is open), 13.2–13.5, 13.7 (SF as a build setting; `v4_sf9`), 13.8, and the
+rollback part of 13.6. Not in V4: Bluetooth updates with signed images (the
+protocol doc and the app come first), presetting responder channels from the
+app, the PCB changes, and the open items in 13.9. Details:
+`firmware_v4/README.md`.
