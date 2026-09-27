@@ -10,7 +10,7 @@ dev-board build described in [`../../hardware-notes.md`](../../hardware-notes.md
 | Revision | V1.0, 22-09-2026 |
 | Board | 70 × 70 mm, 4 × Ø3.2 mm mounting holes |
 | Source files | [`flood-mesh-v1.0-schematic-layout.pdf`](flood-mesh-v1.0-schematic-layout.pdf) (4 schematic sheets, layout, 3D views) · [`flood-mesh-v1.0-bom.pdf`](flood-mesh-v1.0-bom.pdf) (70 parts) |
-| Priced BoM | [`flood-mesh-v1.0-bom-no-voice-priced.xlsx`](flood-mesh-v1.0-bom-no-voice-priced.xlsx): V1.0 without the mic, amplifier and speaker (58 parts), with distributor prices gathered 27-09-2026 |
+| Priced BoM | [`flood-mesh-v1.0-bom-priced.xlsx`](flood-mesh-v1.0-bom-priced.xlsx): V1.0 with `architecture.md` §9 items 10 and 12 applied (no mic, amplifier or speaker; S6 replaced by a header to a case rocker), plus the case rocker, switch lead and Bluetooth sticker antenna. Distributor prices gathered 27-09-2026 |
 
 This file is a reading aid for the PDFs. If the two disagree, the PDFs win —
 and this file should be fixed.

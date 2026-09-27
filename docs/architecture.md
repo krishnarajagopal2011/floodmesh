@@ -324,8 +324,10 @@ secret.
   shows a PIN, and Bluetooth turns off again afterwards. A factory-reset
   combination (hold ~10 s) wipes identity and keys.
 - **Bluetooth antenna:** the WROOM-1U module has no built-in antenna, only a
-  U.FL connector. Either add a small 2.4 GHz antenna to the BoM, or switch to
-  the WROOM-1 (built-in PCB antenna, same pinout). **OPEN.**
+  U.FL connector. **PROPOSED (owner, 27 Sep):** an adhesive flex ("sticker")
+  2.4 GHz antenna with a U.FL/MHF1 lead, stuck inside the case (§9 #7). The
+  WROOM-1 (built-in PCB antenna, same pinout) is not a drop-in: it is about
+  6 mm longer at the antenna end.
 - Firmware updates (**DECIDED 27 Sep**, §13.6): over Bluetooth from the app,
   with signed images and automatic rollback. The PCB has no USB data lines.
 
@@ -455,13 +457,16 @@ See `docs/hardware/pcb-v1/README.md` for the board description.
 | 2 | Charger `PG` pin → spare GPIO (e.g. IO47) | Firmware must know about external power: powered units stay awake and forward everything (§13.2) | PROPOSED (power detection is required) |
 | 3 | `LORA_DIO1` IO38 → **IO19** (RTC-capable) | Radio can wake the ESP32 from deep sleep | **DECIDED: required** for radio wake (§13.1). No USB data, so IO19 is free |
 | 4 | Reverse-polarity protection on J3 | JST-PH LiPo packs are wired both ways by different vendors | PROPOSED |
-| 5 | MAX17048 on the `BATT+` side of the power switch | Keeps its learned battery model across power cycles | PROPOSED |
+| 5 | MAX17048 on the `BATT+` side of the power switch | Keeps its learned battery model across power cycles; with the switch off-board (#12) it would also see the switch lead's resistance | PROPOSED |
 | 6 | USB data | Not needed: provisioning is over Bluetooth | DECIDED (charge-only stays) |
-| 7 | 2.4 GHz antenna for WROOM-1U, or switch to WROOM-1 | Bluetooth provisioning needs an antenna | OPEN |
+| 7 | 2.4 GHz antenna for WROOM-1U: adhesive flex ("sticker") antenna on a U.FL/MHF1 lead, stuck inside the case (Molex 146153-0100 in the priced BoM). WROOM-1 is not a drop-in: about 6 mm longer at the antenna end | Bluetooth provisioning and firmware updates need an antenna; the sticker needs no PCB change | PROPOSED (owner, 27-09-2026) |
 | 8 | 12-key keypad via I²C expander **MCP23017** (TCA8418 optional) + sealed silicone pad, interrupt on an RTC pin; or a direct matrix on the 7 GPIOs freed by #10 (enough for 3×4; a 4×4 needs one more) | Text input (§7.3). MCP23017 is easy to source in India and is what the prototypes use. A direct matrix saves a chip but uses all the freed pins (no room for #9) | PROPOSED |
 | 9 | Optional 32.768 kHz crystal on IO15/IO16 (free once the mic is removed, #10) | Accurate sleep timing, narrower windows. Competes with a direct keypad matrix (#8) for those pins | Not needed (no shared window, §13.1) |
 | 10 | Remove the mic, amp and speaker | Voice is removed from version 1 (§7.4). Frees IO4–IO6 and IO15–IO18 | DECIDED |
 | 11 | Power the INMP441 mic from a **switched rail**, not always-on 3V3 | The mic draws ~1.4 mA whenever powered, which would dominate deep-sleep current | Not needed (mic removed, #10) |
+| 12 | Remove slide switch S6; a 2-pin header in the `BATT+` → `BATT_IN` break goes to a sealed (IP67) panel rocker on the case | Owner's case design. Charging still works with the switch off, and the MCU never sensed S6 | DECIDED (owner, 27-09-2026) |
+| 13 | Switch header in a different connector series from the battery's JST-PH: JST GH (latching) or ZH | With two PH 2-pin headers the battery and switch plugs can be swapped; with the rocker ON that drives `BATT_IN` below GND through IC2/IC3. XH or 3-pin PH headers still accept a PH plug | PROPOSED |
+| 14 | C21 → at least 4.7 µF, plus bulk capacitance on `BATT_IN` at the switch header | TI's typical input capacitor; the off-board lead adds inductance, so switch-on ringing must stay under the buck's 6 V VIN maximum (check on a scope) | PROPOSED |
 
 Check GPIO budget once items 2, 3 and 8 are settled together (9 is no longer
 needed). Removing voice
@@ -503,7 +508,7 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 8. Built-in shared alarm key for unregistered units: keep or drop?
 9. ~~Relay mode.~~ **Decided 27 Sep:** no relay role; a unit on external power
    stays awake and forwards everything (§13.2).
-10. Bluetooth antenna: WROOM-1U + antenna, or WROOM-1?
+10. Bluetooth antenna: sticker FPC antenna on the WROOM-1U proposed (§9 #7).
 11. Retry limit for unacknowledged distress.
 12. Repository: `main` holds an unrelated older history (`docs/ARCHITECTURE.md`,
     one `.ino`). Decide which branch is canonical; `main`'s design principles
