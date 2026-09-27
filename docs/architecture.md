@@ -495,7 +495,7 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 | Voice | Codec2 Layer 2, PTT, voice ring buffer | Remove (§7.4) |
 | Spreading factor | Fixed SF7 (`FM_LORA_SF`), chosen for voice | One network SF chosen by field tests; retune the `fm_mesh` contention slot. v1.1: SF step-up retries for SOS, dual-SF scan on powered units (§13.7) |
 | Display | – | SOS shown and sounded only on responder units; text shown on every unit (§13.4) |
-| SOS channels | V3: SOS has no category; alerts menu (A) sends 4 presets | Channel screen after the SOS hold; remove the civilian alerts menu; responder channel filter in NVS; "Help coming" preset reply; escalation (§13.8) |
+| SOS channels | V3: SOS has no category; alerts menu (A) sends 4 presets | Channel screen after the SOS hold; remove the civilian alerts menu; responder channel filter in NVS; tab bar with dot/highlight for unopened SOS in unselected channels; "Help coming" preset reply; escalation (§13.8) |
 | Firmware update | Root: USB only. V3: WiFi update mode (bench) | Bluetooth from the app, signed images, rollback (§13.6) |
 
 ---
@@ -815,7 +815,9 @@ still uses the one network SF.
 **DECIDED (owner, 27 Sep):**
 - Holding **`*` + `#`** for 3 s (V3's 4×4 keypad) or the side button (PCB) is
   the SOS. It is for responders only (§13.4).
-- **Channels: General, Medical, Evacuation, Hazard, Food supply.**
+- **Channels: General, Medical, Evacuation, Hazard, Food supply.** Trapped /
+  water rising goes under **General**, as does anything that fits no other
+  channel.
 - **The sender picks a channel after the hold.** The bar fills as now (release
   early to cancel), then a channel screen appears:
   ```
@@ -828,7 +830,8 @@ still uses the one network SF.
   **General** after 5 s, so a user who panics or can't read the screen still
   gets an SOS out. D cancels.
 - The unit label prints the legend ("Hold * + # for SOS, then 1 Medical,
-  2 Evacuation…").
+  2 Evacuation, 3 Hazard, 4 Food, 0 General: trapped, water rising, anything
+  else").
 - One channel per SOS. A user who needs two sends the most urgent one and
   describes the rest in a text.
 - **No civilian presets** (§7.1). A civilian has the SOS with a channel, and
@@ -848,8 +851,10 @@ still uses the one network SF.
      every SOS (§13.3); powered units never filter.
   2. **General SOS always shows** on every responder unit; it can't be filtered
      out.
-  3. Hidden SOS are counted ("3 SOS in other channels"), with a key to view
-     them.
+  3. **Tab indicator (DECIDED 27 Sep):** the responder SOS screen has one tab
+     per channel. A channel the responder hasn't selected that holds an SOS
+     they haven't opened is marked with a dot and highlighted, so a hidden SOS
+     is never silent. See the proposed screen below.
   4. **Escalation:** if no responder has answered an SOS with "Help coming"
      within ~15 min, it appears on every responder unit that received it, even
      units whose filter hides that channel. Example: a Food supply SOS when
@@ -859,6 +864,30 @@ still uses the one network SF.
      not, with the usual race so only one responder ACKs per area. The civilian
      sees DELIVERED, and a filter never triggers retries or the SF step-up
      (§13.7).
+
+**PROPOSED: the responder SOS screen.** Both boards have a monochrome 128×64
+OLED, so "highlight" means an inverted label (white box, black text), not a
+colour.
+```
+GEN MED EVAC [haz•] food
+B-12 2nd fl  MED    4 min
+C-04 ground  GEN   12 min
+0-4:TAB A/B:MOVE C:OPEN
+```
+- Tab bar: channels the responder selected in capitals (`GEN MED EVAC`),
+  channels not selected in lower case (`haz`, `food`). General is always
+  selected.
+- A channel not selected that holds an SOS not yet opened on this unit is
+  **inverted with a dot**: `[haz•]` above. The dot clears once that tab is
+  opened and comes back with the next new SOS there.
+- The list below the tabs shows the SOS in the selected channels, newest
+  first, with registry address, channel and age.
+- Digits jump to a tab, matching the sender's channel screen (0 General,
+  1 Medical, 2 Evacuation, 3 Hazard, 4 Food supply). Holding a digit for 1 s
+  adds or removes that channel from the selection.
+- Buzzer: SOS in selected channels sound it; a highlighted tab stays silent
+  until the SOS escalates (safeguard 4), which sounds the buzzer and moves it
+  into the list.
 
 ### 13.9 Still open from these decisions
 1. Wake check interval T (0.5 s proposed), with measured current and airtime.
