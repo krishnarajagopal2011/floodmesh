@@ -462,7 +462,155 @@ Check GPIO budget once items 2, 3, 8 and 9 are settled together.
     and honest relay-ACK are worth folding in.
 13. Naming in docs: the PCB title block says "Vazworks". Confirm whether
     that is the owner's organisation.
+14. Frame format, message IDs, ACKs, SOS categories, the Verified Responder
+    label and the owner's 26 Sep proposal: see §12.5.
 
 Measurements needed from the bench: deep-sleep current at the battery (OLED
 off); light-sleep + radio-receive current; buzzer loudness at 3.3 V; a
 rooftop-to-ground range walk test.
+
+---
+
+## 12. Owner's proposal and frame-format discussion (26 Sep 2026)
+
+Recorded from a session on 26 September 2026 so the discussion can continue on
+any device. Items the owner confirmed are **DECIDED**; the rest of the owner's
+proposal is **under discussion** and does not yet replace earlier DECIDED items.
+Airtime figures are for BW 125 kHz, CR 4/5, 16-symbol preamble.
+
+### 12.1 Owner's proposal (under discussion)
+
+The owner proposed the following. Claude's counterpoints are noted; nothing
+here is settled unless marked DECIDED in §12.2.
+
+| Owner proposed | Conflicts with | Claude's counterpoint (numbers are estimates to measure) |
+|---|---|---|
+| Civilian registration **required** via the app (Bluetooth, OTP), with a secret key per unit stored in the database | §6.3 DECIDED: registration optional | Units get handed out, lent and grabbed in a hurry; an unregistered unit must still send SOS. Keep optional unless there is a new reason |
+| **6-digit numeric call sign** assigned by the database | §3 / §6.1: MAC-derived | Accepted (see §12.2). Unregistered units still need a number; MAC-derived numbers in a 10⁶ space collide ~0.5% of the time at 100 units, ~39% at 1,000 |
+| Organisations get an **access code** to register responders; expiry 10–15 days | §6.2 DECIDED: one super admin; shared codes rejected | Codes leak. Option: the super admin signs per-organisation keys. But a second certificate pushes a signed responder frame past 255 B (§12.4), which favours the single super admin |
+| Units awake **10 min every hour** (e.g. 10:00–10:10), and an **SOS wakes all nearby units** by radio interrupt | §5 PROPOSED 20 s / 5 min; §8 replaced long windows | As written: ~8 mA awake share + ~4 mA radio listening ≈ **12 mA, ~7 days on 2000 mAh**. Counter-proposal: processor always asleep, SX1262 receive duty-cycle (well under 1 mA, to measure); **only SOS and LOCATE carry a ~1 s wake-up preamble** (SOS 65 ms → ~1.07 s at SF7, at most ~80 per hour per unit); normal traffic waits for the window. Clock drift needs beacon time sync (no 32 kHz crystal) |
+| A civilian unit **self-elects as relay** after 5 missed beacons if battery > 50%, and returns below 50% | §4.4 DECIDED: no election; volunteer 50% on / 35% off | Full relay mode draws ~50–75 mA, so 50% of 2000 mAh lasts ~13–20 h. One threshold for on and off flip-flops as voltage sags during transmit. 5 beacons at 3 per window is up to 2 h to notice. Relay beacons must be signed, or a fake beacon suppresses mesh mode |
+| The relay **switches to user mode** during key presses | – | Not needed: V3 already relays while someone types |
+| Relays assign **queue numbers** to SOS | – | Two relays number the same SOS differently, and relay-changed fields sit outside the auth tag and can be forged. Superseded by §12.2 |
+| **SOS hidden** from nearby civilian units but relayed by them | Settles §7.2 OPEN | Agreed as display behaviour. Counter-argument: neighbours are often the fastest rescuers |
+| **Fox hunt**: a responder selects a unit; that unit's buzzer sounds when a responder is **within 100 m** | §3 homing DECIDED in principle, buzzer PROPOSED | Signal strength cannot judge 100 m (open air ≈ −51 dBm, behind two wet walls ≈ −80). Use an **explicit signed BUZZ command** plus hot/cold RSSI on the responder. The Heltec antenna gives no direction: body-shielding turn, or an optional directional antenna on U.FL |
+| Civilian **broadcasts**, rate-limited; relays queue and replay them | – | Agreed. Capacity: ~200 s usable airtime per 10-min window per area; a 3-hop flooded text ≈ 0.5–0.8 s, so **~2–3 broadcasts per household per hour at SF7, ~1 at SF9** |
+
+Queue memory (owner asked): the ESP32-S3 has ~320 KB of RAM (V3 uses
+40–63 KB), room for ~3,000 queued messages at ~80 B, and ~18,000 in the 1.5 MB
+flash partition. Deep sleep wipes RAM, so sleeping units keep queues in RTC
+memory (8 KB, ~100 messages) or flash. The real limit is airtime: under 2.5% a
+relay sends at most ~1,380 alarms or ~660 texts per hour, so queues need a drop
+policy (for example, keep the newest SOS per call sign).
+
+### 12.2 Frame format
+
+**DECIDED (owner, 26 Sep):**
+- Fields are sent as **bits**, not characters. 108 B as characters vs 67 B as
+  bits: 193 vs 131 ms at SF7, 628 vs 443 ms at SF9.
+- **No queue number.** The responder sorts SOS by its own receive order.
+- Add **battery %**, **retry number**, and an **SOS category** with a
+  responder-side **category filter**.
+- **6-digit numeric call signs** (3 bytes on air).
+- **Verified Responder broadcasts** as a feature; the mechanism is OPEN (§12.4).
+
+**PROPOSED layout (67 B, the same airtime as today's V3 text frame):**
+
+| Field | Bits | Notes |
+|---|---|---|
+| Version + type | 8 | text, SOS, alarm, ACK, beacon, locate, buzz, bulletin |
+| Flags | 8 | hide from civilians, ACK requested, retry 0–7, responder-signed |
+| Hops | 8 | limit + taken; relays change it, so it is outside the auth tag |
+| Source | 24 | 6-digit call sign |
+| Destination | 24 | reserved values: all units, all responders, all relays |
+| Message ID | 16 | per-sender counter (OPEN below) |
+| Category + head count | 8 | 4 + 4 bits |
+| Battery % | 8 | |
+| Age in minutes | 8 | relays add their holding time; outside the auth tag |
+| Text | ≤ 360 | 60 characters × 6 bits |
+| Auth tag | 64 | truncated HMAC (civilian frames) |
+
+An SOS without text is ~23 B (~70 ms at SF7). Each extra byte costs ~1.5 ms at
+SF7 and ~4.5 ms at SF9. Signal strength is **not** sent for the relay race:
+each receiver measures it itself (§4.4). PROPOSED: the ACK carries the RSSI/SNR
+it heard (1 B), for adaptive power control.
+
+**OPEN: message ID.** The owner asked for a random 5–10 bit ID. Claude
+recommends a **16-bit per-sender counter**. Random 10-bit IDs reach a 50%
+collision after ~38 messages (network-wide, or from one sender within the dedup
+window), and a collision silently drops a real message as a duplicate. The
+counter repeats only after 65,536 messages from one unit (over 47 h at the
+airtime cap). Duplicate detection needs no reference state either way; **replay
+protection** does (the last counter per sender, ~1 KB for 128 senders, already
+in `fm_auth`), and random IDs cannot provide it. Dedup entries need an expiry,
+so a later retry passes, and must live in RTC memory to survive deep sleep.
+
+**PROPOSED: ACK as its own frame** (~21 B, ~65–70 ms at SF7), only for SOS and
+unit-addressed messages, never for broadcasts (100 ACKs would jam the channel).
+Relays batch several ACKs (~5 B each, §4.2). ACKs drive the NOT SENT /
+NOT CONFIRMED / DELIVERED states. Retries keep the same message ID with the
+retry count raised.
+
+**PROPOSED: SOS categories** (at most ~6, so a stressed user can choose):
+General SOS, Medical, Trapped / water rising, Evacuation, Food and water,
+Hazard. Safeguards: relays never filter; responders see a count of SOS in other
+categories; an uncategorised SOS shows to everyone; responder units default to
+"All". OPEN: the final list.
+
+### 12.3 SF choice (OPEN)
+
+| | SF7 | SF8 | SF9 |
+|---|---|---|---|
+| Sensitivity vs SF7 | – | ~+2.5 dB | ~+5 dB |
+| Text 67 B | 131 ms | 242 ms | 443 ms |
+| SOS 23 B | 70 ms | 130 ms | 239 ms |
+| Texts per hour in 90 s | ~690 | ~370 | ~200 |
+| SNR floor | −7.5 dB | −10 dB | −12.5 dB |
+
+V3 runs SF7. The 14 Sep decision stands: make SF selectable and let field data
+choose. The `fm_mesh` contention slot is tuned for SF7 and needs retuning for
+SF8 and SF9. Field data so far (`docs/field-tests.md`) says relay **height** is
+the bigger lever.
+
+### 12.4 Verified Responder label (mechanism OPEN)
+
+The owner's view: a few bits in the frame mark a message as coming from a
+responder. Claude's view: the bits are the label, but the proof must be a
+signature. The firmware source is public and every civilian unit holds the
+network key, so anyone can set the bits. A shared-key tag cannot work either,
+because every civilian unit would hold the key and could forge it.
+
+PROPOSED: responder frames carry a P-256 signature and the super-admin
+certificate (`FMCERT1|callsign|responder|expiry|key`). The code already exists
+(`fmRoleSign`, `fmP256Verify`, provisioning in `fm_prov.cpp`); only on-air use
+is missing. Civilian frames are unchanged. A civilian unit shows the label only
+when the bits are set **and** the signature verifies; bits with a bad or
+missing signature show "claims to be responder, NOT verified".
+
+| Responder broadcast | Size | SF7 | SF9 |
+|---|---|---|---|
+| Text + signature + certificate | 228 B | 367 ms | 1.16 s |
+| Text + signature (certificate cached) | 123 B | 213 ms | 689 ms |
+| Plus an organisation certificate | 333 B | over the 255 B LoRa limit | |
+
+Also needed: replay protection (counter and time inside the signed part);
+expiry needs the §6.2 time source; the label is drawn outside the text area
+(civilians can type "VERIFIED"); a PIN to send verified broadcasts, against
+stolen units; urgent broadcasts use the wake-up preamble. Suggested key
+combination: hold A + D for 2 s on a responder unit (not `*` + `#`, and not a
+power-on combination). Middle path offered: bits-only, marked "TEST, not
+verified", for bench tests, with the signature added before any unit reaches
+users.
+
+### 12.5 Decisions still needed
+
+1. Message ID: 16-bit counter (recommended) or a random ID.
+2. ACK frame rules as in §12.2.
+3. The SOS category list.
+4. Verified label: signature from the start, or bits-only for bench tests first.
+5. Certificate in every responder broadcast; PIN to send; A + D combination;
+   urgent broadcasts wake sleeping units.
+6. Sleep: 10 min per hour vs 20 s per 5 min, and the SOS-only wake-up preamble.
+7. Registration required or optional; responder registration by organisations.
+8. Relay fallback: the owner's self-election vs §4.4 volunteering.
+9. Fox hunt: automatic 100 m buzzer vs an explicit BUZZ command.
