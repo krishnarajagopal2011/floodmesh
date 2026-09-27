@@ -55,9 +55,10 @@ forwards everything and sends responders a heartbeat every 30 min; battery units
 forward text only when no powered unit is nearby (no election; the first to
 transmit wins a weighted-delay race). Location comes from a call-sign → address
 registry, a zone cross-check and hot/cold homing, with no GPS. Firmware updates
-go over Bluetooth from the app, signed, with rollback. Responders are made by
-one super admin over Bluetooth, sign messages with their own key, and expire
-after 10 days. Details and caveats are in `docs/architecture.md`.
+go over Bluetooth from the app, signed, with rollback. One spreading factor for
+the whole network, chosen by field tests. Responders are made by one super admin
+over Bluetooth, sign messages with their own key, and expire after 10 days.
+Details and caveats are in `docs/architecture.md`.
 
 ## Branches
 `9th-Sept-2026` holds the PlatformIO firmware and these docs. `main` has an

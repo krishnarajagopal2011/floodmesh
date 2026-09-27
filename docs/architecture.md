@@ -7,7 +7,7 @@ was rejected and why, and the numbers behind each call.
 
 Updated 27 September 2026: voice removed from version 1 (§7.4); radio wake,
 no relay role, forwarding and display rules, heartbeats and Bluetooth firmware
-updates decided (§13).
+updates and a single network spreading factor decided (§13).
 
 **Status legend**
 - **DECIDED**: the owner stated or confirmed it.
@@ -436,6 +436,8 @@ can also send free text.
 | Relay beacon every few minutes | Replaced | Heartbeat to responders every 30 min (§13.5) |
 | SOS shown to neighbours | Rejected | Responders only; neighbours see texts (§13.4) |
 | Firmware updates over a phone hotspot | Replaced | Bluetooth from the app, signed images, rollback (§13.6) |
+| Dropping to a lower SF when airtime runs low | Rejected | Fewer units hear it, so more retries and more total airtime (§13.7) |
+| Per-link adaptive data rate (LoRaWAN style) | Rejected | Needs fixed point-to-point links; a broadcast mesh has none (§13.7) |
 
 ---
 
@@ -476,7 +478,7 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 | Sleep | Continuous receive | Deep sleep + SX1262 receive duty cycle, wake on `DIO1`; wake-up preamble on packets for sleeping units (§13.1) |
 | Auth | One PSK (public placeholder) | Per-unit alarm keys for registered units; Ed25519 responder signatures; super-admin public key built in |
 | Voice | Codec2 Layer 2, PTT, voice ring buffer | Remove (§7.4) |
-| Spreading factor | Fixed SF7 (`FM_LORA_SF`), chosen for voice | Choose again for text only (§12.3) |
+| Spreading factor | Fixed SF7 (`FM_LORA_SF`), chosen for voice | One network SF chosen by field tests; retune the `fm_mesh` contention slot. v1.1: SF step-up retries for SOS, dual-SF scan on powered units (§13.7) |
 | Display | – | SOS shown and sounded only on responder units; text shown on every unit (§13.4) |
 | Firmware update | Root: USB only. V3: WiFi update mode (bench) | Bluetooth from the app, signed images, rollback (§13.6) |
 
@@ -505,7 +507,7 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
     that is the owner's organisation.
 14. Frame format, message IDs, ACKs, SOS categories, the Verified Responder
     label and the owner's 26 Sep proposal: see §12.5.
-15. Details left open by the 27 Sep decisions: see §13.7.
+15. Details left open by the 27 Sep decisions: see §13.8.
 
 Measurements needed from the bench: deep-sleep current at the battery (OLED
 off); light-sleep + radio-receive current; buzzer loudness at 3.3 V; a
@@ -599,7 +601,7 @@ Hazard. Safeguards: relays never filter; responders see a count of SOS in other
 categories; an uncategorised SOS shows to everyone; responder units default to
 "All". OPEN: the final list.
 
-### 12.3 SF choice (OPEN)
+### 12.3 SF choice (DECIDED 27 Sep: one network SF chosen by field tests, §13.7)
 
 | | SF7 | SF8 | SF9 |
 |---|---|---|---|
@@ -764,7 +766,30 @@ current and airtime estimates are still to be measured.
 - The V3 WiFi update mode (`firmware_v3/README.md` §7) stays a bench tool.
   Supersedes the hotspot updates in §6.3.
 
-### 13.7 Still open from these decisions
+### 13.7 Spreading factor (DECIDED)
+- **Version 1: one SF for the whole network**, chosen by field tests (this keeps
+  the 14 Sep decision in §12.3). Every unit hears every packet, and radio wake
+  (§13.1) works at a single SF. Without voice, SF9 is affordable (§12.3 table).
+- **Version 1.1: step up the SF when an SOS gets no ACK.** The SOS goes out at
+  the network SF. After N unanswered retries it retries at a higher SF, for
+  example SF11 (~+5 dB over SF9; a 23 B SOS is ~0.95 s before any wake-up
+  preamble). Units on external power and responder units check both SFs in
+  turn, which is cheap when they aren't on battery. Battery units stay on the
+  network SF and don't hear these retries. This targets someone indoors whose
+  normal signal can't get out, and only the unit in trouble pays the extra
+  airtime. The step-up packet's preamble must cover the powered units' scan
+  cycle.
+- **Rejected: dropping to a lower SF when airtime runs low.** Fewer units hear
+  the packet, so there are more retries and more total airtime. When the budget
+  is low, stop forwarding other people's texts first, keep the reserved SOS
+  budget (§1.1) and space out retries.
+- **Rejected: per-link adaptation like LoRaWAN's adaptive data rate.** It needs
+  fixed point-to-point links, which a broadcast mesh doesn't have.
+- Transmit power is the setting that can adapt without changing who hears a
+  packet (§12.2, PROPOSED). The network SF must never change through a firmware
+  update (§13.6).
+
+### 13.8 Still open from these decisions
 1. Wake check interval T (0.5 s proposed), with measured current and airtime.
 2. Battery floor for forwarding. §4.4's 50% on / 35% off was for relaying
    without relays. Claude's suggestion: forward SOS at any charge above a small
@@ -778,3 +803,5 @@ current and airtime estimates are still to be measured.
    registration (§6.3), or accept the risk for v1.
 5. Time source for responder expiry (§6.2) now that relay beacons, which were to
    carry time, are gone.
+6. The network SF (field tests; SF9 likely), and for v1.1 the retry count N and
+   the step-up SF.
