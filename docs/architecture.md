@@ -473,6 +473,7 @@ See `docs/hardware/pcb-v1/README.md` for the board description.
 | 12 | Remove slide switch S6; a 2-pin header in the `BATT+` → `BATT_IN` break goes to a sealed (IP67) panel rocker on the case | Owner's case design. Charging still works with the switch off, and the MCU never sensed S6 | DECIDED (owner, 27-09-2026) |
 | 13 | Switch header in a different connector series from the battery's JST-PH: JST GH (latching) or ZH | With two PH 2-pin headers the battery and switch plugs can be swapped; with the rocker ON that drives `BATT_IN` below GND through IC2/IC3. XH or 3-pin PH headers still accept a PH plug | PROPOSED |
 | 14 | C21 → at least 4.7 µF, plus bulk capacitance on `BATT_IN` at the switch header | TI's typical input capacitor; the off-board lead adds inductance, so switch-on ringing must stay under the buck's 6 V VIN maximum (check on a scope) | PROPOSED |
+| 15 | Re-pick parts that are only sold by US distributors: TPS6282533DMQR (e.g. adjustable TPS62825DMQR + FB divider, on LCSC), USB4730 (keep an **IP67-sealed** USB-C that LCSC stocks), TS11-674-135 and TS04-66-95 tactile switches (check actuator heights against the case), MCP73833T-FCI/UN option | Owner sources from Indian retailers and China, not US distributors (priced BoM, 27-09-2026) | PROPOSED |
 
 Check GPIO budget once items 2, 3 and 8 are settled together (9 is no longer
 needed). Removing voice
