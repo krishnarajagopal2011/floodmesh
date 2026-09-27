@@ -5,6 +5,8 @@ owner and Claude (acting as reviewing mesh architect). It records what was
 decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
+Updated 27 September 2026: voice removed from version 1 (§7.4).
+
 **Status legend**
 - **DECIDED**: the owner stated or confirmed it.
 - **PROPOSED**: recommended in discussion, not yet confirmed by the owner.
@@ -71,7 +73,7 @@ state.
 | | Civilian (default) | Relay | Responder |
 |---|---|---|---|
 | Setup | **None required.** Works out of the box. Optional registration (§6.3) | See §4.3 | Bluetooth registration by the super admin |
-| Sends | Presets, SOS key, text (§7) | Beacons, batched ACKs, zone summaries, forwarded traffic | Text/preset replies, bulletins, LOCATE, voice (if kept, §7.4) |
+| Sends | Presets, SOS key, text (§7) | Beacons, batched ACKs, zone summaries, forwarded traffic | Text/preset replies, bulletins, LOCATE |
 | Sleep | Deep sleep + shared listening windows (§5) | Always listening | Always listening |
 | Expiry | None | None | 10 days (§6.2) |
 
@@ -141,7 +143,8 @@ The binding limit is **each relay's own 90 s/hour**, not the shared channel.
 Worst-hour budget (every household sends distress with ~2 retries; half would
 use a voice clip if voice were kept): about 600 s of channel time, around 50%
 load. Per relay, with 3 relays: beacons ~3 s + batched ACKs ~3 s + summaries
-~5 s + ~17 voice clips ~45 s ≈ **56 of 90 s**.
+~5 s + ~17 voice clips ~45 s ≈ **56 of 90 s**. Voice is removed from version 1
+(§7.4), which brings this down to ~11 s plus forwarded text.
 
 - **At least 3 relays**, on different buildings, with **at least 2 relays
   hearing every house**.
@@ -331,7 +334,8 @@ rescuers, but a sleeping neighbour only sees it at their next listening window
 (§5).
 
 ### 7.3 Text via a 12-key keypad (DECIDED)
-Replaces civilian voice as the information-rich channel.
+Replaces voice as the information-rich channel. It is the only free-form
+channel in version 1, which has no voice (§7.4).
 - **Maximum 60 characters**, packed 6 bits per character (capital letters,
   digits, space, common punctuation): ~45 bytes, **~0.45 s at SF9**, versus
   2.6 s for voice at SF7. More range, ~6× less airtime, ~180 messages/hour
@@ -352,17 +356,27 @@ Replaces civilian voice as the information-rich channel.
 - Hardware: PROPOSED 12-key pad via an **MCP23017 I²C expander** (TCA8418 is
   hard to source quickly in India), with its interrupt on an RTC-capable pin,
   and a **sealed silicone keypad** for IP67. The side button stays as SOS. (A direct 3×4 matrix
-  needs 7 GPIOs, which aren't free.)
+  needs 7 GPIOs and a 4×4 needs 8. Removing voice frees 7 RTC-capable GPIOs on
+  the PCB, so a direct matrix without the MCP23017 is now possible; see §9 #8.)
 
-### 7.4 Voice (OPEN)
+### 7.4 Voice (DECIDED: removed from version 1)
+**Decided 27 September 2026:** version 1 has **no voice for anyone**, civilian or
+responder. All free-form messages are text from the keypad (§7.3).
+
 History: the owner first set civilians to 1 × 10 s clip per hour and responders
-to free voice, then proposed text instead of voice "due to legal limits".
-Options still open:
-- **Responders only.** Same hardware; keep the mic, amp and speaker.
-- **Drop voice entirely.** Remove the INMP441, MAX98357A and speaker (cost,
-  board area, idle current); keep the buzzer.
+to free voice, then proposed text instead of voice "due to legal limits". The
+two options left open were voice for responders only, or no voice; the owner
+chose no voice.
 
-If civilian voice is kept anywhere: rate limit 1 per hour; a
+Consequences:
+- Hardware: remove the INMP441 mic, MAX98357A amp and speaker (§9 #10); keep
+  the buzzer. On the PCB this frees IO4–IO6 and IO15–IO18.
+- Firmware: remove Codec2 Layer 2 voice, PTT and the voice ring buffer (§10).
+- Radio: the current firmware is fixed at SF7 only because voice needed the
+  airtime (`FM_LORA_SF` in `include/fm_radio.h`). That reason is gone, so the
+  spreading factor needs choosing again (§12.3).
+
+If voice returns in a later version: rate limit 1 per hour; a
 **READY / BUSY / OFF** channel-load indicator shown before recording (from
 `main`'s `docs/ARCHITECTURE.md`); relayed by relays only, never by civilian
 volunteers; **off in mesh mode**.
@@ -402,6 +416,7 @@ can also send free text.
 | Tamil script on the OLED | Rejected | Tanglish in Latin letters instead |
 | Web Bluetooth app | Replaced by Flutter | No iPhone support |
 | Alarm exemption from duty cycle | To be replaced | Legal risk; use a reserved budget |
+| Voice in version 1 (civilian and responder) | Removed | ~6× the airtime of a text and tied to SF7's short range; text covers the need (§7.4) |
 
 ---
 
@@ -418,12 +433,13 @@ See `docs/hardware/pcb-v1/README.md` for the board description.
 | 5 | MAX17048 on the `BATT+` side of the power switch | Keeps its learned battery model across power cycles | PROPOSED |
 | 6 | USB data | Not needed: provisioning is over Bluetooth | DECIDED (charge-only stays) |
 | 7 | 2.4 GHz antenna for WROOM-1U, or switch to WROOM-1 | Bluetooth provisioning needs an antenna | OPEN |
-| 8 | 12-key keypad via I²C expander **MCP23017** (TCA8418 optional) + sealed silicone pad, interrupt on an RTC pin | Text input (§7.3). MCP23017 is easy to source in India and is what the prototypes use | PROPOSED |
-| 9 | Optional 32.768 kHz crystal (move `MIC_WS`/`MIC_SCK` to IO47/IO48 to free IO15/IO16) | Accurate sleep timing, narrower windows. Moot if voice is dropped and the mic removed | OPTIONAL |
-| 10 | Mic, amp and speaker | Remove if voice is dropped entirely (§7.4) | OPEN |
-| 11 | Power the INMP441 mic from a **switched rail**, not always-on 3V3 | The mic draws ~1.4 mA whenever powered, which would dominate deep-sleep current | PROPOSED |
+| 8 | 12-key keypad via I²C expander **MCP23017** (TCA8418 optional) + sealed silicone pad, interrupt on an RTC pin; or a direct matrix on the 7 GPIOs freed by #10 (enough for 3×4; a 4×4 needs one more) | Text input (§7.3). MCP23017 is easy to source in India and is what the prototypes use. A direct matrix saves a chip but uses all the freed pins (no room for #9) | PROPOSED |
+| 9 | Optional 32.768 kHz crystal on IO15/IO16 (free once the mic is removed, #10) | Accurate sleep timing, narrower windows. Competes with a direct keypad matrix (#8) for those pins | OPTIONAL |
+| 10 | Remove the mic, amp and speaker | Voice is removed from version 1 (§7.4). Frees IO4–IO6 and IO15–IO18 | DECIDED |
+| 11 | Power the INMP441 mic from a **switched rail**, not always-on 3V3 | The mic draws ~1.4 mA whenever powered, which would dominate deep-sleep current | Not needed (mic removed, #10) |
 
-Check GPIO budget once items 2, 3, 8 and 9 are settled together.
+Check GPIO budget once items 2, 3, 8 and 9 are settled together. Removing voice
+frees IO4–IO6 and IO15–IO18, all RTC-capable.
 
 ---
 
@@ -435,11 +451,12 @@ Check GPIO budget once items 2, 3, 8 and 9 are settled together.
 | `FM_REPLAY_SLOTS` (`include/fm_auth.h`) | 32 | **≥128** for 100 senders (~2 KB) |
 | `FM_DEDUP_SLOTS` (`include/fm_dedup.h`) | 32 | **~256** to survive a burst of 100 distress + retries (~3 KB) |
 | Pin map | Heltec V3 only (`include/floodmesh_pins.h`) | Separate board variant for PCB V1 |
-| Input | 2×2 matrix + PTT | 12-key via TCA8418 + side SOS button |
+| Input | 2×2 matrix + PTT | Keypad (MCP23017 or direct matrix, §9 #8) + side SOS button; no PTT |
 | Mesh | SNR-biased delay | Add battery + floor weighting; volunteer thresholds; ACK caching; batched ACKs |
 | Sleep | Continuous receive | Deep sleep + synchronised 20 s / 5 min windows |
 | Auth | One PSK (public placeholder) | Per-unit alarm keys for registered units; Ed25519 responder signatures; super-admin public key built in |
-| Voice | Codec2 Layer 2 | Responders only or removed (§7.4) |
+| Voice | Codec2 Layer 2, PTT, voice ring buffer | Remove (§7.4) |
+| Spreading factor | Fixed SF7 (`FM_LORA_SF`), chosen for voice | Choose again for text only (§12.3) |
 
 ---
 
@@ -448,9 +465,10 @@ Check GPIO budget once items 2, 3, 8 and 9 are settled together.
 1. Gazette text: duty cycle, per device or per channel, listen-before-talk.
 2. Shared window: 20 s every 5 min, or another balance?
 3. Homing details: LOCATE pings + sounding the civilian's buzzer.
-4. Keypad hardware: MCP23017 + silicone pad (prototypes use MCP23017).
-5. Voice vs 12-key text: decide **after** the prototype tests (both are built
-   on every prototype; see `docs/prototype-v2-build.md`).
+4. Keypad hardware: MCP23017 + silicone pad (prototypes use MCP23017), or a
+   direct matrix on the GPIOs freed by removing voice.
+5. ~~Voice vs 12-key text.~~ **Decided 27 September 2026:** text only, no voice
+   in version 1 (§7.4).
 6. SOS key: visible to neighbours or responders only?
 7. Per-unit alarm keys from optional registration.
 8. Built-in shared alarm key for unregistered units: keep or drop?
@@ -568,7 +586,8 @@ categories; an uncategorised SOS shows to everyone; responder units default to
 | SNR floor | −7.5 dB | −10 dB | −12.5 dB |
 
 V3 runs SF7. The 14 Sep decision stands: make SF selectable and let field data
-choose. The `fm_mesh` contention slot is tuned for SF7 and needs retuning for
+choose. With voice removed from version 1 (§7.4), SF7 is no longer
+needed for airtime. The `fm_mesh` contention slot is tuned for SF7 and needs retuning for
 SF8 and SF9. Field data so far (`docs/field-tests.md`) says relay **height** is
 the bigger lever.
 
