@@ -816,8 +816,8 @@ values), not a separate radio channel; every SOS still uses the one network SF.
   SENDS GENERAL IN 5s
   ```
   One digit sends the SOS with that channel. With no key pressed, it goes out
-  as **General** after 5 s, so a panicking or unconscious-before-choosing user
-  still gets an SOS out. D cancels.
+  as **General** after 5 s, so a user who panics or can't read the screen still
+  gets an SOS out. D cancels.
 - The three distress presets become channels: NEED MEDICAL → Medical, WATER
   GROUND FLOOR → Trapped / water rising, NEED EVACUATION → Evacuation. The A
   menu keeps them as a second way in (pick, then OK), for users who find the
