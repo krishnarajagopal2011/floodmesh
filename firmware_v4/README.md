@@ -224,6 +224,14 @@ Since 4.3.1 the chosen mode is saved and survives power-offs (factory reset
 returns it to AUTO). Without the divider, set it explicitly: AUTO guessed
 wrong in the 28 Sep field test (`docs/field-tests.md`).
 
+**Battery reading per board (4.3.2).** Heltec V3 sub-revisions differ in the
+battery divider. Unit D, a board printed "V3", read 2.85 V for a 4.07 V cell
+(a steady 0.70x; with the divider gate driven LOW it read 0 V, so HIGH is right).
+Measure the cell with a multimeter while the unit is on and send
+`batt cal <volts>`: the unit stores its own factor, and `batt` shows raw volts,
+factor and result. The factor describes the board, so a factory reset keeps
+it; `batt cal reset` removes it.
+
 A powered unit:
 - never sleeps and forwards every frame;
 - sends a heartbeat within a minute of getting power, then every 30 min;
@@ -359,7 +367,8 @@ still need signed images, which come with the Bluetooth update (§13.6).
 (toggle a responder channel), `text <message>`, `ping on` / `ping off`,
 `heard`, `cover`, `power auto|on|off`, `sleep on|off`, `beep`,
 `callsign <name>`, `wifi` / `wifi ssid <name>` / `wifi pass <password>` /
-`wifi forget`, `ota` / `ota off`.
+`wifi forget`, `ota` / `ota off`, `batt`, `batt cal <volts>`, `batt cal reset`
+(§4, battery reading per board).
 
 Field logger (§10): `log`, `log send`, `log url <base>`, `log url default`,
 `log clear`, `wifi2 ssid <name>`, `wifi2 pass <password>`, `wifi2 forget`.

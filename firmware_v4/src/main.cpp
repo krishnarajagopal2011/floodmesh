@@ -314,7 +314,15 @@ static int cmpInt(const void *a, const void *b) {
   return (*(const int *)a) - (*(const int *)b);
 }
 
-static float readBatteryVolts() {
+// Per-unit battery calibration (`batt cal <volts>`), kept in NVS. Heltec V3
+// sub-revisions differ in the divider: unit D (a board printed "V3") read
+// 2.85 V for a 4.07 V cell, a steady 0.70x. The factor describes the board, so
+// a factory reset keeps it.
+#define FM_NVS_KEY_BATTCAL "battcal"
+static float g_battCal = 1.0f;
+
+/** Battery volts before the per-unit factor (build-time divider and VBAT_CAL only). */
+static float readBatteryRaw() {
   digitalWrite(PIN_ADC_CTRL, ADC_CTRL_ENABLE_LEVEL);
   delayMicroseconds(500);
   const uint8_t kSamples = 15;
@@ -323,6 +331,30 @@ static float readBatteryVolts() {
   digitalWrite(PIN_ADC_CTRL, !ADC_CTRL_ENABLE_LEVEL);
   qsort(mv, kSamples, sizeof(int), cmpInt);   // median rejects LoRa/switching spikes
   return (mv[kSamples / 2] * VBAT_DIVIDER * VBAT_CAL) / 1000.0f;
+}
+
+static float readBatteryVolts() { return readBatteryRaw() * g_battCal; }
+
+static void loadBatteryCal() {
+  Preferences p;
+  if (!p.begin(FM_NVS_NAMESPACE, true)) return;
+  const float f = p.getFloat(FM_NVS_KEY_BATTCAL, 1.0f);
+  p.end();
+  if (f >= 0.5f && f <= 2.0f) g_battCal = f;
+}
+
+/** Store factor = measured / raw. False when the raw reading or factor is implausible. */
+static bool setBatteryCal(float measuredV) {
+  const float raw = readBatteryRaw();
+  if (raw < 1.0f || measuredV < 2.5f || measuredV > 4.5f) return false;
+  const float f = measuredV / raw;
+  if (f < 0.5f || f > 2.0f) return false;
+  Preferences p;
+  if (!p.begin(FM_NVS_NAMESPACE, false)) return false;
+  p.putFloat(FM_NVS_KEY_BATTCAL, f);
+  p.end();
+  g_battCal = f;
+  return true;
 }
 
 static uint8_t batteryPercent(float v) {
@@ -1815,7 +1847,8 @@ static void pollSerial() {
       Serial.println("[CMD] help | info | prov | sos <0-4> | sos stop | sos list | select <1-4>"
                      " | text <msg> | ping on|off | heard | cover | power auto|on|off"
                      " | sleep on|off | beep | callsign <1-5 of A-Z 0-9> | wifi"
-                     " | wifi ssid <name> | wifi pass <pw> | wifi forget | ota | ota off");
+                     " | wifi ssid <name> | wifi pass <pw> | wifi forget | ota | ota off"
+                     " | batt | batt cal <volts> | batt cal reset");
       Serial.println("[CMD] field log: log | log send | log url <base> | log url default"
                      " | log clear | wifi2 ssid <name> | wifi2 pass <pw> | wifi2 forget");
       Serial.println("[CMD] SOS channels: 0 GENERAL, 1 MEDICAL, 2 EVACUATION, 3 HAZARD, 4 FOOD");
@@ -1906,6 +1939,28 @@ static void pollSerial() {
       setPowerMode(PWR_ON);
     } else if (strcmp(line, "power off") == 0) {
       setPowerMode(PWR_OFF);
+    } else if (strcmp(line, "batt") == 0) {
+      const float raw = readBatteryRaw();
+      Serial.printf("[BATT] %.3f V (raw %.3f V x factor %.3f), %u%%\n", raw * g_battCal, raw,
+                    g_battCal, (unsigned)batteryPercent(raw * g_battCal));
+    } else if (strcmp(line, "batt cal reset") == 0) {
+      Preferences p;
+      if (p.begin(FM_NVS_NAMESPACE, false)) {
+        p.remove(FM_NVS_KEY_BATTCAL);
+        p.end();
+      }
+      g_battCal = 1.0f;
+      updateBattery(millis(), true);
+      Serial.println("[BATT] calibration removed, factor 1.000");
+    } else if (strncmp(line, "batt cal ", 9) == 0) {
+      const float v = (float)atof(line + 9);
+      if (setBatteryCal(v)) {
+        updateBattery(millis(), true);
+        Serial.printf("[BATT] calibrated: factor %.3f saved, now %.3f V\n", g_battCal, g_battV);
+      } else {
+        Serial.println("[BATT] calibration refused: give the multimeter reading in volts "
+                       "(2.5-4.5), with the battery connected and read by this unit");
+      }
     } else if (strcmp(line, "sleep on") == 0) {
       g_sleepEnabled = true;
       Serial.printf("[SLEEP] light sleep %s\n", FM_LIGHT_SLEEP ? "ON (on battery, when idle)"
@@ -2047,6 +2102,7 @@ void setup() {
 
   fmPowerBegin();                  // look for the GPIO 3 power-sense divider
   loadPowerMode();                 // AUTO / ON / OFF, kept across power-offs
+  loadBatteryCal();                // per-unit battery factor, `batt cal`
   updateBattery(millis(), true);   // also decides external power vs battery
   Serial.printf("[BATT] %.3f V (%u%%)\n", g_battV, g_battPct);
   Serial.printf("[SOS] responder channel selection 0x%02X\n", (unsigned)fmSosSelectionMask());
