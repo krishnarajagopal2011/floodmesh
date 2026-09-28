@@ -78,6 +78,10 @@ export default function UnitMap({ points }: { points: MapPoint[] }) {
       lf.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        // OSM's tile policy blocks requests without a Referer, and the site-wide
+        // Referrer-Policy (next.config.ts) is same-origin. For tiles only, send
+        // the site's origin (never page paths) so OSM can identify the app.
+        referrerPolicy: "strict-origin-when-cross-origin",
       }).addTo(map.current);
       layer.current = lf.layerGroup().addTo(map.current);
       draw();
