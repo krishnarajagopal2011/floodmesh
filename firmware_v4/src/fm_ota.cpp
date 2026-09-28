@@ -12,13 +12,7 @@
 #include <esp_system.h>
 
 #include "fm_ids.h"
-
-#ifndef FM_NVS_KEY_WIFI_SSID
-#define FM_NVS_KEY_WIFI_SSID "wifissid"
-#endif
-#ifndef FM_NVS_KEY_WIFI_PASS
-#define FM_NVS_KEY_WIFI_PASS "wifipass"
-#endif
+#include "fm_log.h"
 
 namespace {
 
@@ -193,6 +187,12 @@ bool fmOtaStart(uint32_t ms) {
   if (!g_ssid[0] || !g_hasPass) {
     Serial.println("[OTA] refused - no WiFi network stored. Send "
                    "'wifi ssid <name>' then 'wifi pass <password>'");
+    return false;
+  }
+  // The field logger's upload task has WiFi right now (up to ~1 min). Taking
+  // it over mid-request would cut the upload and leave WiFi in two hands.
+  if (fmLogBusy()) {
+    Serial.println("[OTA] refused - the field logger is uploading; try again in a minute");
     return false;
   }
   g_openedAt = millis();

@@ -133,6 +133,16 @@ void fmRoleBegin() {
                 : g_adminSrc == FM_ADMIN_STORED ? "stored"
                                                 : "NONE",
                 fp[0] ? " fp " : "", fp, fmTimeNow() ? "set" : "NOT SET");
+#if FM_BENCH_RESPONDER
+  // RAM only, never written to NVS, and no expiry (g_exp = max, so fmRoleLoop's
+  // expiry check never fires). A later admin-app registration still works.
+  if (g_role != FM_ROLE_RESPONDER) {
+    g_role = FM_ROLE_RESPONDER;
+    g_exp = UINT32_MAX;
+    Serial.println("[ROLE] !! BENCH BUILD: responder without registration. "
+                   "Test only - never give this build to users.");
+  }
+#endif
   // Expiry is checked on the first fmRoleLoop() call.
   g_lastCheckMs = millis() - 60000UL;
 }
@@ -173,7 +183,7 @@ const char *fmRoleTag(FmRole r) {
   switch (r) {
     case FM_ROLE_RELAY:     return "RLY";
     case FM_ROLE_RESPONDER: return "RSP";
-    default:                return "CIV";
+    default:                return "USER";
   }
 }
 

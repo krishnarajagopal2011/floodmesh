@@ -8,6 +8,11 @@
  * factor instead of being fixed for SF7. Single-threaded, driven from
  * fmMeshLoop(); a transmit can block for its CAD backoff, so key polling
  * pauses briefly while sending.
+ *
+ * Field logger (fm_log.h): every own transmission (tx) and every relay of
+ * someone else's frame (relay) is recorded here, where the msgId and the
+ * outcome are known. Received frames are recorded by main.cpp's handlers,
+ * which know the SOS channel. With FM_LOG_ENABLE=0 the calls compile away.
  */
 #include "fm_mesh.h"
 
@@ -18,6 +23,7 @@
 #include "fm_auth.h"
 #include "fm_dedup.h"
 #include "fm_ids.h"
+#include "fm_log.h"
 #include "fm_radio.h"
 #include "fm_text.h"
 
@@ -186,6 +192,14 @@ int16_t sendWaiting(const uint8_t *buf, size_t len) {
   return FM_RADIO_ERR_TX_ACTIVE;
 }
 
+/** "DELIVERED KXQ2R" / "HELP KXQ2R", as RXLOG shows an ACK: the text of its tx record. */
+void ackText(char *out, size_t n, uint8_t kind, const char *target) {
+  char cs[FM_CALLSIGN_LEN + 1];
+  snprintf(cs, sizeof(cs), "%.5s", target ? target : "");
+  for (size_t i = strlen(cs); i > 0 && cs[i - 1] == ' '; i--) cs[i - 1] = '\0';
+  snprintf(out, n, "%s %s", kind == FM_ACK_HELP ? "HELP" : "DELIVERED", cs);
+}
+
 size_t buildAck(uint8_t *f, uint8_t kind, const char *target, uint8_t targetMsgId, uint8_t *idOut) {
   memset(f, 0, FM_ACK_LEN);
   const uint8_t id = (uint8_t)fmNextMsgId();
@@ -323,6 +337,9 @@ bool serviceAcks(uint32_t now) {
                     a.kind == FM_ACK_HELP ? "HELP" : "DELIVERED", a.target,
                     (unsigned)a.targetMsgId, (unsigned)id);
     }
+    char t[24];
+    ackText(t, sizeof(t), a.kind, a.target);
+    fmLogTx(a.kind == FM_ACK_HELP ? FM_LOG_T_HELP : FM_LOG_T_ACK, id, st == FM_RADIO_OK, t, -1);
     return true;
   }
   return false;
@@ -380,7 +397,12 @@ int fmMeshSendAlarm(uint8_t alarmType) {
   f[FM_OFF_ALARMTYPE] = alarmType;
   fmWr32(f + FM_OFF_COUNTER, fmNextAuthCounter());
   fmAuthSignAlarm(f);
-  return sendNow(f, sizeof(f)) == FM_RADIO_OK ? id : -1;
+  const bool ok = sendNow(f, sizeof(f)) == FM_RADIO_OK;
+  uint8_t ch = 0;
+  const bool sos = fmAlarmSosChannel(alarmType, &ch);
+  fmLogTx(sos ? FM_LOG_T_SOS : FM_LOG_T_ALARM, id, ok, sos ? nullptr : fmAlarmName(alarmType),
+          sos ? (int)ch : -1);
+  return ok ? id : -1;
 }
 
 int fmMeshSendText(const char *text) {
@@ -390,8 +412,14 @@ int fmMeshSendText(const char *text) {
   const size_t packed = fmTextPack(text, f + FM_OFF_TEXT, &chars);
   if (chars == 0) return -1;
   const size_t len = FM_OFF_TEXT + packed + FM_MAC_LEN;
+  // The log gets the text as it goes on air (upper case, fm_text charset), and
+  // the receive side's rule: a text starting "PING " is a range-test ping.
+  char onAir[FM_TEXT_MAX_CHARS + 1];
+  fmTextUnpack(f + FM_OFF_TEXT, chars, onAir);
+  const FmLogType lt = strncmp(onAir, "PING ", 5) == 0 ? FM_LOG_T_PING : FM_LOG_T_TEXT;
   if (!fmAirtimeAllows(fmToaMs((uint16_t)len), false)) {
     Serial.printf("[MESH] text REFUSED - duty cycle at %u permille\n", fmAirtimePermille());
+    fmLogTx(lt, -1, false, onAir, -1);
     return -1;
   }
   const uint8_t id = (uint8_t)fmNextMsgId();
@@ -399,7 +427,9 @@ int fmMeshSendText(const char *text) {
   f[FM_OFF_TEXTLEN] = chars;
   fmWr32(f + FM_OFF_TCOUNTER, fmNextAuthCounter());
   fmAuthSignFrame(f, len);
-  return sendWaiting(f, len) == FM_RADIO_OK ? id : -1;
+  const bool ok = sendWaiting(f, len) == FM_RADIO_OK;
+  fmLogTx(lt, id, ok, onAir, -1);
+  return ok ? id : -1;
 }
 
 int fmMeshSendAck(uint8_t kind, const char *target, uint8_t targetMsgId) {
@@ -411,7 +441,11 @@ int fmMeshSendAck(uint8_t kind, const char *target, uint8_t targetMsgId) {
   char pad[FM_CALLSIGN_LEN + 1];
   snprintf(pad, sizeof(pad), "%-5.5s", target);
   cancelQueuedAck(kind, pad, targetMsgId);
-  return sendWaiting(f, sizeof(f)) == FM_RADIO_OK ? id : -1;
+  const bool ok = sendWaiting(f, sizeof(f)) == FM_RADIO_OK;
+  char t[24];
+  ackText(t, sizeof(t), kind, target);
+  fmLogTx(kind == FM_ACK_HELP ? FM_LOG_T_HELP : FM_LOG_T_ACK, id, ok, t, -1);
+  return ok ? id : -1;
 }
 
 void fmMeshQueueAck(uint8_t kind, const char *target, uint8_t targetMsgId, float snr) {
@@ -442,8 +476,11 @@ void fmMeshQueueAck(uint8_t kind, const char *target, uint8_t targetMsgId, float
 int fmMeshSendHeartbeat(uint8_t battPct) {
   uint8_t f[FM_HEARTBEAT_LEN];
   memset(f, 0, sizeof(f));
+  char t[8];
+  snprintf(t, sizeof(t), "B%u", (unsigned)battPct);   // as RXLOG shows a heartbeat
   if (!heartbeatAllowed(fmToaMs(sizeof(f)))) {
     Serial.printf("[MESH] heartbeat skipped - airtime at %u permille\n", fmAirtimePermille());
+    fmLogTx(FM_LOG_T_HEARTBEAT, -1, false, t, -1);
     return -1;
   }
   const uint8_t id = (uint8_t)fmNextMsgId();
@@ -452,7 +489,9 @@ int fmMeshSendHeartbeat(uint8_t battPct) {
   f[FM_OFF_HBFLAGS] = FM_HB_FLAG_POWERED;
   fmWr32(f + FM_OFF_HCOUNTER, fmNextAuthCounter());
   fmAuthSignFrame(f, sizeof(f));
-  return sendWaiting(f, sizeof(f)) == FM_RADIO_OK ? id : -1;
+  const bool ok = sendWaiting(f, sizeof(f)) == FM_RADIO_OK;
+  fmLogTx(FM_LOG_T_HEARTBEAT, id, ok, t, -1);
+  return ok ? id : -1;
 }
 
 void fmMeshLoop(uint32_t now) {
@@ -483,6 +522,7 @@ void fmMeshLoop(uint32_t now) {
       g_relayed++;
       Serial.printf("[MESH] relayed %s %s msg %u (hop left %u)\n", typeName(type), r.callSign,
                     (unsigned)r.msgId, (unsigned)r.frame[FM_OFF_HOP]);
+      fmLogRelay(r.frame, r.len, r.callSign, r.msgId);
     }
     return;   // one transmit per pass
   }

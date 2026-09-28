@@ -37,6 +37,11 @@
  *
  * Serial console (115200): type "help". Every received frame is logged as
  * one "RXLOG," CSV line for range tests.
+ *
+ * Field logger (fm_log.h, docs/field-logger-protocol.md): every frame received,
+ * sent and relayed, SOS state changes and a status record every 5 min go to
+ * flash and are uploaded over WiFi every 5 min. The Status screen shows how
+ * many records are waiting; "log" on serial says more.
  */
 #include <Arduino.h>
 #include <Preferences.h>
@@ -54,6 +59,7 @@
 #include "fm_edit.h"
 #include "fm_ids.h"
 #include "fm_keypad.h"
+#include "fm_log.h"
 #include "fm_mesh.h"
 #include "fm_ota.h"
 #include "fm_packet.h"
@@ -215,6 +221,7 @@ static bool g_sosFired = false;     // the hold completed; the channel screen op
 static bool g_sosPick = false;      // channel screen showing
 static uint32_t g_sosPickUntil = 0;
 static FmSosState g_sosLastState = FM_SOS_IDLE;
+static int g_sosLastId = -1;        // msgId of our own SOS's latest frame, for the field log
 
 // Responder "HELP IS COMING" chord (4 + 6) on the SOS detail screen.
 static bool g_helpChord = false;    // both keys held during this hold
@@ -579,11 +586,16 @@ static void showSosList() {
 }
 
 // ---------------------------------------------------------------- mesh callbacks
-static void logRx(const char *kind, const FmHeader &h, uint8_t hops, float rssi, float snr,
-                  const char *text) {
-  // One CSV line per received frame: ms,kind,from,msgId,hops,rssi,snr,text
+/**
+ * One CSV line per received frame (ms,kind,from,msgId,hops,rssi,snr,text), and
+ * the same reading as an `rx` record for the field logger. t is the logger's
+ * finer type (SOS vs ALARM, PING vs TEXT); ch is the SOS channel or -1.
+ */
+static void logRx(const char *kind, FmLogType t, int ch, const FmHeader &h, uint8_t hops,
+                  float rssi, float snr, const char *text) {
   Serial.printf("RXLOG,%lu,%s,%s,%u,%u,%.0f,%.1f,%s\n", (unsigned long)millis(), kind,
                 h.callSign, (unsigned)h.msgId, (unsigned)hops, rssi, snr, text ? text : "");
+  fmLogRx(t, h.callSign, h.msgId, hops, rssi, snr, text, ch);
 }
 
 /** A text for the inbox, with a popup unless someone is typing. */
@@ -609,7 +621,10 @@ static void inboxText(const FmHeader &h, uint8_t hops, float rssi, float snr, co
 
 static void onAlarmRx(const FmAlarmRx *rx) {
   const uint32_t now = millis();
-  logRx("ALARM", rx->header, rx->hops, rx->rssi, rx->snr, fmAlarmName(rx->alarmType));
+  uint8_t ch = FM_SOS_GENERAL;
+  const bool sos = fmAlarmSosChannel(rx->alarmType, &ch);
+  logRx("ALARM", sos ? FM_LOG_T_SOS : FM_LOG_T_ALARM, sos ? (int)ch : -1, rx->header, rx->hops,
+        rx->rssi, rx->snr, fmAlarmName(rx->alarmType));
   heardUpdate(rx->header.callSign, rx->hops, rx->rssi, rx->snr, now);
 
   // A V3 unit's SAFE preset: a status text for everyone (there are no presets in V4).
@@ -617,8 +632,7 @@ static void onAlarmRx(const FmAlarmRx *rx) {
     inboxText(rx->header, rx->hops, rx->rssi, rx->snr, "SAFE", now);
     return;
   }
-  uint8_t ch = FM_SOS_GENERAL;
-  if (!fmAlarmSosChannel(rx->alarmType, &ch)) return;
+  if (!sos) return;
 
   // §13.4: civilian units forward an SOS silently. The mesh has already queued
   // the relay; nothing is shown and the buzzer stays quiet.
@@ -653,7 +667,8 @@ static void onAlarmRx(const FmAlarmRx *rx) {
 
 static void onTextRx(const FmTextRx *rx) {
   const uint32_t now = millis();
-  logRx("TEXT", rx->header, rx->hops, rx->rssi, rx->snr, rx->text);
+  logRx("TEXT", strncmp(rx->text, "PING ", 5) == 0 ? FM_LOG_T_PING : FM_LOG_T_TEXT, -1,
+        rx->header, rx->hops, rx->rssi, rx->snr, rx->text);
   heardUpdate(rx->header.callSign, rx->hops, rx->rssi, rx->snr, now);
 
   // Range-test pings update the heard table and the log, not the inbox.
@@ -668,11 +683,13 @@ static void onAckRx(const FmAckRx *rx) {
   const uint32_t now = millis();
   char t[24];
   snprintf(t, sizeof(t), "%s %s", rx->kind == FM_ACK_HELP ? "HELP" : "DELIVERED", rx->target);
-  logRx("ACK", rx->header, rx->hops, rx->rssi, rx->snr, t);
+  logRx("ACK", FM_LOG_T_ACK, -1, rx->header, rx->hops, rx->rssi, rx->snr, t);
   heardUpdate(rx->header.callSign, rx->hops, rx->rssi, rx->snr, now);
 
   if (memcmp(rx->target, fmCallSign(), FM_CALLSIGN_LEN) == 0) {
     if (fmSosOnAck(rx->kind, rx->targetMsgId, rx->header.callSign)) {
+      fmLogSos(rx->kind == FM_ACK_HELP ? FM_LOG_SOS_HELP : FM_LOG_SOS_DELIVERED, rx->targetMsgId,
+               fmSosChannel(), fmSosTries() > 0 ? (uint8_t)(fmSosTries() - 1) : 0);
       if (rx->kind == FM_ACK_HELP) {
         popup("HELP IS COMING", rx->header.callSign,
               "A responder is on the way. Stay where you are.", true);
@@ -695,12 +712,13 @@ static void onHeartbeatRx(const FmHeartbeatRx *rx) {
   const uint32_t now = millis();
   char t[12];
   snprintf(t, sizeof(t), "B%u", (unsigned)rx->battPct);
-  logRx("HEARTBEAT", rx->header, rx->hops, rx->rssi, rx->snr, t);
+  logRx("HEARTBEAT", FM_LOG_T_HEARTBEAT, -1, rx->header, rx->hops, rx->rssi, rx->snr, t);
   heardUpdate(rx->header.callSign, rx->hops, rx->rssi, rx->snr, now);
   coverUpdate(rx, now);
 }
 
 static void onEcho(const FmEchoRx *e) {
+  fmLogEcho(e->type, e->msgId, e->rssi, e->snr);   // every type: heartbeats and ACKs too
   if (e->type != FM_TYPE_ALARM && e->type != FM_TYPE_TEXT) return;
   Serial.printf("[ECHO] our %s msg %u relayed by a neighbour (%.0f dBm, SNR %.1f)\n",
                 e->type == FM_TYPE_ALARM ? "SOS" : "text", (unsigned)e->msgId, e->rssi, e->snr);
@@ -716,9 +734,23 @@ static void onEcho(const FmEchoRx *e) {
 }
 
 // ---------------------------------------------------------------- sending
+/** Field logger: our own SOS changed state. n = retries so far (the first send is not one). */
+static void logSos(FmLogSosState st, int id) {
+  const uint8_t tries = fmSosTries();
+  fmLogSos(st, id, fmSosChannel(), tries > 0 ? (uint8_t)(tries - 1) : 0);
+}
+
+/** Stop our own SOS (hold D, or `sos stop`). Logged only if one was running. */
+static void stopOwnSos() {
+  const FmSosState before = fmSosState();
+  fmSosStop();
+  if (before != FM_SOS_IDLE && before != FM_SOS_STOPPED) logSos(FM_LOG_SOS_STOPPED, g_sosLastId);
+}
+
 /** Start an SOS episode; the first frame goes out on the next pass of sosSenderTick(). */
 static void startSos(uint8_t ch) {
   g_sosPick = false;
+  g_sosLastId = -1;
   fmSosStart(ch, millis());
   Serial.printf("[SOS] %s - sending, then retrying until a responder answers\n", fmSosChName(ch));
 }
@@ -731,6 +763,11 @@ static void sosSenderTick(uint32_t now) {
     const int id = fmMeshSendAlarm(a);
     const bool first = !keepAlive && fmSosTries() == 0;
     fmSosSent(id, now);
+    if (id >= 0) {
+      g_sosLastId = id;
+      // A keep-alive after DELIVERED is not a state change: its tx record says it.
+      if (!keepAlive) logSos(first ? FM_LOG_SOS_SENT : FM_LOG_SOS_RETRY, id);
+    }
     Serial.printf("[SOS] %s %s %u -> %s, next in %lu s\n", fmSosChName(ch),
                   keepAlive ? "keep-alive after try" : "try", (unsigned)fmSosTries(),
                   id >= 0 ? "sent" : "FAILED", (unsigned long)(fmSosNextInMs(now) / 1000));
@@ -755,6 +792,7 @@ static void sosSenderTick(uint32_t now) {
   const FmSosState st = fmSosState();
   if (st != g_sosLastState) {
     if (st == FM_SOS_NOT_DELIVERED) {
+      logSos(FM_LOG_SOS_NOT_DELIVERED, g_sosLastId);
       // §7.6: two beeps and a message after the 5th retry goes unanswered.
       popup("SOS NOT DELIVERED", fmSosChName(fmSosChannel()),
             "No responder answered 5 retries. Move higher or outside and send again.", true);
@@ -870,10 +908,14 @@ static void sosSenderLine(uint32_t now, char *t, size_t n) {
 static void drawHome(uint32_t now) {
   char t[40];
   if (isResponder()) {
+#if FM_BENCH_RESPONDER
+    snprintf(t, sizeof(t), "%s RSP TEST", fmCallSign());   // never mistaken for a real one
+#else
     snprintf(t, sizeof(t), "%s RSP %lud", fmCallSign(),
              (unsigned long)((fmRoleRemainingS() + 86399UL) / 86400UL));
+#endif
   } else {
-    snprintf(t, sizeof(t), "%s CIV", fmCallSign());
+    snprintf(t, sizeof(t), "%s USER", fmCallSign());
   }
   drawHeader(t);
   oled.setFont(u8g2_font_5x8_tf);
@@ -1129,13 +1171,16 @@ static void drawStatus(uint32_t now) {
   else fmtAge(nearAge, near, sizeof(near));
   snprintf(t, sizeof(t), "PWR %s:%s (%s) near %s", pwrModeName(g_pwrMode),
            g_powered ? "EXT" : "BATT", fmPowerMethod(), near);
-  oled.drawStr(0, 27, t);
-  oled.drawStr(0, 35, "HEARD  hop  dBm   SNR  age   n");
+  oled.drawStr(0, 26, t);
+  // Field logger: records waiting and how long ago the last upload got through.
+  fmLogStatusLine(t, sizeof(t), now);
+  oled.drawStr(0, 33, t);
+  oled.drawStr(0, 40, "HEARD  hop  dBm   SNR  age   n");
 
   oled.setFont(u8g2_font_5x8_tf);
   uint8_t idx[HEARD_SLOTS];
   const uint8_t n = heardSorted(idx);
-  if (n == 0) oled.drawStr(0, 44, "nobody yet");
+  if (n == 0) oled.drawStr(0, 48, "nobody yet");
   if (g_heardSel >= n && n) g_heardSel = n - 1;
   const uint8_t top = g_heardSel >= 2 ? (uint8_t)(g_heardSel - 1) : 0;
   for (uint8_t r = 0; r < 2 && top + r < n; r++) {
@@ -1144,7 +1189,7 @@ static void drawStatus(uint32_t now) {
     fmtAge(now - h.at, age, sizeof(age));
     snprintf(t, sizeof(t), "%-5s %u %4d %5.1f %4s %u", h.cs, (unsigned)h.hops, h.rssi, h.snr,
              age, (unsigned)h.count);
-    oled.drawStr(0, (uint8_t)(44 + r * 9), t);
+    oled.drawStr(0, (uint8_t)(48 + r * 8), t);
   }
   drawFooter(g_ping ? "C:PING OFF #:POWER *:COVER D:BACK" : "C:PING ON #:POWER *:COVER D:BACK");
 }
@@ -1397,7 +1442,7 @@ static void handleKey(const FmKeyEvent &ev, uint32_t now) {
         g_screen = SCR_INBOX;
       } else if (ev.type == FM_KEV_LONG && ev.key == FM_KP_D &&
                  (fmSosState() == FM_SOS_WAITING || fmSosState() == FM_SOS_DELIVERED)) {
-        fmSosStop();
+        stopOwnSos();
         Serial.println("[SOS] retries stopped by the user");
         popup("SOS STOPPED", "", "Not sent again. Hold * and # to send a new SOS.", false, 4000);
         buzzStart(1, 300, 0);
@@ -1547,7 +1592,8 @@ static bool canSleep(uint32_t now) {
   const bool idle = g_oledOk ? g_screenOff : (now - g_lastActivity) >= FM_SCREEN_OFF_MS;
   if (!idle) return false;
   if (g_popup || g_bzPulses || g_bzState || g_sosPick || g_ping) return false;
-  if (fmKeypadMask() || fmMeshBusy() || fmOtaActive()) return false;
+  // fmLogBusy(): a field-logger upload window has WiFi up; light sleep would drop it.
+  if (fmKeypadMask() || fmMeshBusy() || fmOtaActive() || fmLogBusy()) return false;
   if ((now - g_lastSerialMs) < 30000UL) return false;   // someone on the serial console
   return true;
 }
@@ -1557,6 +1603,8 @@ static void sleepTick(uint32_t now) {
   uint32_t ms = FM_SLEEP_MAX_MS;
   const uint32_t sosIn = fmSosNextInMs(now);
   if (sosIn < ms) ms = sosIn;
+  const uint32_t logIn = fmLogNextInMs(now);   // awake when the next upload window is due
+  if (logIn < ms) ms = logIn;
   if (ms < 5) return;   // not worth it
   fmSleepLight(ms);
 }
@@ -1630,6 +1678,7 @@ static void factoryReset() {
     p.end();
   }
   fmOtaForget();                     // and no stored WiFi network
+  fmLogForgetSettings();             // nor network 2 and the log server (the records stay)
 }
 
 static bool g_otaAtBoot = false;   // B held at power-on: open the WiFi update window
@@ -1748,11 +1797,16 @@ static void pollSerial() {
                      " | text <msg> | ping on|off | heard | cover | power auto|on|off"
                      " | sleep on|off | beep | callsign <1-5 of A-Z 0-9> | wifi"
                      " | wifi ssid <name> | wifi pass <pw> | wifi forget | ota | ota off");
+      Serial.println("[CMD] field log: log | log send | log url <base> | log url default"
+                     " | log clear | wifi2 ssid <name> | wifi2 pass <pw> | wifi2 forget");
       Serial.println("[CMD] SOS channels: 0 GENERAL, 1 MEDICAL, 2 EVACUATION, 3 HAZARD, 4 FOOD");
     } else if (strncmp(line, "wifi", 4) == 0) {
       // Every "wifi..." line ends here, so a mistyped one can never reach the
       // "unknown" branch below, which would echo a password to the log.
-      if (strncmp(line, "wifi ssid ", 10) == 0) {
+      // "wifi2 ..." (the field logger's second network) included.
+      if (fmLogWifi2Command(line)) {
+        // handled, password never echoed
+      } else if (strncmp(line, "wifi ssid ", 10) == 0) {
         if (fmOtaSetSsid(line + 10)) Serial.printf("[WIFI] network set to '%s'\n", fmOtaSsid());
         else Serial.println("[WIFI] network refused - 1 to 32 printable characters");
       } else if (strncmp(line, "wifi pass ", 10) == 0 || strcmp(line, "wifi pass") == 0) {
@@ -1762,11 +1816,16 @@ static void pollSerial() {
         fmOtaForget();
         Serial.println("[WIFI] network forgotten");
       } else if (strcmp(line, "wifi") == 0) {
-        Serial.printf("[WIFI] network %s, password %s, update window %s\n",
+        Serial.printf("[WIFI] network 1 %s, password %s (updates and field log), "
+                      "update window %s\n",
                       fmOtaHasSsid() ? fmOtaSsid() : "not set",
                       fmOtaHasPass() ? "saved" : "not set", fmOtaActive() ? "OPEN" : "closed");
+        Serial.printf("[WIFI] network 2 %s, password %s (field log only, tried second)\n",
+                      fmLogHasSsid2() ? fmLogSsid2() : "not set",
+                      fmLogHasPass2() ? "saved" : "not set");
       } else {
-        Serial.println("[WIFI] usage: wifi | wifi ssid <name> | wifi pass <pw> | wifi forget");
+        Serial.println("[WIFI] usage: wifi | wifi ssid <name> | wifi pass <pw> | wifi forget"
+                       " | wifi2 ssid <name> | wifi2 pass <pw> | wifi2 forget");
       }
       memset(line, 0, sizeof(line));
     } else if (strcmp(line, "ota") == 0) {
@@ -1797,7 +1856,7 @@ static void pollSerial() {
       delay(100);
       ESP.restart();
     } else if (strcmp(line, "sos stop") == 0) {
-      fmSosStop();
+      stopOwnSos();
       Serial.println("[SOS] retries stopped");
     } else if (strcmp(line, "sos list") == 0) {
       printSos();
@@ -1848,6 +1907,8 @@ static void pollSerial() {
       printHeard();
     } else if (strcmp(line, "cover") == 0) {
       printCover();
+    } else if (fmLogCommand(line)) {
+      // log, log send, log url, log clear: fm_log.cpp
     } else if (line[0]) {
       Serial.printf("[CMD] unknown '%s' - try help\n", line);
     }
@@ -1855,6 +1916,21 @@ static void pollSerial() {
 }
 
 // ---------------------------------------------------------------- setup / loop
+/** The field logger's status record (fm_log.h): called from fmLogLoop(), in this task. */
+static void logStatusFill(FmLogStatus *s) {
+  s->battV = g_battV;
+  s->battPct = g_battPct;
+  s->powered = g_powered;
+  s->airPermille = fmAirtimePermille();
+  uint8_t n = 0;
+  for (uint8_t i = 0; i < HEARD_SLOTS; i++) n += g_heard[i].used ? 1 : 0;
+  s->heard = n;
+  const uint32_t up = millis() ? millis() : 1;
+  const uint64_t pct = (uint64_t)fmSleepTotalMs() * 100u / up;
+  s->sleepPct = (uint8_t)(pct > 100 ? 100 : pct);
+  s->responder = isResponder();
+}
+
 void setup() {
   Serial.begin(115200);
   delay(300);
@@ -1916,6 +1992,9 @@ void setup() {
   bootCombos();   // may enter provisioning mode, which never returns
   fmOtaBegin(provDraw);
   const bool otaResume = fmOtaResumePending();   // read once: it clears the flag
+  // After bootCombos(): BLE provisioning never returns, so the uploader task
+  // and its WiFi never exist while BLE runs. The boot record goes out first.
+  fmLogBegin(logStatusFill);
 
   uint8_t psk[16];
   if (!parsePsk(psk)) {
@@ -2022,6 +2101,7 @@ void loop() {
   buzzTick(now);
   pingTick(now);
   updateBattery(now, false);
+  fmLogLoop(now);   // this pass's records to flash; status records; upload windows
   digitalWrite(PIN_LED, g_ping && ((now / 100) % 20 == 0) ? HIGH : LOW);
   draw(now, false);
 

@@ -28,11 +28,24 @@
  *
  * Built without FM_OTA_PASSWORD the window refuses to open: an unauthenticated
  * update server would let anyone on the same WiFi reflash the unit.
+ *
+ * The field logger (fm_log.h) uses the same WiFi network as its network 1,
+ * read from the same NVS keys. The two never hold WiFi at once: the logger
+ * waits while this window is open, and fmOtaStart() refuses while an upload
+ * window runs.
  */
 #pragma once
 #include <Arduino.h>
 
 #include "fm_prov.h"   // FmProvDraw
+
+// NVS keys (namespace FM_NVS_NAMESPACE) of the stored network; fm_log reads them too.
+#ifndef FM_NVS_KEY_WIFI_SSID
+#define FM_NVS_KEY_WIFI_SSID "wifissid"
+#endif
+#ifndef FM_NVS_KEY_WIFI_PASS
+#define FM_NVS_KEY_WIFI_PASS "wifipass"
+#endif
 
 #ifndef FM_OTA_WINDOW_MS
 #define FM_OTA_WINDOW_MS (10UL * 60UL * 1000UL)

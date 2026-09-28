@@ -27,8 +27,10 @@ artifacts of `.github/workflows/build.yml`.
 **Every unit in one test must run the same env.** The spreading factor and
 the preamble decide who can hear whom.
 
-**Status (2026-09-28, 4.2.0):** compiles in CI; not yet run on a unit. The first bench
-test in §5 checks the new behaviour on real hardware.
+**Status (2026-09-28, 4.3.0):** 4.2.0 runs on five units (A–E) since 28 Sep; the SOS,
+responder and relay behaviour of §5–6 is being field-tested. 4.3.0 adds the field
+logger (§10) and shows civilian units as `USER` in the header (the role is still
+`civilian` in serial output and the admin-app protocol).
 
 ## 1. What changed from V3
 
@@ -152,7 +154,8 @@ until a key is pressed.
 - hold **#**: BLE provisioning with the FloodMesh Admin app;
 - hold **B**: WiFi update mode for 10 minutes (§8);
 - hold **\*** and **0** for 10 s: factory reset (role, keys, call sign, stored
-  WiFi network, SOS channel selection).
+  WiFi networks and field-log server address, SOS channel selection). The
+  field log's records and counters are kept (§10).
 
 ## 4. How it behaves
 
@@ -242,7 +245,7 @@ DIO1 (GPIO 14), and a key press pulls a keypad column low (rows are held LOW
 while asleep). Either one wakes the ESP32 within about a millisecond. RAM,
 timers and the screen contents survive, because light sleep is not a reboot.
 Each sleep is capped at 1 s as a safety net, so a missed wake source costs at
-most a second.
+most a second, and never runs past the next field-log upload window.
 
 The unit stays awake while any of these hold:
 - the screen is on
@@ -251,6 +254,7 @@ The unit stays awake while any of these hold:
 - a key is held
 - the range-test ping is on
 - WiFi update mode is open
+- a field-logger upload window is running (§10)
 - serial input arrived in the last 30 s
 - it counts as powered
 
@@ -354,6 +358,11 @@ still need signed images, which come with the Bluetooth update (§13.6).
 `callsign <name>`, `wifi` / `wifi ssid <name>` / `wifi pass <password>` /
 `wifi forget`, `ota` / `ota off`.
 
+Field logger (§10): `log`, `log send`, `log url <base>`, `log url default`,
+`log clear`, `wifi2 ssid <name>`, `wifi2 pass <password>`, `wifi2 forget`.
+`wifi` shows both networks. No `wifi` or `wifi2` line is ever echoed back,
+because it may carry a password.
+
 Every received frame prints one CSV line:
 
 ```
@@ -364,3 +373,138 @@ RXLOG,<ms>,<ALARM|TEXT|ACK|HEARTBEAT>,<from>,<msgId>,<hops>,<rssi>,<snr>,<text>
 `[MESH] relayed ...`, `[MESH] ack DELIVERED -> ...`,
 `[MESH] queued ack ... dropped - already answered`, `[HB] heartbeat -> sent`,
 `[PWR] EXTERNAL POWER` / `BATTERY`, `[OTA] new firmware kept`.
+
+Field-logger lines start with `[LOG]`: the boot summary, each upload window
+(`joining network 1`, `clock from SNTP ...`, `POST 100 records (seq ...) -> 200`,
+`upload window done in 12 s`), drops and flash errors.
+
+## 10. Field logger
+
+During field tests every unit records what it receives and sends, keeps it in
+flash, and uploads it every 5 minutes over the volunteer's phone hotspot to the
+field-logger web app (`webapp/field-logger/`). Nobody has to write readings
+down. The contract with the web app is `docs/field-logger-protocol.md`; the
+code is `include/fm_log.h` and `src/fm_log.cpp`.
+
+This is a test tool, not part of the product: it uses WiFi, which the product
+does not. `-D FM_LOG_ENABLE=0` builds V4 without it.
+
+**Status (2026-09-28):** runs on unit D over home WiFi against the deployed web app
+(floodmesh-field.vercel.app): verified TLS, SNTP with fallback, uploads acknowledged
+with 200. Not yet on the field units.
+
+### What is recorded
+
+| Kind | When | Main fields |
+|---|---|---|
+| `boot` | once per boot | ESP reset reason (`POWERON`, `SW`, `PANIC`, `BROWNOUT` ...), firmware, image id |
+| `rx` | every frame received and accepted, including an SOS a civilian unit forwards silently | type (`SOS`, `ALARM`, `TEXT`, `PING`, `ACK`, `HEARTBEAT`), from, msgId, hops, dBm, SNR, text, SOS channel |
+| `echo` | a neighbour relayed one of this unit's frames ("passed on") | type, msgId, dBm, SNR |
+| `tx` | this unit sent its own frame (SOS, text, ping, ACK, heartbeat, HELP IS COMING) | type, msgId, sent or not, text / channel |
+| `relay` | this unit relayed someone else's frame | type, from, msgId |
+| `sos` | this unit's own SOS changed state | `SENT`, `RETRY`, `DELIVERED`, `HELP`, `NOT_DELIVERED`, `STOPPED`, channel, retry count |
+| `status` | at boot, then every 5 min | battery V and %, external power, airtime, stations heard, share of time asleep, role |
+
+dBm and SNR are exactly the values of the `RXLOG` serial line. Every record
+carries a sequence number that only ever grows (across reboots too), the boot
+counter, the uptime in ms, and the Unix time once the clock has been synced
+(see Time below).
+
+### Setting a unit up
+
+1. **Build with the fleet key and the server.** Both are test secrets or
+   settings, passed at build time and never committed:
+
+   ```
+   # bash
+   export PLATFORMIO_BUILD_FLAGS="-D FM_OTA_PASSWORD='\"<ota pw>\"' -D FM_LOG_KEY='\"<32-64 hex>\"' -D FM_LOG_URL='\"https://<app>.vercel.app\"'"
+   # PowerShell
+   $env:PLATFORMIO_BUILD_FLAGS = "-D FM_OTA_PASSWORD='`"<ota pw>`"' -D FM_LOG_KEY='`"<32-64 hex>`"' -D FM_LOG_URL='`"https://<app>.vercel.app`"'"
+   pio run -d firmware_v4 -e v4 -t upload
+   ```
+
+   `FM_LOG_KEY` is the web app's `LOG_KEY`: 32 to 64 hex characters, the same
+   for every unit. **The HMAC key is the bytes the hex spells** (16 to 32
+   bytes), not the hex text; the server must decode it the same way
+   (`Buffer.from(LOG_KEY, 'hex')` in Node). Without `FM_LOG_KEY` a unit still
+   records to flash but never uploads, and says so once at boot. Changing
+   `PLATFORMIO_BUILD_FLAGS` makes PlatformIO rebuild everything; that is
+   expected.
+2. **Server address**, if it was not built in or has changed:
+   `log url https://<app>.vercel.app` (stored in NVS as `logurl`, it overrides
+   `FM_LOG_URL`; `log url default` goes back). For a bench server on the LAN,
+   `log url http://192.168.1.42:3000` works too.
+3. **WiFi networks.** Network 1 is the WiFi-update network (`wifi ssid` /
+   `wifi pass`). Network 2 is for the volunteer's hotspot:
+   `wifi2 ssid <name>`, `wifi2 pass <password>` (2.4 GHz, WPA2). Each window
+   tries network 1, then network 2, 15 s each. `wifi` shows both.
+4. `log send` uploads at once, and `log` shows the result.
+
+### How it behaves
+
+- **Upload windows:** the first about 60 s after boot, then every 5 min
+  (`FM_LOG_PERIOD_MS`). A window joins WiFi, syncs the clock, sends
+  `POST <server>/api/ingest` requests of at most 100 records and 16 KB until
+  nothing is left or one fails, then switches WiFi off. Records are deleted
+  from flash only after the server's `200` acknowledges them. A failed window
+  keeps everything for the next one.
+- **Signature:** every request carries `X-FM-Unit: <call sign>` and
+  `X-FM-Signature`: HMAC-SHA256 of the exact body bytes with the fleet key, in
+  lower-case hex.
+- **Radio and UI keep working** during a window: the upload runs in its own
+  task on the other CPU core. The unit does not light-sleep while it runs.
+- **Not during WiFi update mode.** A window waits while update mode is open,
+  and `ota` is refused while a window runs (`try again in a minute`).
+- **Storage:** LittleFS on the `spiffs` partition (1.5 MB). Up to 6,144
+  records (24 files of 256), never fewer than 5,888 after the oldest file is
+  dropped. When the log is full the oldest file goes and its unsent records
+  are added to `dropped`, a lifetime counter that every request reports.
+  Records survive reboots and battery swaps. Each record is an append (never
+  a rewrite), so flash wear stays low, and each has a CRC, so a record cut by
+  a power loss, or a chunk that cannot be read, is skipped without harming
+  the others. Flash writes (records, deleting sent files, the counters in
+  NVS) wait until no relay or ACK is counting down, so they never shift the
+  mesh timing a test measures.
+- **Time:** the unit syncs by SNTP (`pool.ntp.org`, then `time.google.com`)
+  in each window, or failing that from the server's reply. Until the first
+  sync of a boot, records carry `epoch` 0 and the server dates them from the
+  uptime. The clock restored after a power-off (saved hourly) is not trusted
+  for records, because it can be hours behind. The V4 clock (responder
+  expiry, forward only) is moved more carefully, since one bad time would
+  expire responders for good: freely only when SNTP and the server's time
+  over verified HTTPS agree; from one of them alone by at most 60 s plus 5%
+  of the uptime per boot; never from the server's time over `http://` or
+  unverified TLS.
+- **HTTPS** checks the server certificate against the root bundle inside the
+  Arduino core (136 roots; `*.vercel.app` chains to GTS Root R1 /
+  GlobalSign). `-D FM_LOG_TLS_INSECURE=1` skips the check for a bench server
+  with a self-signed certificate; never for the field.
+- **Battery cost (estimate, not measured):** WiFi draws ~100 mA for the 10-30 s
+  of a window, about 5-10 mA averaged over 5 minutes. More than the unit
+  uses asleep, so field-test battery figures are not product figures.
+
+The **Status screen** (B) shows one line: `LOG 12 waiting, sent 3m ago`
+(`never sent`, `uploading...`, or `no key: no upload`).
+
+### Serial commands
+
+| Command | Does |
+|---|---|
+| `log` | records in flash and waiting, dropped, boot and next seq, last good upload and last try with its result, server, key, next window, clock, flash use, uploader stack and heap margins |
+| `log send` | upload now (adds a fresh status record first) |
+| `log url <base>` | set the server (`http://` or `https://`, no `/api/ingest`); `log url` shows it; `log url default` returns to `FM_LOG_URL` |
+| `log clear` | delete every stored record (not counted as dropped); seq and boot keep counting |
+| `wifi2 ssid <name>` / `wifi2 pass <password>` / `wifi2 forget` | the second network (the hotspot); the password is never printed |
+
+### First bench test
+
+1. Run the web app locally with `LOG_KEY` set to the same hex as `FM_LOG_KEY`,
+   and the unit's call sign allowed.
+2. Build with the key, flash, then on serial: `log url http://<PC IP>:3000`,
+   `wifi2 ssid ...`, `wifi2 pass ...`, `log send`.
+3. Serial shows `POST n records ... -> 200`; the web app lists the boot and
+   status records. Send a text from another unit: an `rx` record appears after
+   the next window.
+4. Pull the battery mid-window, power up again: nothing is lost, nothing is
+   stored twice (the server keeps each `(unit, seq)` once).
+5. Check `log` for the uploader's stack and heap margins and note them here.

@@ -70,9 +70,16 @@ void fmRoleBegin();
 bool fmRoleLoop(uint32_t nowMs);
 
 // ---------------------------------------------------------------- role
+// Bench-test builds only (env v4_bench_responder): the unit acts as a responder
+// without the admin app. Anyone running such a build is a "responder", so it
+// must never reach users.
+#ifndef FM_BENCH_RESPONDER
+#define FM_BENCH_RESPONDER 0
+#endif
+
 FmRole      fmRole();
 const char *fmRoleName(FmRole r);          // "civilian" / "relay" / "responder"
-const char *fmRoleTag(FmRole r);           // "CIV" / "RLY" / "RSP"
+const char *fmRoleTag(FmRole r);           // "USER" / "RLY" / "RSP"
 bool        fmRoleParse(const char *s, FmRole *out);
 uint32_t    fmRoleExpiry();                // Unix seconds; 0 unless responder
 /** Seconds of responder grant left, 0 if not a responder or unknown time. */
