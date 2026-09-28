@@ -14,12 +14,12 @@ row with an empty Draft column unless given a topic.
 | 4 | Pager, not a walkie-talkie | #discussion | X, IG | README | drafts/2026-09-pager-not-walkie-talkie.md |
 | 5 | Four alarms, four channels: which would you change? | #discussion #feedback | X, IG | README | |
 | 6 | Is the speaker loud enough? (tone test numbers) | #feedback | X, IG reel | README FM_SPK_TONE_TEST, listening test commit | |
-| 7 | Alarm delivery confirmation: DELIVERED / NOT CONFIRMED | #announcement #feedback | X, IG | alarm policy decisions | |
+| 7 | Alarm delivery confirmation: DELIVERED / NOT CONFIRMED | #announcement #feedback | X, IG | alarm policy decisions | drafts/2026-09-sos-delivery-confirmation.md |
 | 8 | Anyone lending 3D printing time? | #resources #collaboration | X, Reddit | docs/enclosure-ip67-notes.md, CAD/ | |
 | 9 | Anyone in a flood-prone colony willing to pilot? | #pilot #collaboration | X, LinkedIn, Reddit | pilot scope | |
 | 10 | What interfaces do you need? | #discussion #feedback | X, IG | keypad, PTT, OLED photos | |
 | 11 | What pathways do you need? mesh, direct-to-help | #discussion #feedback | X | roadmap | |
-| 12 | Multi-hop test | #trials #feedback | X, IG reel | when tested | |
+| 12 | Multi-hop test | #trials #feedback | X, IG reel | docs/field-tests.md (2026-09-26 relay test) | drafts/2026-09-multihop-relay-test.md |
 | 13 | Direct-to-help feature added | #announcement #feedback | X, IG, LinkedIn | when built | |
 | 14 | Met the moulding vendor | #pilot | X, IG | when it happens | |
 | 15 | First 10 prototypes built | #pilot #cheers | X, IG, LinkedIn | when built | |
