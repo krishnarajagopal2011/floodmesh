@@ -104,6 +104,8 @@ What the photos show:
 - **E → B at about 200 m** swung between −91 and −113 dBm as E moved, with SNR
   never below +2 (about 9 dB of margin).
 
+Map of positions and links: `docs/field-tests/2026-09-28-map.png`.
+
 **Geometry and outcome.** A (ground floor, indoors) and C (roof) were in the
 same house at 12.011566, 79.801577. **A received none of E's four words.**
 
