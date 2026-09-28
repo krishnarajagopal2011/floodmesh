@@ -266,6 +266,52 @@ static uint16_t g_bzPulses = 0, g_bzOn = 0, g_bzOff = 0;
 static bool g_bzState = false;
 static uint32_t g_bzNext = 0;
 
+// Buzzer drive. An ACTIVE buzzer has its own oscillator and only needs the pin
+// held HIGH; a PASSIVE one driven that way just clicks, which is how unit E's
+// beeps sounded "feeble". `buzzer passive <Hz>` (kept in NVS) switches the unit
+// to a square wave from the LEDC peripheral at that frequency; 0 = active.
+#define FM_NVS_KEY_BUZZHZ "buzzhz"
+static const uint8_t kBuzzLedc = 4;   // LEDC channel; nothing else in V4 uses LEDC
+static uint16_t g_buzzHz = 0;
+
+static void buzzAttach(uint16_t hz) {
+  if (hz) {
+    ledcSetup(kBuzzLedc, hz, 8);
+    ledcAttachPin(PIN_BUZZER, kBuzzLedc);
+    ledcWrite(kBuzzLedc, 0);
+  } else {
+    ledcDetachPin(PIN_BUZZER);
+    pinMode(PIN_BUZZER, OUTPUT);
+    digitalWrite(PIN_BUZZER, LOW);
+  }
+}
+
+static void buzzPin(bool on) {
+  if (g_buzzHz) ledcWrite(kBuzzLedc, on ? 128 : 0);   // 50% duty square wave
+  else          digitalWrite(PIN_BUZZER, on ? HIGH : LOW);
+}
+
+static void loadBuzzer() {
+  Preferences p;
+  if (p.begin(FM_NVS_NAMESPACE, true)) {
+    const uint16_t hz = p.getUShort(FM_NVS_KEY_BUZZHZ, 0);
+    p.end();
+    if (hz == 0 || (hz >= 500 && hz <= 8000)) g_buzzHz = hz;
+  }
+  buzzAttach(g_buzzHz);
+}
+
+static bool setBuzzerHz(uint16_t hz) {
+  if (hz != 0 && (hz < 500 || hz > 8000)) return false;
+  Preferences p;
+  if (!p.begin(FM_NVS_NAMESPACE, false)) return false;
+  p.putUShort(FM_NVS_KEY_BUZZHZ, hz);
+  p.end();
+  g_buzzHz = hz;
+  buzzAttach(hz);
+  return true;
+}
+
 static void buzzStart(uint16_t pulses, uint16_t onMs, uint16_t offMs) {
   g_bzPulses = pulses;
   g_bzOn = onMs;
@@ -277,18 +323,18 @@ static void buzzStart(uint16_t pulses, uint16_t onMs, uint16_t offMs) {
 static void buzzStop() {
   g_bzPulses = 0;
   g_bzState = false;
-  digitalWrite(PIN_BUZZER, LOW);
+  buzzPin(false);
 }
 
 static void buzzTick(uint32_t now) {
   if (!g_bzPulses && !g_bzState) return;
   if ((int32_t)(now - g_bzNext) < 0) return;
   if (g_bzState) {
-    digitalWrite(PIN_BUZZER, LOW);
+    buzzPin(false);
     g_bzState = false;
     g_bzNext = now + g_bzOff;
   } else if (g_bzPulses) {
-    digitalWrite(PIN_BUZZER, HIGH);
+    buzzPin(true);
     g_bzState = true;
     g_bzPulses--;
     g_bzNext = now + g_bzOn;
@@ -302,9 +348,9 @@ static void keyClick() {
 /** Blocking beep, for boot and provisioning only. */
 static void beepBlocking(uint16_t onMs, uint8_t pulses = 1, uint16_t gapMs = 60) {
   for (uint8_t i = 0; i < pulses; i++) {
-    digitalWrite(PIN_BUZZER, HIGH);
+    buzzPin(true);
     delay(onMs);
-    digitalWrite(PIN_BUZZER, LOW);
+    buzzPin(false);
     if (i + 1 < pulses) delay(gapMs);
   }
 }
@@ -1848,7 +1894,8 @@ static void pollSerial() {
                      " | text <msg> | ping on|off | heard | cover | power auto|on|off"
                      " | sleep on|off | beep | callsign <1-5 of A-Z 0-9> | wifi"
                      " | wifi ssid <name> | wifi pass <pw> | wifi forget | ota | ota off"
-                     " | batt | batt cal <volts> | batt cal reset");
+                     " | batt | batt cal <volts> | batt cal reset | beep tone <Hz>"
+                     " | buzzer | buzzer active | buzzer passive [Hz]");
       Serial.println("[CMD] field log: log | log send | log url <base> | log url default"
                      " | log clear | wifi2 ssid <name> | wifi2 pass <pw> | wifi2 forget");
       Serial.println("[CMD] SOS channels: 0 GENERAL, 1 MEDICAL, 2 EVACUATION, 3 HAZARD, 4 FOOD");
@@ -1969,14 +2016,38 @@ static void pollSerial() {
       g_sleepEnabled = false;
       Serial.println("[SLEEP] light sleep OFF until reboot");
     } else if (strcmp(line, "beep") == 0) {
-      // Buzzer bench check: GPIO held HIGH for 3 s, long enough to measure.
-      Serial.printf("[BUZZ] GPIO %d HIGH for 3 s - measure base and collector now\n",
-                    PIN_BUZZER);
+      // Buzzer bench check, 3 s in the unit's own mode (long enough to measure).
+      Serial.printf("[BUZZ] GPIO %d on for 3 s (%s) - measure base and collector now\n",
+                    PIN_BUZZER, g_buzzHz ? "passive-buzzer tone" : "held HIGH");
       buzzStop();
-      digitalWrite(PIN_BUZZER, HIGH);
+      buzzPin(true);
       delay(3000);
-      digitalWrite(PIN_BUZZER, LOW);
+      buzzPin(false);
       Serial.println("[BUZZ] off");
+    } else if (strncmp(line, "beep tone ", 10) == 0) {
+      // Try a square wave without saving it: a passive buzzer is loud only this way.
+      const int hz = atoi(line + 10);
+      if (hz < 500 || hz > 8000) {
+        Serial.println("[BUZZ] beep tone <500-8000 Hz>");
+      } else {
+        Serial.printf("[BUZZ] %d Hz tone for 2 s (not saved)\n", hz);
+        buzzStop();
+        buzzAttach((uint16_t)hz);
+        ledcWrite(kBuzzLedc, 128);
+        delay(2000);
+        ledcWrite(kBuzzLedc, 0);
+        buzzAttach(g_buzzHz);   // back to the saved mode
+        Serial.println("[BUZZ] off");
+      }
+    } else if (strcmp(line, "buzzer active") == 0) {
+      if (setBuzzerHz(0)) Serial.println("[BUZZ] active buzzer: pin held HIGH (saved)");
+    } else if (strncmp(line, "buzzer passive", 14) == 0) {
+      const int hz = line[14] == ' ' ? atoi(line + 15) : 2700;
+      if (setBuzzerHz((uint16_t)hz)) Serial.printf("[BUZZ] passive buzzer: %d Hz tone (saved)\n", hz);
+      else Serial.println("[BUZZ] buzzer passive [500-8000 Hz, default 2700]");
+    } else if (strcmp(line, "buzzer") == 0) {
+      if (g_buzzHz) Serial.printf("[BUZZ] passive buzzer, %u Hz tone\n", (unsigned)g_buzzHz);
+      else          Serial.println("[BUZZ] active buzzer, pin held HIGH");
     } else if (strcmp(line, "heard") == 0) {
       printHeard();
     } else if (strcmp(line, "cover") == 0) {
@@ -2011,6 +2082,7 @@ void setup() {
 
   pinMode(PIN_BUZZER, OUTPUT);
   digitalWrite(PIN_BUZZER, LOW);
+  loadBuzzer();   // active (pin HIGH) or passive (tone), a property of the board: kept by factory reset
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, LOW);
 
@@ -2107,7 +2179,7 @@ void setup() {
   Serial.printf("[BATT] %.3f V (%u%%)\n", g_battV, g_battPct);
   Serial.printf("[SOS] responder channel selection 0x%02X\n", (unsigned)fmSosSelectionMask());
   Serial.println("[CMD] type 'help' for serial commands");
-  beepBlocking(30, 2, 60);
+  beepBlocking(100, 2, 80);   // under ~50 ms a buzzer is still starting up: a muffled tick
   g_lastActivity = millis();
   g_lastSerialMs = millis();   // stay awake long enough for a console to attach
 

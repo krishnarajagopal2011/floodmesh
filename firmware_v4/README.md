@@ -368,7 +368,16 @@ still need signed images, which come with the Bluetooth update (§13.6).
 `heard`, `cover`, `power auto|on|off`, `sleep on|off`, `beep`,
 `callsign <name>`, `wifi` / `wifi ssid <name>` / `wifi pass <password>` /
 `wifi forget`, `ota` / `ota off`, `batt`, `batt cal <volts>`, `batt cal reset`
-(§4, battery reading per board).
+(§4, battery reading per board), `beep tone <Hz>`, `buzzer`, `buzzer active`,
+`buzzer passive [Hz]`.
+
+**Buzzer type (4.3.3).** The wiring expects an ACTIVE buzzer (it has its own
+oscillator; the pin is held HIGH). A PASSIVE buzzer driven that way only clicks:
+unit E's beeps were feeble for this reason. `beep tone <Hz>` tries a square wave
+without saving; `buzzer passive <Hz>` saves it for every beep (E uses 2700 Hz),
+`buzzer active` returns to the default. The setting describes the board, so a
+factory reset keeps it. A passive buzzer on 3.3 V is still quieter than the
+active ones; replacing it is the real fix.
 
 Field logger (§10): `log`, `log send`, `log url <base>`, `log url default`,
 `log clear`, `wifi2 ssid <name>`, `wifi2 pass <password>`, `wifi2 forget`.
