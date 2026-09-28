@@ -104,8 +104,26 @@ What the photos show:
 - **E → B at about 200 m** swung between −91 and −113 dBm as E moved, with SNR
   never below +2 (about 9 dB of margin).
 
-**Still to add:** A's home and C's roof positions, for distances to them, and
-which of the four words A received.
+**Geometry and outcome.** A (ground floor, indoors) and C (roof) were in the
+same house at 12.011566, 79.801577. **A received none of E's four words.**
+
+| From the house to | Distance | Direction |
+|---|---|---|
+| E sending cat | 259 m | west (269°) |
+| E sending dog and Him | 270 m | west (270°) |
+| B receiving Pig | 57 m | west-north-west (283°), almost on the line to E |
+
+- E → A direct (about 265 m, A indoors on the ground floor) was at the edge:
+  E heard A at −118 dBm, SNR −3.2. Each word went out once, with no retry.
+- B, 57 m from A and nearly on the line to E, heard E well and A well, but did
+  not relay (above).
+- C, on the roof of the same house, would have delivered each word to A a few
+  metres away. It was on battery AUTO (PWR ON forgotten) and had also heard A's
+  heartbeat, so it held back text under the same rule.
+- So two relays that could each have delivered the words stayed silent, and
+  4 of 4 words were lost. This is the normal flood case (person indoors on a
+  low floor, a nearby unit wrongly believing it is the powered relay), which is
+  why `architecture.md` §13.9 question 8 matters.
 
 ---
 
