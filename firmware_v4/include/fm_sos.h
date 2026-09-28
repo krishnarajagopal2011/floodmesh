@@ -24,9 +24,18 @@
  * the entry; after FM_SOS_EPISODE_MS of silence a new SOS starts a new
  * episode. The responder selects channels; General is always selected. The
  * main list shows the selected channels plus any escalated entry. An entry
- * nobody has answered with "Help coming" for FM_SOS_ESCALATE_MS escalates and
- * shows on every responder unit, whatever its filter. The selection is kept
- * in NVS, so it survives reboot and sleep.
+ * nobody has answered with "Help is coming" for FM_SOS_ESCALATE_MS (Medical:
+ * FM_SOS_ESCALATE_MED_MS) escalates and shows on every responder unit,
+ * whatever its filter. The selection is kept in NVS, so it survives reboot
+ * and sleep.
+ *
+ * Reminders (decided 28 Sep): an SOS in the main list that nobody has
+ * answered alarms again every FM_SOS_REALARM_MS, counted from its last alarm
+ * (the arrival alarm, or the escalation). They stop when anyone sends "Help
+ * is coming", or when the sender has not been heard for FM_SOS_EPISODE_MS: a
+ * sender that is still waiting re-sends every 15 min, so an hour of silence
+ * means it stopped or went off air, and the entry stays listed without
+ * alarming.
  */
 #pragma once
 #include <Arduino.h>
@@ -48,6 +57,12 @@
 #endif
 #ifndef FM_SOS_ESCALATE_MS
 #define FM_SOS_ESCALATE_MS (15UL * 60UL * 1000UL)      // §13.8 safeguard 4
+#endif
+#ifndef FM_SOS_ESCALATE_MED_MS
+#define FM_SOS_ESCALATE_MED_MS (5UL * 60UL * 1000UL)   // Medical escalates sooner (28 Sep)
+#endif
+#ifndef FM_SOS_REALARM_MS
+#define FM_SOS_REALARM_MS (15UL * 60UL * 1000UL)       // reminder until HELP IS COMING
 #endif
 #ifndef FM_SOS_EPISODE_MS
 #define FM_SOS_EPISODE_MS (60UL * 60UL * 1000UL)       // silence that ends an episode
@@ -94,6 +109,8 @@ struct FmSosEntry {
   uint16_t count;       // SOS frames received this episode
   bool     seen;        // shown on this unit's SOS screen
   bool     escalated;
+  uint8_t  alarms;      // alarms this episode: arrival or escalation, then reminders
+  uint32_t alarmAt;     // time of the last one
   bool     helpMine;    // this unit sent "Help coming"
   char     helpBy[FM_CALLSIGN_LEN + 1];   // who sent "Help coming", or ""
 };
@@ -110,8 +127,14 @@ int  fmSosRxAdd(const char *cs, uint8_t ch, uint8_t msgId, uint8_t hops, float r
                 uint32_t now, bool *isNew);
 /** "Help coming" heard (or sent, mine = true) for this SOS sender. */
 void fmSosRxHelp(const char *targetCs, const char *byCs, bool mine);
-/** Returns the index of an entry that has just escalated, or -1. Call often. */
-int  fmSosRxEscalateTick(uint32_t now);
+/** The UI alarmed for this entry on arrival (a selected channel): start its reminder clock. */
+void fmSosRxAlarmed(int idx, uint32_t now);
+/**
+ * Returns the index of an entry that must alarm now, or -1. *first is true
+ * when it has just escalated (a hidden channel), false for a reminder.
+ * Call about once a second; it returns at most one entry per call.
+ */
+int  fmSosRxEscalateTick(uint32_t now, bool *first);
 
 FmSosEntry *fmSosEntryAt(int idx);
 /**

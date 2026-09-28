@@ -27,7 +27,7 @@ artifacts of `.github/workflows/build.yml`.
 **Every unit in one test must run the same env.** The spreading factor and
 the preamble decide who can hear whom.
 
-**Status (2026-09-28, 4.1.0):** compiles in CI; not yet run on a unit. The first bench
+**Status (2026-09-28, 4.2.0):** compiles in CI; not yet run on a unit. The first bench
 test in §5 checks the new behaviour on real hardware.
 
 ## 1. What changed from V3
@@ -39,7 +39,7 @@ test in §5 checks the new behaviour on real hardware.
 | SOS for responders only (§13.4) | Civilian units forward an SOS silently: nothing on screen, no buzzer. Responder units show it and sound the buzzer |
 | Responder channel filter (§13.8) | Tabs per channel, selection kept in flash, dot + inverted label on an unselected tab holding an unopened SOS, General always selected |
 | Delivery ACK and "Help is coming" (§13.8) | A responder unit acknowledges every SOS it receives (one per area, by a delay race). The reply is **hold 4 + 6 for 3 s** on the SOS detail screen, with a progress bar; releasing early cancels |
-| Escalation (§13.8) | An SOS in an unselected channel that nobody answers with "Help coming" within 15 min alarms every responder unit that has it |
+| Escalation and reminders (§13.8) | An SOS in an unselected channel that nobody answers with "Help is coming" alarms every responder unit that has it: Medical after 5 min, the others after 15. Any unanswered SOS in the list then alarms again every 15 min until someone replies |
 | SOS retries (§7.6) | At most 5 retries, after 1, 2, 4, 8 and 15 min. No answer to the 5th: two beeps and `SOS NOT DELIVERED`. After `DELIVERED` the SOS is re-sent every 15 min until "Help is coming", so it survives the one responder unit that had it going off air |
 | No relay role (§13.2) | A unit on external power stays awake and forwards everything. The admin app's "relay" role is treated as civilian. External power is measured through an optional GPIO 3 divider, or guessed from the battery-voltage trend without it |
 | Forwarding rules (§13.3) | Every unit forwards SOS, ACKs and heartbeats. A battery unit forwards a text only if it has not heard a powered unit directly in the last 65 min |
@@ -192,8 +192,12 @@ until a key is pressed.
   the entry without a new alarm.
 - Every SOS received is acknowledged, shown or not. When several responder
   units hear the same SOS, the first to answer wins and the others hold back.
-- An SOS in an unselected channel with no Help coming after 15 min escalates:
-  it moves into the main list, and the unit alarms.
+- An SOS in an unselected channel with no Help is coming escalates: it moves
+  into the main list and the unit alarms (`!! SOS ESCALATED !!`). Medical
+  escalates after 5 min, the other channels after 15.
+- Any unanswered SOS in the main list alarms again every 15 min
+  (`!! SOS WAITING !!`) until someone sends Help is coming. Reminders stop if
+  the sender has not been heard for an hour; the SOS stays listed.
 - The selection survives reboots. `select <1-4>` on serial toggles it too.
 
 ### Powered units and heartbeats
@@ -286,9 +290,12 @@ You need a responder unit (registered with the FloodMesh Admin app: boot with
 3. **Filter and dot:** on the responder, hold 4 for 1 s to unselect Food. A
    sends SOS Food. The responder does not alarm; the `food` tab is inverted
    with a dot. Press 4 to view it; the dot clears. A still shows `DELIVERED`.
-4. **Escalation:** repeat 3 and wait 15 min without Help coming. The responder
-   alarms and the SOS moves into the main list with `!`. (For a quicker bench
-   test, set `FM_SOS_ESCALATE_MS=60000UL` in `platformio.ini`.)
+4. **Escalation and reminders:** repeat 3 and wait 15 min without Help is
+   coming. The responder alarms and the SOS moves into the main list with `!`.
+   Wait 15 min more: it alarms again (`!! SOS WAITING !!`). Unselect Medical
+   and send SOS Medical: it escalates after 5 min. (For a quicker bench test,
+   shorten `FM_SOS_ESCALATE_MS`, `FM_SOS_ESCALATE_MED_MS` and
+   `FM_SOS_REALARM_MS` in `platformio.ini`.)
 5. **Retries:** send an SOS with no responder in range. Serial shows 5 retries,
    1, 2, 4, 8 and 15 min apart, then after one more minute two beeps and
    `SOS NOT DELIVERED`. Repeat, but switch a responder on after the second

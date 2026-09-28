@@ -178,6 +178,8 @@ int fmSosRxAdd(const char *cs, uint8_t ch, uint8_t msgId, uint8_t hops, float rs
       e.firstAt = now;
       e.count = 0;
       e.escalated = false;
+      e.alarms = 0;
+      e.alarmAt = 0;
       e.helpMine = false;
       e.helpBy[0] = '\0';
       fresh = true;
@@ -206,15 +208,38 @@ void fmSosRxHelp(const char *targetCs, const char *byCs, bool mine) {
   if (mine) e.helpMine = true;
 }
 
-int fmSosRxEscalateTick(uint32_t now) {
+void fmSosRxAlarmed(int idx, uint32_t now) {
+  FmSosEntry *e = fmSosEntryAt(idx);
+  if (!e) return;
+  e->alarms++;
+  e->alarmAt = now;
+}
+
+int fmSosRxEscalateTick(uint32_t now, bool *first) {
   for (uint8_t i = 0; i < FM_SOS_TABLE; i++) {
     FmSosEntry &e = g_tab[i];
-    if (!e.used || e.escalated || e.helpBy[0] || fmSosSelected(e.ch)) continue;
-    if ((now - e.firstAt) >= FM_SOS_ESCALATE_MS) {
+    if (!e.used || e.helpBy[0]) continue;               // answered: nothing more to do
+    if ((now - e.lastAt) >= FM_SOS_EPISODE_MS) continue; // sender gone quiet: listed, silent
+    if (!fmSosEntryVisible(e)) {
+      // A hidden channel: escalate once nobody has answered in time.
+      const uint32_t after =
+          e.ch == FM_SOS_MEDICAL ? FM_SOS_ESCALATE_MED_MS : FM_SOS_ESCALATE_MS;
+      if ((now - e.firstAt) < after) continue;
       e.escalated = true;
       e.seen = false;
-      return i;
+      if (first) *first = true;
+    } else {
+      // In the main list and unanswered: remind every FM_SOS_REALARM_MS after
+      // the last alarm (or after arrival, if it never alarmed, e.g. a channel
+      // selected later).
+      const uint32_t since = e.alarms ? e.alarmAt : e.firstAt;
+      if ((now - since) < FM_SOS_REALARM_MS) continue;
+      e.seen = false;
+      if (first) *first = false;
     }
+    e.alarms++;
+    e.alarmAt = now;
+    return i;
   }
   return -1;
 }

@@ -6,7 +6,8 @@ decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
 Updated 28 September 2026: SOS retry limit and keep-alive (§7.6), the
-responder reply key (§13.8), power sensing on the Heltec builds (§13.2).
+responder reply key, reminder alarms and a shorter Medical escalation (§13.8),
+power sensing on the Heltec builds (§13.2).
 Updated 27 September 2026: voice removed from version 1 (§7.4); radio wake,
 no relay role, forwarding and display rules, heartbeats and Bluetooth firmware
 updates, a single network spreading factor and SOS channels decided (§13).
@@ -884,6 +885,15 @@ still uses the one network SF.
      units whose filter hides that channel. Example: a Food supply SOS when
      every responder in range has chosen Medical only. After 15 min with no
      "Help coming", all of them see it and one can pick it up or pass it on.
+     **DECIDED 28 Sep:** Medical escalates sooner: 5 min in firmware V4
+     (the owner asked for "shorter"; 5 min is the proposed value, to confirm).
+  4a. **Reminders (DECIDED 28 Sep):** an unanswered SOS in a responder's list
+     alarms again every 15 min, counted from its last alarm, until anyone sends
+     "Help is coming". This covers both an SOS that alarmed on arrival (a
+     selected channel) and one that escalated. Reminders stop if the sender
+     has not been heard for an hour: while it still needs help it re-sends
+     every 15 min (§7.6), so an hour of silence means it stopped or went off
+     air. The entry stays listed without alarming.
   5. A responder unit sends the delivery ACK for every SOS it receives, shown or
      not, with the usual race so only one responder ACKs per area. The civilian
      sees DELIVERED, and a filter never triggers retries or the SF step-up
@@ -943,7 +953,9 @@ keypad wake (the RX duty-cycle wake-up preamble is the `v4_wake` build, since
 T is open), 13.2–13.5, 13.7 (SF as a build setting; `v4_sf9`), 13.8, and the
 rollback part of 13.6. Version 4.1.0 (28 Sep) adds the 5-retry limit with
 "SOS not delivered", the 15-min keep-alive after delivery, the 4 + 6 reply
-hold, and GPIO 3 power sensing with the trend fallback. Not in V4: Bluetooth updates with signed images (the
+hold, and GPIO 3 power sensing with the trend fallback. Version 4.2.0 adds the
+15-min reminder alarms and the 5-min Medical escalation (safeguards 4 and 4a).
+Not in V4: Bluetooth updates with signed images (the
 protocol doc and the app come first), presetting responder channels from the
 app, the PCB changes, and the open items in 13.9. Details:
 `firmware_v4/README.md`.

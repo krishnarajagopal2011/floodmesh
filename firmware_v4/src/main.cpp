@@ -67,7 +67,7 @@
 
 // ---------------------------------------------------------------- build knobs
 #ifndef FLOODMESH_VERSION
-#define FLOODMESH_VERSION "4.1.0"
+#define FLOODMESH_VERSION "4.2.0"
 #endif
 #ifndef ADC_CTRL_ENABLE_LEVEL
 #define ADC_CTRL_ENABLE_LEVEL HIGH
@@ -207,7 +207,7 @@ static bool g_popupSticky = false;   // stays until a key is pressed
 static uint32_t g_popupUntil = 0;
 static char g_popTitle[24];
 static char g_popMeta[40];
-static char g_popBody[FM_TEXT_MAX_CHARS + 1];
+static char g_popBody[4 * 21 + 1];   // what the popup shows: 4 lines of 21 characters
 
 // SOS chord and channel screen.
 static bool g_chord = false;        // * and # were both held during this hold
@@ -643,6 +643,7 @@ static void onAlarmRx(const FmAlarmRx *rx) {
              (int)rx->rssi);
     popup(title, meta, fmSosChName(ch), true);
     buzzStart(60, 700, 300);   // about a minute, or until a key is pressed
+    fmSosRxAlarmed(idx, now);  // reminders count from here
     showSosList();
   } else {
     Serial.printf("[SOS] %s from %s - channel not selected: tab marked, no alarm\n",
@@ -1337,7 +1338,7 @@ static void sosToggleTick(uint32_t now) {
   g_toggleDone = true;
   const int d = keyDigit((uint8_t)g_toggleKey);
   if (d < 0 || d >= FM_SOS_CH_COUNT) return;
-  char body[40];
+  char body[48];
   if (!fmSosToggle((uint8_t)d)) {
     popup("GENERAL", "always selected", "General SOS always shows on every responder unit.",
           false, 3000);
@@ -1509,19 +1510,32 @@ static void helpTick(uint32_t now) {
   }
 }
 
-/** Responder: an unanswered SOS in a hidden channel escalates after 15 min (§13.8). */
+/**
+ * Responder alarms after arrival (§13.8): an SOS in a hidden channel escalates
+ * when nobody has answered (Medical after 5 min, the others after 15), and an
+ * unanswered SOS in the main list reminds again every 15 min until someone
+ * sends HELP IS COMING.
+ */
 static void escalateTick(uint32_t now) {
   if (!isResponder() || (now - g_lastEscCheck) < 1000) return;
   g_lastEscCheck = now;
-  const int idx = fmSosRxEscalateTick(now);
+  bool first = false;
+  const int idx = fmSosRxEscalateTick(now, &first);
   FmSosEntry *e = fmSosEntryAt(idx);
   if (!e) return;
-  char meta[40];
-  snprintf(meta, sizeof(meta), "%s  %s  no reply", e->cs, fmSosChShort(e->ch));
-  Serial.printf("[SOS] %s SOS from %s ESCALATED: no Help coming within %lu min\n",
-                fmSosChName(e->ch), e->cs, (unsigned long)(FM_SOS_ESCALATE_MS / 60000UL));
-  popup("!! SOS ESCALATED !!", meta, "Nobody has sent Help coming. Open it from the SOS list.",
-        true);
+  char meta[40], age[8], cs[FM_CALLSIGN_LEN + 1];
+  fmtAge(now - e->firstAt, age, sizeof(age));
+  trimCs(e->cs, cs, sizeof(cs));
+  snprintf(meta, sizeof(meta), "%s  %s  %s, no reply", cs, fmSosChShort(e->ch), age);
+  Serial.printf("[SOS] %s SOS from %s %s: no HELP IS COMING after %s (alarm %u)\n",
+                fmSosChName(e->ch), cs, first ? "ESCALATED" : "reminder", age,
+                (unsigned)e->alarms);
+  if (first) {
+    popup("!! SOS ESCALATED !!", meta,
+          "Nobody has sent Help is coming. Open it from the SOS list.", true);
+  } else {
+    popup("!! SOS WAITING !!", meta, "Still no Help is coming. Reminder every 15 min.", true);
+  }
   buzzStart(30, 700, 300);
   showSosList();
 }
