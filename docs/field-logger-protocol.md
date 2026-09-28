@@ -76,7 +76,17 @@ Every record has these fields:
 | `k` | string | Kind, below |
 
 Kind-specific fields (absent when not applicable). Unknown kinds and fields
-must be accepted and kept by the server (stored in `extra`).
+must be accepted and kept by the server (stored in `extra`). So must a known
+field whose JSON type differs from the table (e.g. `"hops": "two"`, or a new
+kind that uses `n` for a float): the server stores the record, keeps that
+value in `extra` under its own name, lists the name in `extra._type_errors`
+and logs it. Only the envelope and the five common fields above can make the
+server refuse a request, because a refused request is resent unchanged every
+window and would block every later record of that unit.
+
+String fields are stored exactly as sent (only NUL characters are removed):
+`text` keeps leading and trailing spaces, so it matches the unit's `RXLOG`
+line.
 
 | `k` | Fields | When |
 |---|---|---|
@@ -99,16 +109,41 @@ must be accepted and kept by the server (stored in `extra`).
 { "ok": true, "acked_seq": 1041, "server_epoch": 1790563230 }
 ```
 
-- `acked_seq`: the highest `seq` in this request that is now stored (new or
-  already present). The unit deletes records with `seq <= acked_seq`.
+- `acked_seq`: the highest `seq` in this request that is now stored (new,
+  already present, or kept as a seq collision, below). The unit deletes
+  records with `seq <= acked_seq`.
 - `server_epoch`: server time (s). The unit uses it to set its clock if NTP
   failed.
 
-Errors: `400` malformed JSON or fields, `401` bad signature or unit not
-allowed, `413` body over 16 KB, `5xx` server trouble. On any non-200 the unit
-keeps the records and tries again next window.
+Errors: `400` malformed JSON, envelope or common record fields (§3), `401`
+bad signature or unit not allowed, `413` body over 16 KB, `5xx` server
+trouble. On any non-200 the unit keeps the records and tries again next
+window.
 
 Re-sending records is safe: the server stores each `(unit, seq)` once.
+
+**Seq collisions.** A record whose `(unit, seq)` is already stored counts as
+a re-send only if everything the unit sent for it is identical (every record
+field, and the envelope's `mac` when both uploads gave one). Otherwise it is a
+different record under a reused `seq`. That happens when `seq` starts again
+at 1: the board's flash was erased (`erase_flash`), a spare board was given
+the unit's call sign, or the NVS write of the `seq` high-water mark failed.
+The server then:
+
+- keeps the record apart (table `record_conflicts`, export `conflicts.csv`),
+  with the `mac` of the board that sent it, once per `(unit, seq, boot, ms,
+  k, mac)` so a re-send of it is harmless too;
+- still counts it as stored for `acked_seq`, so the unit deletes it. Refusing
+  it instead would make the unit resend the same oldest-first batch every
+  window, stalling its whole log;
+- logs `[ingest] <unit>: N seq collisions (...)` and flags the unit on the
+  admin page, which also lists every `mac` that has uploaded under each call
+  sign.
+
+Every stored record carries the `mac` of the upload that brought it, so
+records from two boards under one call sign can be told apart in the
+analysis. Records do not carry the call sign they were made under: records
+still unsent when `callsign` is changed are uploaded under the new one.
 
 ## 5. Time
 
@@ -160,7 +195,9 @@ file outside the repository, passed at build time, never committed.
   a notes box, and **Share my location** after an explicit consent step
   (browser geolocation, only while the page is open, posted at most every
   20 s).
-- Admin page: all units at a glance, latest phone positions on a map, and CSV
-  exports: records, locations, notes, and **readings with location**: every
-  `rx` record joined with the receiving unit's and the sending unit's nearest
-  phone position (within ±2 min) and the distance between them.
+- Admin page: all units at a glance (with a warning for seq collisions or a
+  second board under one call sign, §4), latest phone positions on a map, and
+  CSV exports: records, locations, notes, seq collisions, and **readings with
+  location**: every `rx` record joined with the receiving unit's and the
+  sending unit's nearest phone position (within ±2 min) and the distance
+  between them.

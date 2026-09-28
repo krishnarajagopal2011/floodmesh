@@ -34,15 +34,20 @@ silently; only E shows it.
 ## Field logger status (automatic uploads)
 
 - Protocol: `docs/field-logger-protocol.md`.
-- Web app: `webapp/field-logger` (Next.js + Neon Postgres), **deployed** to
-  Vercel project `floodmesh-field`. Secrets (log key, session secret, unit and
+- Web app: `webapp/field-logger` (Next.js + Neon Postgres), deployed to the
+  Vercel project `floodmesh-field` (floodmesh-field.vercel.app). The deployed
+  build is the first version; the reviewed and fixed version is in the repo
+  and still needs `npx vercel@latest --prod` from `webapp/field-logger` (it
+  upgrades the database in place). Secrets (log key, session secret, unit and
   admin passcodes) are only on the owner's PC and in Vercel, never in git.
-- Unit firmware (`fm_log`, uploads every 5 min over WiFi): built and reviewed,
-  fixes in progress, **not on any field unit today**. Next step: test on D over
-  home WiFi, then install on all units over WiFi update mode.
+- Unit firmware: V4 **4.3.0** adds the logger (`fm_log`, uploads every 5 min
+  over WiFi). Tested on **D only**, over home WiFi against the live site:
+  verified TLS, SNTP with fallback, uploads acknowledged with 200. The field
+  units A, B, C and E still run 4.2.0 today and do not upload.
+- 4.3.0 also shows civilian units as `USER` instead of `CIV` in the header.
 - Volunteers' phone hotspots will all be named **`floodmesh`** (same password,
   2.4 GHz, WPA2); units store it as their second network
-  (`set_wifi.py --slot 2`). Not used today.
+  (`set_wifi.py --slot 2`, needs 4.3.0 on the unit). Not used today.
 
 ## Quick answers
 

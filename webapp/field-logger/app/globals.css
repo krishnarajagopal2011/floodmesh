@@ -1,0 +1,160 @@
+/*
+ * Read outdoors on a phone in full sun: black on white, heavy weights,
+ * large type and thick borders. Status colours are deep enough to keep
+ * contrast when the screen is washed out, and never the only signal (every
+ * coloured state also has words).
+ */
+:root {
+  --bg: #ffffff;
+  --fg: #000000;
+  --muted: #3a3a3a;
+  --line: #000000;
+  --soft: #f1f1f1;
+  --ok: #0a5c2a;
+  --ok-bg: #d9f2e1;
+  --bad: #a1000f;
+  --bad-bg: #ffe0e3;
+  --warn-bg: #fff1c2;
+  --accent: #003f9e;
+  --radius: 10px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  -webkit-text-size-adjust: 100%;
+}
+
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 12px 16px 48px;
+}
+
+h1 { font-size: 1.7rem; margin: 0; font-weight: 800; }
+h2 { font-size: 1.2rem; margin: 0 0 8px; font-weight: 800; }
+p { margin: 6px 0; }
+a { color: var(--accent); font-weight: 700; }
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0 12px;
+  border-bottom: 3px solid var(--line);
+  margin-bottom: 12px;
+}
+.top small { display: block; color: var(--muted); font-weight: 600; }
+
+.card {
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: 12px 0;
+  background: var(--bg);
+}
+.card.ok { background: var(--ok-bg); border-color: var(--ok); }
+.card.bad { background: var(--bad-bg); border-color: var(--bad); }
+.card.warn { background: var(--warn-bg); }
+
+.big { font-size: 2rem; font-weight: 800; line-height: 1.15; }
+.label { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.muted { color: var(--muted); }
+.okText { color: var(--ok); font-weight: 800; }
+.badText { color: var(--bad); font-weight: 800; }
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 12px;
+}
+
+button, .button {
+  display: inline-block;
+  min-height: 48px;
+  padding: 10px 18px;
+  font: inherit;
+  font-weight: 800;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--fg);
+  color: var(--bg);
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+}
+button.secondary, .button.secondary { background: var(--bg); color: var(--fg); }
+button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+button:disabled { opacity: 0.5; cursor: default; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; }
+
+label.field { display: block; margin: 12px 0 4px; font-weight: 800; }
+input, select, textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 1.1rem;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+}
+textarea { min-height: 90px; resize: vertical; }
+
+.units {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  gap: 8px;
+}
+.units label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 1.6rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.units input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.units input:checked + span { color: var(--bg); }
+.units label:has(input:checked) { background: var(--fg); color: var(--bg); }
+.units label:has(input:focus-visible) { outline: 4px solid var(--accent); outline-offset: 2px; }
+
+.error { background: var(--bad-bg); border: 2px solid var(--bad); color: var(--bad); font-weight: 800; padding: 10px 12px; border-radius: var(--radius); }
+
+.tableWrap { overflow-x: auto; border: 2px solid var(--line); border-radius: var(--radius); }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+th, td { padding: 7px 8px; border-bottom: 1px solid #9a9a9a; text-align: left; vertical-align: top; white-space: nowrap; }
+th { background: var(--soft); font-weight: 800; position: sticky; top: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.wrap { white-space: normal; min-width: 10ch; }
+tr.k-sos td, tr.k-rx.t-SOS td { background: var(--bad-bg); }
+
+.map { height: 420px; border: 2px solid var(--line); border-radius: var(--radius); }
+/* Leaflet's own stylesheet sets display on marker icons, so centre the
+   letter with line-height rather than flexbox. */
+.unitMarker {
+  background: var(--fg);
+  color: var(--bg);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 16px;
+  line-height: 28px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #000;
+}
+
+details summary { cursor: pointer; font-weight: 800; }
+ul.plain { list-style: none; padding: 0; margin: 6px 0; }
+ul.plain li { padding: 6px 0; border-bottom: 1px solid #9a9a9a; }

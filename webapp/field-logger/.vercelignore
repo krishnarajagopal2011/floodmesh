@@ -1,0 +1,6 @@
+node_modules
+.next
+.pglite
+.env*
+!.env.example
+*.log

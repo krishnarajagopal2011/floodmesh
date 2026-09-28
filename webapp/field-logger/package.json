@@ -1,0 +1,32 @@
+{
+  "name": "floodmesh-field-logger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Collects FloodMesh unit logs during field tests (docs/field-logger-protocol.md).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.ts",
+    "simulate": "node scripts/simulate.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@neondatabase/serverless": "1.1.0",
+    "leaflet": "1.9.4",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/leaflet": "1.9.22",
+    "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "7.0.2"
+  }
+}
