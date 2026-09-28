@@ -68,8 +68,44 @@ min before the read-out, received 12 times.
 - Hardware to do: solder the GPIO 3 voltage-sense wire; add a panel-mount
   USB-C extension to the case for charging, power banks and recovery.
 
-**Still to add:** the field dBm/SNR values and positions from the WhatsApp
-photos.
+**Field readings from the WhatsApp photos (17:45–17:50)**
+
+E sent four words (cat 17:45, dog 17:46, Him 17:48, Pig 17:48). Positions
+shared: cat at 12.0115113, 79.7992002; dog and Him at 12.0115571, 79.7990955
+(12 m from cat); Pig at 12.0116835, 79.8010695 (about 205–215 m east; taken as
+B's position when it received Pig at 17:49). Each unit was identified from its
+Status footer (B's ping was on, E's off).
+
+B's Status screen:
+
+| Photo | E: dBm / SNR / age / count | A: dBm / SNR / age / count | B relayed / skipped | near |
+|---|---|---|---|---|
+| 1 | −91 / +12.5 / 1 min / 15 | −106 / +7.2 / 6 min / 24 | 15 / 17 | 6 min |
+| 2 | −101 / +9.0 / 15 s / 16 | −106 / +7.2 / 6 min / 24 | 15 / 17 | 6 min |
+| 3 | −113 / +2.0 / 22 s / 17 | −106 / +7.2 / 7 min / 24 | 15 / 17 | 7 min |
+| 4 | −110 / +4.5 / 13 s / 19 | −106 / +7.2 / 8 min / 24 | 15 / 18 | 8 min |
+
+E's Status screen:
+
+| Photo | B: dBm / SNR / age | A: dBm / SNR / age / count | near |
+|---|---|---|---|
+| 1 | −89 / (hidden) | (hidden) / 4 min / 5 | 4 min |
+| 2 | −109 / +3.5 / 26 s | −118 / −3.2 / 8 min / 5 | 8 min |
+
+What the photos show:
+- **B received E's words and relayed none of them**: B's count of frames from
+  E rose 15 → 19 while its relayed counter stayed at 15.
+- **Why**: B's `near` age equals A's age (6 → 8 min), so the last frame B heard
+  from A was A's heartbeat. A wrongly believed it was powered, and under §13.3
+  B left text to A, the destination itself.
+- **B was the ideal relay**: B heard A at −106 dBm, SNR +7.2 (comfortable), while
+  E heard A at −118 dBm, SNR −3.2 (near the SF7 limit of about −7.5). E → A
+  direct was marginal; E → B → A would very likely have worked.
+- **E → B at about 200 m** swung between −91 and −113 dBm as E moved, with SNR
+  never below +2 (about 9 dB of margin).
+
+**Still to add:** A's home and C's roof positions, for distances to them, and
+which of the four words A received.
 
 ---
 
