@@ -25,7 +25,8 @@
  *   INBOX      A / B scroll, C open, D back
  *   SOS LIST   0-4 jump to a channel tab, hold 0-4 for 1 s = select / unselect
  *              A / B move, C open, D back (tab -> main list -> home)
- *   SOS VIEW   hold C = HELP COMING, D back
+ *   SOS VIEW   hold 4 and 6 together 3 s = HELP IS COMING (bar fills;
+ *              release early to cancel), D back
  *   STATUS     A / B scroll heard list, C ping on/off, # power mode,
  *              * powered units (coverage), D back
  *
@@ -56,6 +57,7 @@
 #include "fm_mesh.h"
 #include "fm_ota.h"
 #include "fm_packet.h"
+#include "fm_power.h"
 #include "fm_prov.h"
 #include "fm_radio.h"
 #include "fm_role.h"
@@ -65,7 +67,7 @@
 
 // ---------------------------------------------------------------- build knobs
 #ifndef FLOODMESH_VERSION
-#define FLOODMESH_VERSION "4.0.0"
+#define FLOODMESH_VERSION "4.1.0"
 #endif
 #ifndef ADC_CTRL_ENABLE_LEVEL
 #define ADC_CTRL_ENABLE_LEVEL HIGH
@@ -109,19 +111,8 @@
 #ifndef FM_COVER_DOWN_MS
 #define FM_COVER_DOWN_MS (65UL * 60UL * 1000UL)  // two missed: presumed down
 #endif
-// External power on the Heltec board: it has no charger "power good" line
-// (the PCB will, §9 #2), so V4 infers it from the battery voltage. While USB
-// charges, the cell sits at the charger's 4.2 V; on battery alone it falls
-// below 4.05 V within the first few percent. Three readings in a row (30 s)
-// are needed either way, and "power on|off|auto" overrides it.
-#ifndef FM_PWR_ON_MV
-#define FM_PWR_ON_MV 4150
-#endif
-#ifndef FM_PWR_OFF_MV
-#define FM_PWR_OFF_MV 4050
-#endif
-#ifndef FM_PWR_NO_BATT_MV
-#define FM_PWR_NO_BATT_MV 2500     // below this there is no cell: USB must be powering us
+#ifndef FM_HELP_HOLD_MS
+#define FM_HELP_HOLD_MS 3000       // responder: 4 and 6 held together this long = HELP IS COMING
 #endif
 #ifndef FM_LIGHT_SLEEP
 #define FM_LIGHT_SLEEP 1           // 0 = never sleep (V3 behaviour)
@@ -225,6 +216,10 @@ static bool g_sosPick = false;      // channel screen showing
 static uint32_t g_sosPickUntil = 0;
 static FmSosState g_sosLastState = FM_SOS_IDLE;
 
+// Responder "HELP IS COMING" chord (4 + 6) on the SOS detail screen.
+static bool g_helpChord = false;    // both keys held during this hold
+static bool g_helpFired = false;    // the hold completed and the reply went out
+
 // Responder SOS list.
 static int8_t g_sosTab = -1;        // -1 = main list, else the channel tab being viewed
 static uint8_t g_sosSel = 0;
@@ -242,9 +237,6 @@ static uint8_t g_pressedOn[FM_KP_KEYS];
 // Power and heartbeat.
 enum PwrMode : uint8_t { PWR_AUTO, PWR_ON, PWR_OFF };
 static PwrMode g_pwrMode = PWR_AUTO;
-static bool g_extPower = false;     // AUTO's verdict from the battery voltage
-static bool g_pwrSeen = false;      // first reading taken
-static uint8_t g_pwrHi = 0, g_pwrLo = 0;
 static bool g_powered = false;      // effective: stays awake, forwards everything
 static bool g_pwrApplied = false;
 static uint32_t g_hbNext = 0;
@@ -355,7 +347,7 @@ static const char *pwrModeName(PwrMode m) {
 
 /** Push the effective power state to the mesh and radio; start heartbeats. */
 static void applyPower(uint32_t now) {
-  const bool p = g_pwrMode == PWR_ON ? true : g_pwrMode == PWR_OFF ? false : g_extPower;
+  const bool p = g_pwrMode == PWR_ON ? true : g_pwrMode == PWR_OFF ? false : fmPowerExternal();
   fmMeshSetBattery(g_battPct);
   if (g_pwrApplied && p == g_powered) return;
   g_pwrApplied = true;
@@ -363,26 +355,11 @@ static void applyPower(uint32_t now) {
   fmMeshSetPowered(p);
   fmRadioSetDutyCycle(!p);
   if (p) g_hbNext = now + 5000UL + (esp_random() % 55000UL);   // first heartbeat within a minute
-  Serial.printf("[PWR] %s (mode %s, %.2f V): %s\n", p ? "EXTERNAL POWER" : "BATTERY",
-                pwrModeName(g_pwrMode), g_battV,
+  Serial.printf("[PWR] %s (mode %s, %s, batt %.2f V, VBUS %lu mV): %s\n",
+                p ? "EXTERNAL POWER" : "BATTERY", pwrModeName(g_pwrMode), fmPowerMethod(),
+                g_battV, (unsigned long)fmPowerVbusMv(),
                 p ? "stays awake, forwards everything, sends heartbeats"
                   : "sleeps when idle, forwards SOS always and texts only with no powered unit nearby");
-}
-
-static void updatePower(uint32_t now) {
-  const int mv = (int)(g_battV * 1000.0f);
-  const bool hi = mv >= FM_PWR_ON_MV || mv < FM_PWR_NO_BATT_MV;
-  const bool lo = !hi && mv <= FM_PWR_OFF_MV;
-  if (!g_pwrSeen) {
-    g_pwrSeen = true;
-    g_extPower = hi;
-  } else {
-    g_pwrHi = hi ? (uint8_t)(g_pwrHi < 255 ? g_pwrHi + 1 : 255) : 0;
-    g_pwrLo = lo ? (uint8_t)(g_pwrLo < 255 ? g_pwrLo + 1 : 255) : 0;
-    if (g_pwrHi >= 3) g_extPower = true;
-    if (g_pwrLo >= 3) g_extPower = false;
-  }
-  applyPower(now);
 }
 
 static void updateBattery(uint32_t now, bool force) {
@@ -390,7 +367,8 @@ static void updateBattery(uint32_t now, bool force) {
   g_lastBatt = now;
   g_battV = readBatteryVolts();
   g_battPct = batteryPercent(g_battV);
-  updatePower(now);
+  fmPowerUpdate((uint32_t)(g_battV * 1000.0f), now);   // divider if fitted, else the trend
+  applyPower(now);
 }
 
 // ---------------------------------------------------------------- PSK
@@ -695,12 +673,12 @@ static void onAckRx(const FmAckRx *rx) {
   if (memcmp(rx->target, fmCallSign(), FM_CALLSIGN_LEN) == 0) {
     if (fmSosOnAck(rx->kind, rx->targetMsgId, rx->header.callSign)) {
       if (rx->kind == FM_ACK_HELP) {
-        popup("HELP COMING", rx->header.callSign, "A responder is on the way. Stay where you are.",
-              true);
+        popup("HELP IS COMING", rx->header.callSign,
+              "A responder is on the way. Stay where you are.", true);
         buzzStart(5, 200, 150);
       } else {
-        popup("SOS DELIVERED", rx->header.callSign, "A responder unit has your SOS. Retries stopped.",
-              false, 10000);
+        popup("SOS DELIVERED", rx->header.callSign,
+              "A responder unit has it. Re-sent every 15 min until help is coming.", false, 10000);
         buzzStart(3, 80, 80);
       }
     }
@@ -748,12 +726,13 @@ static void sosSenderTick(uint32_t now) {
   if (fmSosDue(now)) {
     const uint8_t ch = fmSosChannel();
     const uint8_t a = fmSosAlarmType(ch);
+    const bool keepAlive = fmSosState() == FM_SOS_DELIVERED;
     const int id = fmMeshSendAlarm(a);
-    const bool first = fmSosTries() == 0;
+    const bool first = !keepAlive && fmSosTries() == 0;
     fmSosSent(id, now);
-    Serial.printf("[SOS] %s try %u -> %s, next in %lu s\n", fmSosChName(ch),
-                  (unsigned)fmSosTries(), id >= 0 ? "sent" : "FAILED",
-                  (unsigned long)(fmSosNextInMs(now) / 1000));
+    Serial.printf("[SOS] %s %s %u -> %s, next in %lu s\n", fmSosChName(ch),
+                  keepAlive ? "keep-alive after try" : "try", (unsigned)fmSosTries(),
+                  id >= 0 ? "sent" : "FAILED", (unsigned long)(fmSosNextInMs(now) / 1000));
     if (id >= 0 && first) {
       Msg *m = msgPush();
       m->mine = true;
@@ -774,10 +753,11 @@ static void sosSenderTick(uint32_t now) {
   // Announce the end of retries once.
   const FmSosState st = fmSosState();
   if (st != g_sosLastState) {
-    if (st == FM_SOS_GAVE_UP) {
-      popup("SOS: NO ANSWER", fmSosChName(fmSosChannel()),
-            "No responder unit answered. Hold * and # to send again.", true);
-      buzzStart(3, 300, 200);
+    if (st == FM_SOS_NOT_DELIVERED) {
+      // §7.6: two beeps and a message after the 5th retry goes unanswered.
+      popup("SOS NOT DELIVERED", fmSosChName(fmSosChannel()),
+            "No responder answered 5 retries. Move higher or outside and send again.", true);
+      buzzStart(2, 300, 200);
     }
     g_sosLastState = st;
   }
@@ -806,20 +786,21 @@ static bool sendText(const char *text, bool quiet = false) {
   return true;
 }
 
-/** Responder: "Help coming" for the SOS shown on SCR_SOSVIEW. */
-static void sendHelpComing(int entryIdx) {
+/** Responder: HELP IS COMING for the SOS shown on SCR_SOSVIEW. Returns true if sent. */
+static bool sendHelpComing(int entryIdx) {
   FmSosEntry *e = fmSosEntryAt(entryIdx);
-  if (!e) return;
+  if (!e) return false;
   const int id = fmMeshSendAck(FM_ACK_HELP, e->cs, e->msgId);
-  Serial.printf("[SOS] HELP COMING -> %s -> %s\n", e->cs, id >= 0 ? "sent" : "FAILED");
+  Serial.printf("[SOS] HELP IS COMING -> %s -> %s\n", e->cs, id >= 0 ? "sent" : "FAILED");
   if (id < 0) {
-    popup("NOT SENT", "radio busy", "Hold C to try again.", false, 4000);
+    popup("NOT SENT", "radio busy", "Hold 4 and 6 to try again.", false, 4000);
     buzzStart(1, 600, 0);
-    return;
+    return false;
   }
   fmSosRxHelp(e->cs, fmCallSign(), true);
-  popup("HELP COMING SENT", e->cs, "The sender's unit shows HELP COMING.", false, 4000);
+  popup("REPLY SENT", e->cs, "The sender's unit shows HELP IS COMING.", false, 4000);
   buzzStart(2, 80, 60);
+  return true;
 }
 
 static void heartbeatTick(uint32_t now) {
@@ -879,8 +860,8 @@ static void sosSenderLine(uint32_t now, char *t, size_t n) {
       break;
     }
     case FM_SOS_DELIVERED: snprintf(t, n, "SOS %s: DELIVERED", ch); break;
-    case FM_SOS_HELP:      snprintf(t, n, "SOS %s: HELP COMING", ch); break;
-    case FM_SOS_GAVE_UP:   snprintf(t, n, "SOS %s: no answer", ch); break;
+    case FM_SOS_HELP:      snprintf(t, n, "SOS %s: HELP IS COMING", ch); break;
+    case FM_SOS_NOT_DELIVERED: snprintf(t, n, "SOS %s: NOT DELIVERED", ch); break;
     default:               t[0] = '\0'; break;
   }
 }
@@ -921,9 +902,13 @@ static void drawHome(uint32_t now) {
       oled.drawStr(128 - oled.getStrWidth(t), 20, t);
     }
   }
-  if (fmSosState() == FM_SOS_WAITING)  drawFooter("hold D:STOP SOS  B:STAT C:INBOX");
-  else if (isResponder())              drawFooter("A:SOS B:STAT C:INBOX *+#:SOS");
-  else                                 drawFooter("B:STATUS  C:INBOX  *+#:SOS");
+  if (fmSosState() == FM_SOS_WAITING || fmSosState() == FM_SOS_DELIVERED) {
+    drawFooter("hold D:STOP SOS  B:STAT C:INBOX");
+  } else if (isResponder()) {
+    drawFooter("A:SOS B:STAT C:INBOX *+#:SOS");
+  } else {
+    drawFooter("B:STATUS  C:INBOX  *+#:SOS");
+  }
 }
 
 static void drawCompose(uint32_t now) {
@@ -1101,14 +1086,14 @@ static void drawSosView(uint32_t now) {
   snprintf(t, sizeof(t), "%u hop  %d dBm  SNR %.1f", (unsigned)e->hops, e->rssi, e->snr);
   oled.drawStr(0, 41, t);
   if (e->helpMine) {
-    snprintf(t, sizeof(t), "HELP COMING: you");
+    snprintf(t, sizeof(t), "HELP IS COMING: you");
   } else if (e->helpBy[0]) {
-    snprintf(t, sizeof(t), "HELP COMING: %s", e->helpBy);
+    snprintf(t, sizeof(t), "HELP IS COMING: %s", e->helpBy);
   } else {
     snprintf(t, sizeof(t), "nobody has answered yet");
   }
   oled.drawStr(0, 51, t);
-  drawFooter("hold C:HELP COMING   D:BACK");
+  drawFooter("hold 4+6: HELP IS COMING  D:BACK");
 }
 
 static void drawSosPick(uint32_t now) {
@@ -1126,7 +1111,9 @@ static void drawSosPick(uint32_t now) {
 
 static void drawStatus(uint32_t now) {
   char t[48];
-  snprintf(t, sizeof(t), "STATUS %s", g_ping ? "PING ON" : "");
+  const uint32_t up = now ? now : 1;
+  snprintf(t, sizeof(t), "STATUS %s slp %lu%%", g_ping ? "PING" : "",
+           (unsigned long)((uint64_t)fmSleepTotalMs() * 100u / up));
   drawHeader(t);
   oled.setFont(u8g2_font_5x8_tf);
   snprintf(t, sizeof(t), "air %u.%u%% rly %lu sup %lu q%u", fmAirtimePermille() / 10,
@@ -1139,10 +1126,8 @@ static void drawStatus(uint32_t now) {
   const uint32_t nearAge = fmMeshPoweredNearbyAgeMs(now);
   if (nearAge == UINT32_MAX) snprintf(near, sizeof(near), "none");
   else fmtAge(nearAge, near, sizeof(near));
-  const uint32_t up = now ? now : 1;
-  snprintf(t, sizeof(t), "PWR %s:%s near %s sleep %lu%%", pwrModeName(g_pwrMode),
-           g_powered ? "EXT" : "BATT", near,
-           (unsigned long)((uint64_t)fmSleepTotalMs() * 100u / up));
+  snprintf(t, sizeof(t), "PWR %s:%s (%s) near %s", pwrModeName(g_pwrMode),
+           g_powered ? "EXT" : "BATT", fmPowerMethod(), near);
   oled.drawStr(0, 27, t);
   oled.drawStr(0, 35, "HEARD  hop  dBm   SNR  age   n");
 
@@ -1209,6 +1194,29 @@ static void drawSosHold(uint32_t heldMs) {
   oled.drawStr(0, 60, "release to cancel");
 }
 
+/** Responder: 4 and 6 held on the SOS detail screen (same pattern as the SOS hold). */
+static void drawHelpHold(uint32_t heldMs) {
+  drawHeader("REPLY TO SOS");
+  oled.setFont(u8g2_font_7x13B_tf);
+  if (g_helpFired) {
+    oled.drawStr(0, 30, "HELP IS COMING");
+    oled.setFont(u8g2_font_5x8_tf);
+    oled.drawStr(0, 44, "sent");
+    oled.drawStr(0, 60, "release the keys");
+    return;
+  }
+  oled.drawStr(0, 26, "HELP IS COMING");
+  const uint32_t w = heldMs >= FM_HELP_HOLD_MS ? 124 : heldMs * 124 / FM_HELP_HOLD_MS;
+  oled.drawFrame(0, 36, 128, 12);
+  if (w) oled.drawBox(2, 38, (uint8_t)w, 8);
+  oled.setFont(u8g2_font_5x8_tf);
+  oled.drawStr(0, 60, "keep holding - release to cancel");
+}
+
+static bool helpChordHeld() {
+  return g_screen == SCR_SOSVIEW && fmKeypadHeld(FM_KP_4) && fmKeypadHeld(FM_KP_6);
+}
+
 static void draw(uint32_t now, bool force) {
   if (!g_oledOk || g_screenOff) return;
   if (!force && (now - g_lastDraw) < kUiPeriodMs) return;
@@ -1218,10 +1226,15 @@ static void draw(uint32_t now, bool force) {
   const uint32_t held = chordHeld ? min(fmKeypadHeldMs(FM_KP_STAR, now),
                                         fmKeypadHeldMs(FM_KP_HASH, now))
                                   : 0;
+  const uint32_t helpHeld = helpChordHeld() ? min(fmKeypadHeldMs(FM_KP_4, now),
+                                                  fmKeypadHeldMs(FM_KP_6, now))
+                                              : 0;
   if (g_sosPick) {
     drawSosPick(now);
   } else if (chordHeld && held >= 250 && !g_sosFired) {
     drawSosHold(held);
+  } else if (g_helpChord && !g_popup && (helpHeld >= 250 || g_helpFired)) {
+    drawHelpHold(helpHeld);
   } else if (g_popup) {
     drawPopup();
   } else {
@@ -1381,10 +1394,11 @@ static void handleKey(const FmKeyEvent &ev, uint32_t now) {
         g_inboxSel = 0;
         g_unread = 0;
         g_screen = SCR_INBOX;
-      } else if (ev.type == FM_KEV_LONG && ev.key == FM_KP_D && fmSosState() == FM_SOS_WAITING) {
+      } else if (ev.type == FM_KEV_LONG && ev.key == FM_KP_D &&
+                 (fmSosState() == FM_SOS_WAITING || fmSosState() == FM_SOS_DELIVERED)) {
         fmSosStop();
         Serial.println("[SOS] retries stopped by the user");
-        popup("SOS STOPPED", "", "No more retries. Hold * and # to send a new SOS.", false, 4000);
+        popup("SOS STOPPED", "", "Not sent again. Hold * and # to send a new SOS.", false, 4000);
         buzzStart(1, 300, 0);
       }
       break;
@@ -1414,8 +1428,8 @@ static void handleKey(const FmKeyEvent &ev, uint32_t now) {
       break;
 
     case SCR_SOSVIEW:
-      if (ev.type == FM_KEV_LONG && ev.key == FM_KP_C) sendHelpComing(g_sosViewIdx);
-      else if (press && ev.key == FM_KP_D) g_screen = SCR_SOSLIST;
+      // The reply is the 4 + 6 hold (helpTick); keys here only go back.
+      if (press && (ev.key == FM_KP_D || ev.key == FM_KP_C)) g_screen = SCR_SOSLIST;
       break;
 
     case SCR_STATUS:
@@ -1468,6 +1482,30 @@ static void sosTick(uint32_t now) {
   if (g_sosPick && (int32_t)(now - g_sosPickUntil) >= 0) {
     Serial.println("[SOS] no channel picked in time - GENERAL");
     startSos(FM_SOS_GENERAL);
+  }
+}
+
+/**
+ * Responder: 4 and 6 held together on the SOS detail screen send HELP IS
+ * COMING after FM_HELP_HOLD_MS; releasing either key before then cancels.
+ */
+static void helpTick(uint32_t now) {
+  if (helpChordHeld() && isResponder()) {
+    if (!g_helpChord) {
+      g_helpChord = true;
+      g_helpFired = false;
+      wake(now);
+    }
+    const uint32_t held = min(fmKeypadHeldMs(FM_KP_4, now), fmKeypadHeldMs(FM_KP_6, now));
+    if (!g_helpFired && held >= FM_HELP_HOLD_MS) {
+      g_helpFired = true;
+      // On success the hold screen shows "sent" until release; on failure the
+      // NOT SENT popup stays up instead.
+      if (sendHelpComing(g_sosViewIdx)) g_popup = false;
+    }
+  } else if (!fmKeypadHeld(FM_KP_4) && !fmKeypadHeld(FM_KP_6)) {
+    if (g_helpChord && !g_helpFired) Serial.println("[SOS] HELP IS COMING cancelled (released early)");
+    g_helpChord = false;
   }
 }
 
@@ -1895,6 +1933,7 @@ void setup() {
   }
   otaTrialBegin(radioOk);
 
+  fmPowerBegin();                  // look for the GPIO 3 power-sense divider
   updateBattery(millis(), true);   // also decides external power vs battery
   Serial.printf("[BATT] %.3f V (%u%%)\n", g_battV, g_battPct);
   Serial.printf("[SOS] responder channel selection 0x%02X\n", (unsigned)fmSosSelectionMask());
@@ -1949,6 +1988,7 @@ void loop() {
   const FmKeyEvent ev = fmKeypadPoll(now);
   handleKey(ev, now);
   sosTick(now);
+  helpTick(now);
   sosToggleTick(now);
   if (g_screen == SCR_COMPOSE) fmEditTick(now);
 

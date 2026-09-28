@@ -25,7 +25,7 @@
  *
  *   27..32   in-package flash - never usable (checked below)
  *   43, 44   UART0 console - never usable (checked below)
- *   0, 3, 45, 46  strapping - not used
+ *   0, 45, 46  strapping - not used; 3 only for the reviewed power sense
  */
 #pragma once
 #include <stdint.h>
@@ -76,6 +76,20 @@
 // GND; collector -> buzzer (-); buzzer (+) -> 3V3 (not 5V: dead on battery).
 #define PIN_BUZZER            2
 
+// ------------------------------------------------------------------ power sense (optional)
+// V4: Heltec 5V pin (USB VBUS) -> 100 k -> GPIO 3 -> 100 k -> GND, the same
+// divider as prototype v2. ~2.5 V on USB, solar or a power bank; ~0 V on
+// battery. ADC1_CH2. Optional: fm_power.cpp probes for it at boot and falls
+// back to the battery-voltage trend when it is missing.
+#define PIN_PWR_SENSE         3
+
+// WHY GPIO 3 IS ACCEPTABLE, THOUGH IT IS A STRAPPING PIN:
+// GPIO 3 selects the JTAG signal source at reset, and only when the
+// EFUSE_STRAP_JTAG_SEL eFuse has been burned. It is not burned on these
+// boards, so the level on GPIO 3 at reset is ignored. The divider can hold it
+// at ~2.5 V during a USB-powered reset without effect.
+#define FM_GPIO3_REVIEWED   PIN_PWR_SENSE
+
 // ==================================================================
 // Compile-time pin-conflict checker
 // ==================================================================
@@ -87,7 +101,7 @@ constexpr uint8_t kUsedPins[] = {
     PIN_LORA_RST,  PIN_LORA_BUSY, PIN_LORA_DIO1,
     PIN_KP_COL1,   PIN_KP_COL2,   PIN_KP_COL3,   PIN_KP_COL4,
     PIN_KP_ROW1,   PIN_KP_ROW2,   PIN_KP_ROW3,   PIN_KP_ROW4,
-    PIN_BUZZER,
+    PIN_BUZZER,    PIN_PWR_SENSE,
 };
 constexpr size_t kUsedCount = sizeof(kUsedPins) / sizeof(kUsedPins[0]);
 constexpr bool hasDuplicate(size_t i = 0, size_t j = 1) {
@@ -100,7 +114,8 @@ constexpr bool usesForbidden(size_t i = 0) {
   return (i >= kUsedCount) ? false
        : ((kUsedPins[i] >= 27 && kUsedPins[i] <= 32) ||   // in-package flash
           kUsedPins[i] == 43 || kUsedPins[i] == 44 ||      // UART0 console
-          kUsedPins[i] == 0 || kUsedPins[i] == 3 ||        // strapping
+          kUsedPins[i] == 0 ||                             // strapping
+          (kUsedPins[i] == 3 && kUsedPins[i] != FM_GPIO3_REVIEWED) ||
           kUsedPins[i] == 45 || kUsedPins[i] == 46) ? true
        : usesForbidden(i + 1);
 }

@@ -5,13 +5,18 @@
  * Sender (any unit)
  * -----------------
  * An SOS starts an "episode" on one channel. It is sent at once and then
- * retried with growing gaps (1, 2, 4, 8, 15, 15, ... min) until a responder
- * unit answers with an ACK, the user stops it, or FM_SOS_RETRY_FOR_MS passes.
- * Every retry is a fresh frame with a new msgId; an ACK matches if it names
- * any msgId of the current episode. "Delivered" stops the retries: a
- * responder unit has it, and the responder side escalates if nobody acts.
- * The retry limit is still an open decision (§7.6, §13.9); 24 h is the
- * placeholder.
+ * retried at most FM_SOS_RETRY_MAX (5) times, after 1, 2, 4, 8 and 15 min,
+ * until a responder unit answers with an ACK or the user stops it (decided
+ * 28 Sep, §7.6). If the last retry is not answered within FM_SOS_ACK_WAIT_MS
+ * the state becomes NOT_DELIVERED and the UI says so; an ACK that still
+ * arrives later turns it into DELIVERED. Every retry is a fresh frame with a
+ * new msgId; an ACK matches if it names any msgId of the current episode.
+ * "Delivered" ends the retries but not the SOS: until a responder sends
+ * "Help is coming" (or the user stops it), the unit keeps re-sending every
+ * FM_SOS_KEEPALIVE_MS (decided 28 Sep). That keeps the SOS alive if the only
+ * responder unit that heard it is switched off or carried away: a responder
+ * that already has it just updates its entry, one that arrives later gets it
+ * fresh.
  *
  * Responder
  * ---------
@@ -29,11 +34,17 @@
 #include "fm_alarm.h"
 #include "fm_packet.h"
 
-#ifndef FM_SOS_RETRY_FOR_MS
-#define FM_SOS_RETRY_FOR_MS (24UL * 3600UL * 1000UL)   // OPEN decision; placeholder
+#ifndef FM_SOS_RETRY_MAX
+#define FM_SOS_RETRY_MAX 5                             // §7.6: 5 retries, then "not delivered"
 #endif
 #ifndef FM_SOS_RETRY_MAX_GAP_MS
-#define FM_SOS_RETRY_MAX_GAP_MS (15UL * 60UL * 1000UL)
+#define FM_SOS_RETRY_MAX_GAP_MS (15UL * 60UL * 1000UL) // gaps 1, 2, 4, 8, then 15 min
+#endif
+#ifndef FM_SOS_KEEPALIVE_MS
+#define FM_SOS_KEEPALIVE_MS (15UL * 60UL * 1000UL)     // after DELIVERED, until HELP IS COMING
+#endif
+#ifndef FM_SOS_ACK_WAIT_MS
+#define FM_SOS_ACK_WAIT_MS 60000UL                     // after the last retry; > worst ACK round trip
 #endif
 #ifndef FM_SOS_ESCALATE_MS
 #define FM_SOS_ESCALATE_MS (15UL * 60UL * 1000UL)      // §13.8 safeguard 4
@@ -49,9 +60,9 @@
 enum FmSosState : uint8_t {
   FM_SOS_IDLE = 0,
   FM_SOS_WAITING,      // sent, no answer yet; retrying
-  FM_SOS_DELIVERED,    // a responder unit received it
+  FM_SOS_DELIVERED,    // a responder unit received it; re-sent every 15 min until HELP
   FM_SOS_HELP,         // a responder pressed "Help coming"
-  FM_SOS_GAVE_UP,      // no answer within FM_SOS_RETRY_FOR_MS
+  FM_SOS_NOT_DELIVERED, // no answer to the last retry
   FM_SOS_STOPPED,      // the user stopped it
 };
 
@@ -63,9 +74,9 @@ bool        fmSosOnAck(uint8_t kind, uint8_t targetMsgId, const char *by);
 void        fmSosStop();
 FmSosState  fmSosState();
 uint8_t     fmSosChannel();
-uint8_t     fmSosTries();
+uint8_t     fmSosTries();                           // transmissions so far, first send included
 const char *fmSosAnsweredBy();                      // responder call sign, or ""
-/** ms until the next retry, or UINT32_MAX if none is scheduled. */
+/** ms until the next send (retry or keep-alive), or UINT32_MAX if none is scheduled. */
 uint32_t    fmSosNextInMs(uint32_t now);
 bool        fmSosActive();                          // WAITING, DELIVERED or HELP
 

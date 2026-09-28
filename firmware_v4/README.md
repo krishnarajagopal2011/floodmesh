@@ -27,7 +27,7 @@ artifacts of `.github/workflows/build.yml`.
 **Every unit in one test must run the same env.** The spreading factor and
 the preamble decide who can hear whom.
 
-**Status (2026-09-27):** compiles in CI; not yet run on a unit. The first bench
+**Status (2026-09-28, 4.1.0):** compiles in CI; not yet run on a unit. The first bench
 test in §5 checks the new behaviour on real hardware.
 
 ## 1. What changed from V3
@@ -38,10 +38,10 @@ test in §5 checks the new behaviour on real hardware.
 | SOS channels (§13.8) | After the `*` + `#` hold, a channel screen: 1 Medical, 2 Evacuation, 3 Hazard, 4 Food supply, 0 General. General goes out by itself after 5 s; D cancels |
 | SOS for responders only (§13.4) | Civilian units forward an SOS silently: nothing on screen, no buzzer. Responder units show it and sound the buzzer |
 | Responder channel filter (§13.8) | Tabs per channel, selection kept in flash, dot + inverted label on an unselected tab holding an unopened SOS, General always selected |
-| Delivery ACK and "Help coming" (§13.8) | A responder unit acknowledges every SOS it receives (one per area, by a delay race). "Help coming" is a one-key reply |
+| Delivery ACK and "Help is coming" (§13.8) | A responder unit acknowledges every SOS it receives (one per area, by a delay race). The reply is **hold 4 + 6 for 3 s** on the SOS detail screen, with a progress bar; releasing early cancels |
 | Escalation (§13.8) | An SOS in an unselected channel that nobody answers with "Help coming" within 15 min alarms every responder unit that has it |
-| SOS retries (§7.6) | The sender retries after 1, 2, 4, 8, then every 15 min until an ACK arrives. The limit is still open; 24 h is a placeholder |
-| No relay role (§13.2) | A unit on external power stays awake and forwards everything. The admin app's "relay" role is treated as civilian |
+| SOS retries (§7.6) | At most 5 retries, after 1, 2, 4, 8 and 15 min. No answer to the 5th: two beeps and `SOS NOT DELIVERED`. After `DELIVERED` the SOS is re-sent every 15 min until "Help is coming", so it survives the one responder unit that had it going off air |
+| No relay role (§13.2) | A unit on external power stays awake and forwards everything. The admin app's "relay" role is treated as civilian. External power is measured through an optional GPIO 3 divider, or guessed from the battery-voltage trend without it |
 | Forwarding rules (§13.3) | Every unit forwards SOS, ACKs and heartbeats. A battery unit forwards a text only if it has not heard a powered unit directly in the last 65 min |
 | Heartbeat (§13.5) | A powered unit sends one every 30 min; every unit forwards it; the status screen lists powered units and how long ago each was heard |
 | Radio wake (§13.1) | A battery unit light-sleeps when idle; a received packet (DIO1) or a key press wakes it within about a millisecond |
@@ -59,9 +59,9 @@ Not in V4, because they need more than firmware:
   (§13.8). Same reason: a protocol change. Responders pick channels on the unit.
 - **The PCB changes** (§9): power-good pin, DIO1 on IO19, keypad wiring.
 - **Open decisions**, left as they are: the battery floor for forwarding,
-  heartbeat authentication, the responder time source, the retry limit,
-  "I'm safe" (§13.9), and the reserved alarm budget (§1.1: SOS and ACK
-  frames are still exempt from the duty-cycle ledger in software).
+  heartbeat authentication, the responder time source, "I'm safe" (§13.9),
+  and the reserved alarm budget (§1.1: SOS and ACK frames are still exempt
+  from the duty-cycle ledger in software).
 
 ## 2. Wiring
 
@@ -88,6 +88,20 @@ Buzzer: GPIO 2 → 1 kΩ → 2N2222 base; emitter to GND; collector to buzzer (�
 buzzer (+) to 3V3 (not 5V, which is only there on USB). Use an ACTIVE buzzer.
 
 `firmware_v3/README.md` §1 has the keypad checks to do before soldering.
+
+**Power-sense divider (optional, recommended for units that will sit on
+solar, a power bank or USB):**
+
+```
+Heltec 5V pin ──[100 kΩ]──┬── GPIO 3
+                          └──[100 kΩ]── GND
+```
+
+The same divider as prototype v2 (`docs/prototype-v2-build.md` §5). The 5V pin
+is USB VBUS: GPIO 3 reads ~2.5 V on external power and ~0 V on battery, and the
+divider draws current only while plugged in. V4 finds it at boot
+(`[PWR] power-sense divider on GPIO 3: fitted`) and then knows the power state
+exactly; without it V4 falls back to the battery-voltage trend (§4).
 
 ## 3. Keys
 
@@ -121,8 +135,8 @@ buzzer (+) to 3V3 (not 5V, which is only there on USB). Use an ACTIVE buzzer.
 | SOS list | 0–4 | jump to that channel's tab |
 | SOS list | **hold 0–4 for 1 s** | select / unselect that channel (General always stays) |
 | SOS list | A / B, C, D | move, open, back (tab → main list → home) |
-| SOS detail | **hold C** | send **HELP COMING** |
-| SOS detail | D | back |
+| SOS detail | **hold 4 and 6 together 3 s** | send **HELP IS COMING** (bar fills; release early to cancel) |
+| SOS detail | C or D | back |
 | Status | A / B | scroll the heard list |
 | Status | C | range-test ping on/off |
 | Status | # | power mode AUTO → ON → OFF (§4) |
@@ -148,9 +162,18 @@ until a key is pressed.
 2. Press 1–4, or 0 for General (trapped, water rising, anything else). With no
    key it goes out as General after 5 s.
 3. The unit sends at once and shows `SOS SENT`. The home screen then shows the
-   state: `waiting, retry 2m`, `DELIVERED` (a responder unit has it; retries
-   stop), `HELP COMING` (a responder pressed it), or `no answer` after 24 h.
-4. Hold D on the home screen to stop retrying.
+   state:
+   - `waiting, retry 2m`: no answer yet. Up to 5 retries, after 1, 2, 4, 8
+     and 15 min.
+   - `DELIVERED`: a responder unit has it. The SOS is still re-sent every
+     15 min until help is coming, so a responder who arrives later, or one
+     whose unit replaced the first, still gets it.
+   - `HELP IS COMING`: a responder replied. Nothing more is sent.
+   - `NOT DELIVERED`: the 5th retry went unanswered (about 31 min after the
+     first send). The unit beeps twice and says `SOS NOT DELIVERED`; move
+     higher or outside and send again. An answer that still arrives later
+     turns it into `DELIVERED`.
+4. Hold D on the home screen to stop sending (while waiting or delivered).
 
 ### Responder units
 
@@ -162,7 +185,11 @@ until a key is pressed.
   first: call sign, channel, age, `H` if someone sent Help coming, `!` if
   escalated.
 - **Detail** (C): channel, first/last heard, count, hops, signal, who answered.
-  **Hold C** sends HELP COMING.
+  **Hold 4 and 6 together for 3 s** to send HELP IS COMING: a bar fills like
+  the SOS hold, and releasing either key before it is full cancels. The
+  sender's unit then shows `HELP IS COMING` and stops sending.
+- A repeat of an SOS you already have (a retry or a 15-min re-send) updates
+  the entry without a new alarm.
 - Every SOS received is acknowledged, shown or not. When several responder
   units hear the same SOS, the first to answer wins and the others hold back.
 - An SOS in an unselected channel with no Help coming after 15 min escalates:
@@ -171,14 +198,21 @@ until a key is pressed.
 
 ### Powered units and heartbeats
 
-The Heltec board has no charger "power good" line (the PCB will, §9 #2), so
-V4 guesses from the battery voltage. **External power** means at least
-4.15 V (the charger holds the cell near 4.2 V) or no cell at all. **Battery**
-means at most 4.05 V. Each change needs three readings in a row, 30 s apart.
-A full battery just unplugged can read as "external" until it drops below
-4.05 V. Use the override when it matters: Status → **#** (AUTO → ON → OFF), or
-`power auto|on|off` on serial. The header shows `P` before the battery % while
-the unit counts as powered.
+**With the GPIO 3 divider (§2)** the unit measures VBUS and knows exactly.
+
+**Without it** V4 watches the battery voltage, read every 10 s:
+- Plugging in makes it jump up and keep rising. A jump of 40 mV between two
+  readings, or a rise of 30 mV over 10 min, means **external power**.
+- Unplugging makes it drop and keep falling. A drop of 40 mV, or a fall of
+  20 mV over 10 min, means **battery**.
+- A flat voltage changes nothing, because a sleeping unit on battery also
+  looks flat for hours. The first reading after boot starts it: 4.15 V or more
+  (a charger holds the cell near 4.2 V), or no cell, counts as external.
+- Blind spot: a unit plugged in with an already full cell shows no rise.
+
+Use the override when it matters: Status → **#** (AUTO → ON → OFF), or
+`power auto|on|off` on serial. The status screen shows `VBUS` or `trend`, and
+the header shows `P` before the battery % while the unit counts as powered.
 
 A powered unit:
 - never sleeps and forwards every frame;
@@ -246,22 +280,26 @@ You need a responder unit (registered with the FloodMesh Admin app: boot with
 1. **Silent forwarding:** civilian A sends SOS Medical. Civilian B shows
    nothing and stays silent (serial: `forwarded silently`). The responder
    alarms and lists it. A shows `DELIVERED` within seconds.
-2. **Help coming:** on the responder, open it (A, C), hold C. A shows
-   `HELP COMING`.
+2. **Help is coming:** on the responder, open it (A, C), hold 4 and 6. Release
+   once halfway: nothing is sent. Hold again until the bar is full: A shows
+   `HELP IS COMING`.
 3. **Filter and dot:** on the responder, hold 4 for 1 s to unselect Food. A
    sends SOS Food. The responder does not alarm; the `food` tab is inverted
    with a dot. Press 4 to view it; the dot clears. A still shows `DELIVERED`.
 4. **Escalation:** repeat 3 and wait 15 min without Help coming. The responder
    alarms and the SOS moves into the main list with `!`. (For a quicker bench
    test, set `FM_SOS_ESCALATE_MS=60000UL` in `platformio.ini`.)
-5. **Retries:** send an SOS with no responder in range. Serial shows retries at
-   1, 2, 4, 8 min, then every 15 min; a responder switched on later answers the
-   next retry.
-6. **Heartbeat and the text rule:** set one unit to power ON (Status, #). Its
+5. **Retries:** send an SOS with no responder in range. Serial shows 5 retries,
+   1, 2, 4, 8 and 15 min apart, then after one more minute two beeps and
+   `SOS NOT DELIVERED`. Repeat, but switch a responder on after the second
+   retry: it answers the next retry and A shows `DELIVERED`.
+6. **Keep-alive:** after `DELIVERED`, switch that responder off and another
+   one on. Within 15 min the second responder gets the SOS as new.
+7. **Heartbeat and the text rule:** set one unit to power ON (Status, #). Its
    heartbeat appears on the others' coverage page within a minute. A battery
    unit one hop from it shows `near 0m`. It stops relaying texts (`relay`
    count on the status line stays still) but still relays SOS.
-7. **Mixed V3/V4:** V3 units still exchange texts with V4 units and relay V4
+8. **Mixed V3/V4:** V3 units still exchange texts with V4 units and relay V4
    SOS frames. They show a V4 channel SOS as `ALERT ?`, and they drop ACK and
    heartbeat frames, so put only V4 units on the relay path of an ACK test.
 

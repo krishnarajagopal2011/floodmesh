@@ -5,6 +5,8 @@ owner and Claude (acting as reviewing mesh architect). It records what was
 decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
+Updated 28 September 2026: SOS retry limit and keep-alive (§7.6), the
+responder reply key (§13.8), power sensing on the Heltec builds (§13.2).
 Updated 27 September 2026: voice removed from version 1 (§7.4); radio wake,
 no relay role, forwarding and display rules, heartbeats and Bluetooth firmware
 updates, a single network spreading factor and SOS channels decided (§13).
@@ -405,7 +407,8 @@ If voice returns in a later version: rate limit 1 per hour; a
 volunteers; **off in mesh mode**.
 
 ### 7.5 Responder → civilian messages (PROPOSED)
-**DECIDED 27 Sep:** "Help coming" is a preset reply on responder units (§13.8).
+**DECIDED 27 Sep:** "Help coming" is a preset reply on responder units (§13.8);
+28 Sep: sent by holding 4 + 6, shown as "HELP IS COMING".
 The rest of this section is PROPOSED.
 
 No free keyboard needed on the civilian side. Responders send **preset messages
@@ -422,8 +425,18 @@ can also send free text.
   The sender listens for a neighbour rebroadcasting its packet, at no extra
   airtime cost ("passed on by neighbour").
 - **End to end:** an ACK from a relay or responder ("received by responders").
-- Unacknowledged distress is retried with growing gaps (1, 2, 4… up to ~15 min).
-  OPEN: the retry limit (forever, 24 h, or until 20% battery).
+- Unacknowledged distress is retried with growing gaps. **DECIDED 28 Sep:** at
+  most **5 retries**, after 1, 2, 4, 8 and 15 min. If the 5th is not answered
+  (within a minute), the unit beeps twice and shows **"SOS not delivered"**;
+  an answer arriving later still counts.
+- **DECIDED 28 Sep: keep-alive after delivery.** A delivery ACK ends the
+  retries but not the SOS: the unit re-sends it every 15 min until a
+  responder sends "Help is coming", or the user stops it. Otherwise an SOS
+  heard by a single responder unit is lost if that unit is switched off,
+  flooded or carried away before anyone acts. A responder that already has it
+  just updates its entry (no new alarm); one that arrives later gets it fresh.
+  Cost: one SOS frame (~65 ms at SF7) plus its ACK per open SOS every 15 min,
+  relayed through the area.
 
 ---
 
@@ -516,7 +529,8 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 9. ~~Relay mode.~~ **Decided 27 Sep:** no relay role; a unit on external power
    stays awake and forwards everything (§13.2).
 10. Bluetooth antenna: sticker FPC antenna on the WROOM-1U proposed (§9 #7).
-11. Retry limit for unacknowledged distress.
+11. ~~Retry limit for unacknowledged distress.~~ **Decided 28 Sep:** 5 retries,
+    then "SOS not delivered"; re-sent every 15 min after delivery (§7.6).
 12. Repository: `main` holds an unrelated older history (`docs/ARCHITECTURE.md`,
     one `.ino`). Decide which branch is canonical; `main`'s design principles
     and honest relay-ACK are worth folding in.
@@ -720,6 +734,13 @@ current and airtime estimates are still to be measured.
   Height is the biggest range lever (`docs/field-tests.md`).
 - The unit must detect external power: PCB change 2 (charger `PG` → GPIO), or
   infer charging from the fuel gauge.
+- **DECIDED 28 Sep, Heltec builds:** a 100 k / 100 k divider from the Heltec 5V
+  pin (USB VBUS) to GPIO 3, as on prototype v2, measures external power
+  exactly. Units without it fall back to the battery-voltage trend: a rise
+  means charging, a fall means battery, flat changes nothing. "Constant
+  voltage = external power" was considered and rejected: a sleeping unit on
+  battery loses only ~1–2 mV per hour, so it also looks constant, and would
+  wrongly stay awake and drain.
 - The jobs §4 gave relays (batched ACKs, zone summaries, caching for sleeping
   units, the §3 zone cross-check) become jobs of powered units.
 - PROPOSED: external power gets the strongest weight in the §4.4 race, so
@@ -843,10 +864,12 @@ still uses the one network SF.
   Default: all channels. The admin app can preset it at registration (e.g. a
   medical team). The status bar shows the active filter (e.g. "SOS: MED EVAC"),
   so a responder doesn't forget they are filtering.
-- **"Help coming" is a preset reply on responder units** (§7.5): one key press,
-  sent as a reply to a specific SOS. It tells the civilian someone is on the
-  way, and tells other responder units that hear it that the SOS is being
-  handled.
+- **"Help coming" is a preset reply on responder units** (§7.5), sent as a
+  reply to a specific SOS. It tells the civilian someone is on the way, and
+  tells other responder units that hear it that the SOS is being handled.
+  **DECIDED 28 Sep:** on the SOS detail screen, **hold 4 and 6 together for
+  3 s**; a progress bar fills as with the SOS hold, and releasing either key
+  early cancels. The civilian's screen shows **"HELP IS COMING"**.
 - **Safeguards, so a filter never loses an SOS:**
   1. Filtering is on the responder's display only. Every unit still forwards
      every SOS (§13.3); powered units never filter.
@@ -918,7 +941,9 @@ C-04 ground  GEN   12 min
 decisions above that need only firmware: 13.1 as light sleep with DIO1 and
 keypad wake (the RX duty-cycle wake-up preamble is the `v4_wake` build, since
 T is open), 13.2–13.5, 13.7 (SF as a build setting; `v4_sf9`), 13.8, and the
-rollback part of 13.6. Not in V4: Bluetooth updates with signed images (the
+rollback part of 13.6. Version 4.1.0 (28 Sep) adds the 5-retry limit with
+"SOS not delivered", the 15-min keep-alive after delivery, the 4 + 6 reply
+hold, and GPIO 3 power sensing with the trend fallback. Not in V4: Bluetooth updates with signed images (the
 protocol doc and the app come first), presetting responder channels from the
 app, the PCB changes, and the open items in 13.9. Details:
 `firmware_v4/README.md`.

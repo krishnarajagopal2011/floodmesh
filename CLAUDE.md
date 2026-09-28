@@ -33,7 +33,8 @@ Two boards exist. Check which one a change targets.
   §13) - SOS channel screen, SOS shown only on responder units with channel
   tabs, delivery ACK / "Help coming" frames (0x04), SOS retries, powered-unit
   heartbeats (0x05) and the text-forwarding rule, light sleep with DIO1/keypad
-  wake, SF as a build setting, OTA trial + rollback. Envs `v4`, `v4_sf9`,
+  wake, SF as a build setting, OTA trial + rollback, and an optional
+  5V -> GPIO 3 power-sense divider (probed at boot). Envs `v4`, `v4_sf9`,
   `v4_wake`. Build: `pio run -d firmware_v4 -e v4`. Read
   `firmware_v4/README.md`. V3 stays as it is for comparison; keep V3 and V4
   changes separate.

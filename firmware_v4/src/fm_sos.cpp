@@ -15,6 +15,7 @@ uint8_t    g_ch = FM_SOS_GENERAL;
 uint8_t    g_tries = 0;
 uint32_t   g_start = 0;
 uint32_t   g_next = 0;
+bool       g_final = false;   // the last retry is out; g_next is the "not delivered" deadline
 uint8_t    g_ids[kIdRing];
 uint8_t    g_nIds = 0;
 char       g_by[FM_CALLSIGN_LEN + 1] = "";
@@ -59,30 +60,44 @@ void fmSosStart(uint8_t ch, uint32_t now) {
   g_tries = 0;
   g_start = now;
   g_next = now;
+  g_final = false;
   g_nIds = 0;
   g_by[0] = '\0';
 }
 
 bool fmSosDue(uint32_t now) {
-  if (g_state != FM_SOS_WAITING) return false;
-  if ((now - g_start) >= FM_SOS_RETRY_FOR_MS) {
-    g_state = FM_SOS_GAVE_UP;
-    Serial.println("[SOS] no answer within the retry period - retries stopped");
+  if (g_state == FM_SOS_DELIVERED) return (int32_t)(now - g_next) >= 0;   // keep-alive
+  if (g_state != FM_SOS_WAITING || (int32_t)(now - g_next) < 0) return false;
+  if (g_final) {
+    g_state = FM_SOS_NOT_DELIVERED;
+    Serial.printf("[SOS] no answer after %u retries - NOT DELIVERED\n",
+                  (unsigned)FM_SOS_RETRY_MAX);
     return false;
   }
-  return (int32_t)(now - g_next) >= 0;
+  return true;
 }
 
 void fmSosSent(int msgId, uint32_t now) {
-  if (g_state != FM_SOS_WAITING) return;
+  if (g_state != FM_SOS_WAITING && g_state != FM_SOS_DELIVERED) return;
   if (msgId < 0) {
     g_next = now + 30000UL;   // radio busy or down: try again soon, not in minutes
     return;
   }
+  // Remember it: a "Help is coming" may name this newest frame.
   g_ids[g_nIds % kIdRing] = (uint8_t)msgId;
   g_nIds++;
+  if (g_state == FM_SOS_DELIVERED) {
+    g_next = now + FM_SOS_KEEPALIVE_MS;
+    return;
+  }
   g_tries++;
-  // 1, 2, 4, 8 min, then every 15 min.
+  if (g_tries > FM_SOS_RETRY_MAX) {
+    // That was the last retry: wait for its answer, then give up.
+    g_final = true;
+    g_next = now + FM_SOS_ACK_WAIT_MS;
+    return;
+  }
+  // Gap before retry n: 1, 2, 4, 8, then 15 min.
   const uint8_t shift = g_tries - 1 < 4 ? (uint8_t)(g_tries - 1) : 4;
   uint32_t gap = 60000UL << shift;
   if (gap > FM_SOS_RETRY_MAX_GAP_MS) gap = FM_SOS_RETRY_MAX_GAP_MS;
@@ -96,9 +111,10 @@ bool fmSosOnAck(uint8_t kind, uint8_t targetMsgId, const char *by) {
     if (g_state == FM_SOS_HELP) return false;
     g_state = FM_SOS_HELP;
   } else {
-    // A late answer after giving up still counts; a second "delivered" does not.
-    if (g_state != FM_SOS_WAITING && g_state != FM_SOS_GAVE_UP) return false;
+    // A late answer after "not delivered" still counts; a second "delivered" does not.
+    if (g_state != FM_SOS_WAITING && g_state != FM_SOS_NOT_DELIVERED) return false;
     g_state = FM_SOS_DELIVERED;
+    g_next = millis() + FM_SOS_KEEPALIVE_MS;   // keep the SOS alive until HELP IS COMING
   }
   snprintf(g_by, sizeof(g_by), "%s", by ? by : "");
   return true;
@@ -114,7 +130,9 @@ uint8_t     fmSosTries() { return g_tries; }
 const char *fmSosAnsweredBy() { return g_by; }
 
 uint32_t fmSosNextInMs(uint32_t now) {
-  if (g_state != FM_SOS_WAITING) return UINT32_MAX;
+  // Waiting: the next retry, or after the last one the deadline. Delivered:
+  // the next keep-alive.
+  if (g_state != FM_SOS_WAITING && g_state != FM_SOS_DELIVERED) return UINT32_MAX;
   return (int32_t)(g_next - now) > 0 ? (g_next - now) : 0;
 }
 
