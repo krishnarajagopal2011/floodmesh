@@ -220,6 +220,9 @@ until a key is pressed.
 Use the override when it matters: Status → **#** (AUTO → ON → OFF), or
 `power auto|on|off` on serial. The status screen shows `VBUS` or `trend`, and
 the header shows `P` before the battery % while the unit counts as powered.
+Since 4.3.1 the chosen mode is saved and survives power-offs (factory reset
+returns it to AUTO). Without the divider, set it explicitly: AUTO guessed
+wrong in the 28 Sep field test (`docs/field-tests.md`).
 
 A powered unit:
 - never sleeps and forwards every frame;

@@ -945,6 +945,15 @@ C-04 ground  GEN   12 min
    safe, so responders could strike it off their search list. A user can still
    type SAFE as text, but responder units can't count free text by area. Keep a
    one-key "I'm safe" status, or leave it to text?
+8. **The §13.3 text rule failed in the 28 Sep field test** (`docs/field-tests.md`).
+   A battery unit that hears a powered unit's heartbeat stops relaying text, on
+   the assumption that the powered unit covers the destination. When the
+   powered unit is itself the destination, sits at the edge, or only believes
+   it is powered (no voltage-sense wire), text stops reaching units that
+   depended on the battery units. Claude's suggestion: battery units still
+   relay a text when they do not hear it relayed by anyone within the normal
+   contention delay (the existing duplicate cancelling then keeps airtime low),
+   instead of never relaying it. Owner to decide.
 
 ### 13.10 Firmware V4
 `firmware_v4/` (Heltec V3 + 4×4 keypad, the V3 wiring) implements the

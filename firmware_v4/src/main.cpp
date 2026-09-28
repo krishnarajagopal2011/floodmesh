@@ -865,9 +865,27 @@ static void setPing(bool on) {
                 (unsigned long)(FM_PING_PERIOD_MS / 1000));
 }
 
+// The mode is kept in NVS: a roof unit set to ON must still be ON after it is
+// switched off and on again, and without the GPIO 3 divider AUTO can guess
+// wrong (field test 28 Sep: a handheld flipped to "powered" 13 times).
+#define FM_NVS_KEY_PWRMODE "pwrmode"
+
 static void setPowerMode(PwrMode m) {
   g_pwrMode = m;
+  Preferences p;
+  if (p.begin(FM_NVS_NAMESPACE, false)) {
+    p.putUChar(FM_NVS_KEY_PWRMODE, (uint8_t)m);
+    p.end();
+  }
   applyPower(millis());
+}
+
+static void loadPowerMode() {
+  Preferences p;
+  if (!p.begin(FM_NVS_NAMESPACE, true)) return;
+  const uint8_t m = p.getUChar(FM_NVS_KEY_PWRMODE, PWR_AUTO);
+  p.end();
+  if (m <= PWR_OFF) g_pwrMode = (PwrMode)m;
 }
 
 // ---------------------------------------------------------------- drawing
@@ -1671,6 +1689,7 @@ static void factoryReset() {
   Preferences p;
   if (p.begin(FM_NVS_NAMESPACE, false)) {
     p.remove(FM_NVS_KEY_CALLSIGN);   // back to the MAC-derived call sign
+    p.remove(FM_NVS_KEY_PWRMODE);    // and power mode back to AUTO
     p.end();
   }
   if (p.begin("fmsos", false)) {     // SOS channel selection back to "all"
@@ -2027,6 +2046,7 @@ void setup() {
   otaTrialBegin(radioOk);
 
   fmPowerBegin();                  // look for the GPIO 3 power-sense divider
+  loadPowerMode();                 // AUTO / ON / OFF, kept across power-offs
   updateBattery(millis(), true);   // also decides external power vs battery
   Serial.printf("[BATT] %.3f V (%u%%)\n", g_battV, g_battPct);
   Serial.printf("[SOS] responder channel selection 0x%02X\n", (unsigned)fmSosSelectionMask());

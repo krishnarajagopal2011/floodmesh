@@ -10,6 +10,69 @@ noise floor in 125 kHz is about −117 dBm; real urban noise can be higher.
 
 ---
 
+## 2026-09-28: first V4 test, roof unit (firmware V4 4.2.0)
+
+**Setup**
+
+| | |
+|---|---|
+| Firmware | `firmware_v4` 4.2.0; E ran the test-only env `v4_bench_responder` |
+| Radio | 866.5 MHz, SF7, 125 kHz, CR 4/5, 20 dBm, stock antennas |
+| Units | A = person in trouble (fixed, indoors at home), B = walker, C = on a building roof, E = responder |
+| Power | All on their own batteries, power mode AUTO. **C was not set to ON** (forgotten), and the 3D-printed cases have no USB opening, so no power bank could be connected. No unit had the GPIO 3 voltage-sense wire |
+| Recording | WhatsApp photos of the Status screen plus shared GPS positions. The field-logger web app was not used by volunteers. Duration about 2.5–3 h |
+
+**Unit counters, read over USB after the test** (totals since power-on; the
+per-station dBm/SNR had already been overwritten by bench readings, so the
+field values exist only in the WhatsApp photos)
+
+| Unit | Relayed | Skipped (neighbour relayed first) | Time asleep | Heartbeats heard from it by others | Heard B's pings | Heard A |
+|---|---|---|---|---|---|---|
+| A | 293 | 22 | 2% | 13 | ×304 | – |
+| B | 26 | 37 | 7% | 1 | – | ×39 |
+| C | 31 | 35 | 85% | 1 | ×308 | ×38 |
+| E | 16 | 16 | 9% | 1 | ×296 | ×19 |
+
+E's SOS list: one SOS from A, channel **General**, first received about 2 h 36
+min before the read-out, received 12 times.
+
+**Observations (owner)**
+- For most of E's later messages, A (fixed at home) received nothing; B
+  received many of them.
+
+**Interpretation**
+- **E's texts to A failed because of the §13.3 forwarding rule combined with
+  false power detection.** A battery unit stops relaying text once it has
+  heard a powered unit's heartbeat directly within 65 min (`fm_mesh.cpp`). A,
+  without the voltage-sense wire, repeatedly guessed "external power" (13
+  heartbeats) and acted as a powered unit (sleep 2%, 293 relays). B and C heard
+  those heartbeats and stopped relaying text, leaving it to A, but A was the
+  destination and indoors. E's texts reached A only while E was in direct
+  range; B, usually near E, heard them directly. SOS and ACKs are always
+  relayed, which is why A's SOS reached E. Recorded as an open question in
+  `architecture.md` §13.9.
+- **C did not work as a roof tower**: 85% asleep means it was never in powered
+  mode. It still relayed 31 frames (radio wake), but texts were left to A.
+- **The SOS went out as General**, not Medical: no channel key was pressed
+  within 5 s. 12 copies over 2.6 h fit V4's re-send every ~15 min until
+  "Help is coming", so E's hold 4 + 6 was probably never completed.
+- **B's range ping ran the whole test and A's mostly did not** (others heard B
+  ~300 times, A 19–39 times), so most signal readings in the photos are of B.
+- Airtime stayed at 0.2% or less.
+
+**Changes made after the test**
+- Firmware V4 4.3.1: the power mode (AUTO / ON / OFF) is saved and survives
+  power-offs. C is set to ON; A, B and E to OFF until the voltage-sense wire is
+  fitted. All units run the field logger and know the `floodmesh` hotspot, so
+  the next test records everything automatically.
+- Hardware to do: solder the GPIO 3 voltage-sense wire; add a panel-mount
+  USB-C extension to the case for charging, power banks and recovery.
+
+**Still to add:** the field dBm/SNR values and positions from the WhatsApp
+photos.
+
+---
+
 ## 2026-09-26: SOS through one relay (firmware V3)
 
 **Setup**
