@@ -5,7 +5,8 @@ owner and Claude (acting as reviewing mesh architect). It records what was
 decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
-Updated 30 September 2026: antennas (§14).
+Updated 30 September 2026: antennas (§14); the 865–868 MHz rules read from
+the gazette (§1.1) and certification (§15).
 Updated 28 September 2026: SOS retry limit and keep-alive (§7.6), the
 responder reply key, reminder alarms and a shorter Medical escalation (§13.8),
 power sensing on the Heltec builds (§13.2).
@@ -26,20 +27,56 @@ dev-board build) and `docs/hardware/pcb-v1/` (custom PCB, not yet fabricated).
 
 ## 1. Constraints everything is judged against
 
-### 1.1 Regulatory (OPEN, needs verification)
-India, 865–867 MHz licence-exempt band. The firmware assumes **G.S.R. 853(E)
-(2021) Table II: 2.5% duty cycle (90 s of transmission per hour per device),
-125 kHz bandwidth, 500 mW e.r.p.** This has **not** been checked against the
-gazette text: sandboxed sessions cannot reach Indian government sites, and
-third-party summaries disagree (one says 1%, the older G.S.R. 564(E) mentions no
-duty cycle). Still unknown: whether the limit is per device or per channel, and
-whether listen-before-talk relaxes it.
+### 1.1 Regulatory (rule text read 30 Sep; which table applies is OPEN)
+India, 865–868 MHz licence-exempt band, under the **Use of Low Power Equipment
+in the Frequency Band 865-868 MHz for Short Range Devices (Exemption from
+Licence) Rules, 2021, G.S.R. 853(E), 10 December 2021**. The gazette text is in
+`docs/reference/gsr-853e-2021-865-868mhz-srd-rules.pdf`. It **supersedes** the
+2005 865–867 MHz RFID rules, so the "1 W / 4 W e.r.p." figures still quoted by
+some summaries are out of date.
 
-Action: put the gazette PDF in `docs/reference/` so it can be read directly.
+| Table | Power | Channel access | Bandwidth | Standard |
+|---|---|---|---|---|
+| I: Non-specific SRDs (telemetry, telecommand, **alarms**, data in general) | 25 mW e.r.p. | Duty cycle 1% over the whole transmission; **frequency hopping** | ≤ 50 kHz on 58 or more hop channels | EN 300 220 |
+| **II: Tracking, tracing and data acquisition** | **500 mW e.r.p.** | **Adaptive power control (APC) required**; duty cycle ≤ 10% for network access points, **≤ 2.5% otherwise** | ≤ 200 kHz | EN 300 220 |
+| III: Wideband data | 25 mW e.r.p. | Duty cycle ≤ 10% for network access points, ≤ 2.8% otherwise | > 600 kHz, ≤ 1 MHz | EN 304 220 |
+| IV: RFID | 2 W e.r.p. on 865.7 / 866.3 / 866.9 / 867.5 MHz only | ≤ 4 s continuous per channel, ≥ 100 ms gap | ≤ 200 kHz | EN 302 208 |
+
+What the text settles:
+- **FloodMesh can only use Table II.** Table I requires frequency hopping in
+  ≤ 50 kHz channels, which LoRa at 125 kHz can't do; Tables III and IV don't
+  fit either. The firmware's assumptions (2.5%, 500 mW e.r.p., 125 kHz inside
+  the 200 kHz limit) match Table II.
+- **Adaptive power control is a condition of Table II.** V4 transmits at a
+  fixed 20 dBm (`FM_LORA_TX_DBM`), so APC moves from PROPOSED (§12.2: the ACK
+  carries the RSSI/SNR it heard) to required.
+- **No emergency carve-out** and **no listen-before-talk relaxation** appear in
+  the rules.
+- **Duty cycle** is defined as transmit time over an observation interval and
+  bandwidth (rule 2(1)(d)) without giving their values; those come from
+  EN 300 220, which the equipment must comply with (rule 5(2)). This probably
+  answers "per device or per channel"; confirm with the test lab.
+- **Type approval is required** for each type of equipment (rule 5(1)), and
+  RF-exposure safety must follow ITU/ETSI/ANSI/BIS/ICNIRP (rule 5(3)).
+- The old comment in `firmware_v4/include/fm_radio.h` ("inside the 1 W ERP
+  allowance") cites the superseded rule; 20 dBm into the half-wave whip is
+  about 100 mW e.r.p., inside Table II's 500 mW.
+
+**OPEN (ask the test lab before the RF test):**
+- **Which table.** Table I's note names "alarms" as a typical use. Table II's
+  note says it "also includes" emergency detection of buried victims, person
+  detection, data acquisition and worker communications; the list is not
+  exhaustive, so an emergency messaging mesh has a reasonable claim to it.
+  Agree the category with the lab, and describe the product consistently in the
+  ETA filing.
+- **Network access points.** Could powered units, which stay awake and forward
+  everything (§13.2), count as "network access points" and get the 10% limit?
+- The observation interval and bandwidth EN 300 220 uses for the duty cycle.
 
 **Legal risk in the current firmware:** `fm_airtime` exempts Layer 1 alarms
-from the duty-cycle ledger as a "life-safety choice". The licence-exempt rules
-have no emergency carve-out as far as is known. PROPOSED fix: replace the
+from the duty-cycle ledger as a "life-safety choice"; in V4 SOS **and ACK**
+frames bypass it (`isAlarmClass()` in `firmware_v4/src/fm_mesh.cpp`). The
+gazette text has no emergency carve-out. PROPOSED fix: replace the
 exemption with a **reserved alarm budget** (e.g. 0.5% of the 2.5%, ~18 s/hour,
 ~250 alarms/hour/device) so alarms keep priority without breaking the rule.
 
@@ -500,7 +537,8 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 
 | Area | Current | Needed |
 |---|---|---|
-| `fm_airtime` | Alarms exempt from duty cycle | Reserved alarm budget (§1.1) |
+| `fm_airtime` | Alarms exempt from duty cycle (V4: SOS and ACK) | Reserved alarm budget (§1.1) |
+| Transmit power | Fixed 20 dBm (`FM_LORA_TX_DBM`) | Adaptive power control, required by Table II (§1.1, §12.2) |
 | `FM_REPLAY_SLOTS` (`include/fm_auth.h`) | 32 | **≥128** for 100 senders (~2 KB) |
 | `FM_DEDUP_SLOTS` (`include/fm_dedup.h`) | 32 | **~256** to survive a burst of 100 distress + retries (~3 KB) |
 | Pin map | Heltec V3 only (`include/floodmesh_pins.h`) | Separate board variant for PCB V1 |
@@ -518,7 +556,9 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 
 ## 11. Open questions (summary)
 
-1. Gazette text: duty cycle, per device or per channel, listen-before-talk.
+1. ~~Gazette text.~~ **Read 30 Sep** (§1.1). Still open: Table II
+   classification, "network access point" status for powered units, and the
+   EN 300 220 duty-cycle observation interval (ask the test lab).
 2. ~~Shared window.~~ **Decided 27 Sep:** radio wake, no window (§13.1).
 3. Homing details: LOCATE pings + sounding the civilian's buzzer.
 4. Keypad: **4×4 decided 27 Sep.** Still open for the PCB: MCP23017 + silicone
@@ -1048,8 +1088,7 @@ Every unit keeps the same SMA socket; only the antenna screwed on changes.
 1. **Height first.** Raising a unit from road level to 6–10 m is estimated at
    +15–20 dB (`docs/field-tests.md`). A 6 dBi omni adds about 3–4 dB over
    the whip.
-2. **Legal limit.** Assuming the 500 mW e.r.p. of §1.1 (not yet verified
-   against the gazette), the radio's 20 dBm allows about 9 dBi of antenna
+2. **Legal limit.** With Table II's 500 mW e.r.p. (§1.1), the radio's 20 dBm allows about 9 dBi of antenna
    gain, before subtracting cable loss. Above that, lower `FM_LORA_TX_DBM`.
    Rule: max transmit dBm ≈ 29 − antenna dBi + cable loss dB. For example, a
    12 dBi Yagi with 1 dB of cable loss allows ~18 dBm.
@@ -1083,3 +1122,80 @@ Every unit keeps the same SMA socket; only the antenna screwed on changes.
 | Telescoping metal whip | Really a quarter-wave (needs a ground plane); easy to leave at the wrong length, badly mismatched; fragile; bare metal corrodes. Bench experiments only |
 | High-gain omni | Too long and fragile for a handheld; its thin beam misses units on other floors |
 | Yagi | One direction only; a mesh node must hear all around |
+
+---
+
+## 15. Certification (30 Sep 2026, PROPOSED)
+
+What a unit sold or given out in India needs, from primary sources where
+noted and otherwise from test-lab and consultancy guides. Confirm the whole
+list with an accredited test lab before relying on it.
+
+### 15.1 Mandatory
+| Item | Why | How |
+|---|---|---|
+| **WPC Equipment Type Approval (ETA)** | Required by rule 5 of G.S.R. 853(E) (gazette, §1.1); the 2.4 GHz Wi-Fi/BLE radio is covered too | Self-declaration on the Saral Sanchar portal with an RF test report from a NABL/TEC-accredited Indian lab or an ILAC ISO/IEC 17025 lab. One ETA per model |
+| **BIS CRS for the Li-ion cell/pack** (IS 16046) | Lithium cells and packs are on the compulsory list | Buy cells/packs that already carry a BIS R-number. A bundled USB adapter needs its own BIS registration |
+| **E-waste EPR** (E-Waste Management Rules 2022) | The owner is the "producer" | CPCB registration |
+| **Battery EPR** (Battery Waste Management Rules 2022) | Batteries put on the market | CPCB registration |
+| **Legal Metrology packaging declarations** | Retail packaging | Box labels |
+
+### 15.2 Probably not needed; confirm with the lab
+- **TEC MTCTE** covers telecom equipment connecting to public networks. The
+  units use no cellular and no internet, and updates go over Bluetooth
+  (§13.6). **But V4 as built has Wi-Fi internet use:** the bench Wi-Fi update
+  mode (`fm_ota.cpp`) and the field logger's HTTPS uploads (`fm_log.cpp`). The
+  build that ships to residents must leave both out (a separate firmware env).
+  "Tracking devices" have needed MTCTE since 1 Jan 2024, so never describe
+  FloodMesh as a tracking device; call it an emergency messaging device (and
+  keep that consistent with the Table II claim in §1.1). Ask the lab whether any
+  notified MTCTE category covers the device, given the ESP32-S3's Wi-Fi.
+- **BIS CRS for the device itself.** CRS lists specific categories (laptops,
+  power banks, smart watches and so on); a LoRa messenger doesn't obviously fall
+  into one. Check the current list.
+
+### 15.3 Worth doing though not mandatory
+- **Product safety to IS/IEC 62368-1:** limits liability; government buyers ask
+  for it.
+- **IP test to IS/IEC 60529** if IP67 is advertised.
+- **UN 38.3 report and safety data sheet for the battery:** couriers and
+  airlines ask for them.
+- **Government and disaster-management buyers (e.g. GeM):** tenders ask for the
+  statutory certificates above; some also want ISO 9001 for the manufacturer.
+
+### 15.4 What the modules' own certificates do and don't cover
+- They don't replace the product's ETA: WPC approves the finished product.
+  Espressif's certificates for the ESP32-S3-WROOM-1U and any FCC/CE marks for
+  Seeed's Wio-SX1262 don't transfer, though their test reports can shorten the
+  testing.
+- **The antennas are part of the approval.** Espressif certified the WROOM-1U
+  with a 2.33 dBi monopole (priced BoM, note 8); the proposed sticker antenna
+  (§9 #7) is a different type. The LoRa whip (§14.1) is also tested. Test with
+  the final antennas; changing one later can mean retesting.
+
+### 15.5 Firmware needed before the RF test
+1. **Adaptive power control** (Table II condition, §1.1).
+2. **A duty-cycle limit that covers SOS and ACK frames**, e.g. the reserved
+   alarm budget (§1.1).
+3. **Transmit power capped and locked** so power + antenna gain stays within
+   500 mW e.r.p. (§14.2 rule 2).
+4. **A lab test build** that transmits continuously or at a fixed duty cycle on
+   chosen channels.
+5. **A resident build** without the Wi-Fi update mode and the field logger
+   (§15.2).
+
+### 15.6 Suggested order
+1. Agree the Table II classification with the lab (§1.1).
+2. Fix the firmware (§15.5).
+3. Freeze hardware and antennas for the model to be sold.
+4. RF test at an accredited lab, then file the WPC ETA.
+5. Choose BIS-registered cells.
+6. Register for both EPRs with CPCB.
+7. Packaging labels.
+
+Have the ETA before units go to residents. For the team's own bench and field
+tests, ask the lab whether an experimental licence is needed.
+
+Sources: the gazette PDF in `docs/reference/`; Bureau Veritas, Granite River
+Labs and PCN India Global guides on WPC ETA; TEC's MTCTE page
+(tec.gov.in); UL and Nemko on MTCTE.

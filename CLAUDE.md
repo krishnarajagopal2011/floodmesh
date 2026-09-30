@@ -51,10 +51,12 @@ Two boards exist. Check which one a change targets.
   (Flutter). Change the protocol doc first, then both sides.
 
 ## Regulatory
-India, 865–867 MHz licence-exempt band. The firmware assumes G.S.R. 853(E) (2021)
-Table II: 2.5% duty cycle, 125 kHz bandwidth. Not yet verified against the gazette
-text. The current firmware's duty-cycle exemption for alarms is a legal risk;
-see `docs/architecture.md` §1.1.
+India, 865–868 MHz licence-exempt band, G.S.R. 853(E) (2021), gazette text in
+`docs/reference/`. The firmware targets Table II: 500 mW e.r.p., 2.5% duty cycle,
+≤ 200 kHz, **adaptive power control required**. Whether FloodMesh counts as a
+Table II device is still to be agreed with the test lab. Certification plan:
+`docs/architecture.md` §15. The current firmware's duty-cycle exemption for
+alarms is a legal risk; see `docs/architecture.md` §1.1.
 
 ## Architecture in one paragraph
 Same hardware for every role. Civilian units work out of the box (optional
