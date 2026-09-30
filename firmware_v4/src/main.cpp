@@ -54,6 +54,7 @@
 #include "floodmesh_pins.h"
 #include "fm_airtime.h"
 #include "fm_alarm.h"
+#include "fm_apc.h"
 #include "fm_auth.h"
 #include "fm_dedup.h"
 #include "fm_edit.h"
@@ -1774,6 +1775,7 @@ static void factoryReset() {
     p.clear();
     p.end();
   }
+  fmApcSetEnabled(FM_APC);           // power control back on (the antenna setting stays)
   fmOtaForget();                     // and no stored WiFi network
   fmLogForgetSettings();             // nor network 2 and the log server (the records stay)
 }
@@ -1896,6 +1898,8 @@ static void pollSerial() {
                      " | wifi ssid <name> | wifi pass <pw> | wifi forget | ota | ota off"
                      " | batt | batt cal <volts> | batt cal reset | beep tone <Hz>"
                      " | buzzer | buzzer active | buzzer passive [Hz]");
+      Serial.println("[CMD] transmit power: ant | ant <gain dBi> [cable loss dB] | ant reset"
+                     " | apc | apc on|off");
       Serial.println("[CMD] field log: log | log send | log url <base> | log url default"
                      " | log clear | wifi2 ssid <name> | wifi2 pass <pw> | wifi2 forget");
       Serial.println("[CMD] SOS channels: 0 GENERAL, 1 MEDICAL, 2 EVACUATION, 3 HAZARD, 4 FOOD");
@@ -1936,13 +1940,14 @@ static void pollSerial() {
       fmAdminFingerprint(fp);
       const uint32_t up = millis() ? millis() : 1;
       Serial.printf("[CMD] %s v%s role=%s left=%lus batt=%.2fV power=%s(%s) sleep=%lu%% "
-                    "air=%u permille relayed=%lu suppressed=%lu SF%u admin=%s\n",
+                    "air=%u permille relayed=%lu suppressed=%lu SF%u tx=%d dBm apc=%s admin=%s\n",
                     fmCallSign(), FLOODMESH_VERSION, isResponder() ? "responder" : "civilian",
                     (unsigned long)fmRoleRemainingS(), g_battV, g_powered ? "external" : "battery",
                     pwrModeName(g_pwrMode),
                     (unsigned long)((uint64_t)fmSleepTotalMs() * 100u / up), fmAirtimePermille(),
                     (unsigned long)fmMeshFramesRelayed(), (unsigned long)fmMeshFramesSuppressed(),
-                    (unsigned)FM_LORA_SF, fp[0] ? fp : "none");
+                    (unsigned)FM_LORA_SF, (int)fmApcTxMaxDbm(), fmApcEnabled() ? "on" : "off",
+                    fp[0] ? fp : "none");
     } else if (strncmp(line, "callsign ", 9) == 0) {
       // Operator override, stored in NVS; * + 0 factory reset returns to the MAC one.
       if (fmSetCallSign(line + 9)) Serial.printf("[CMD] call sign now %s\n", fmCallSign());
@@ -2048,6 +2053,41 @@ static void pollSerial() {
     } else if (strcmp(line, "buzzer") == 0) {
       if (g_buzzHz) Serial.printf("[BUZZ] passive buzzer, %u Hz tone\n", (unsigned)g_buzzHz);
       else          Serial.println("[BUZZ] active buzzer, pin held HIGH");
+    } else if (strcmp(line, "ant") == 0) {
+      fmApcPrintAntenna();
+    } else if (strcmp(line, "ant reset") == 0) {
+      fmApcResetAntenna();
+      fmApcPrintAntenna();
+    } else if (strncmp(line, "ant ", 4) == 0) {
+      // ant <gain dBi> [cable loss dB], e.g. "ant 6 1". Caps the transmit power
+      // so power + gain - loss stays within 500 mW e.r.p. (architecture.md §14.4).
+      char *end = nullptr;
+      const float gain = strtof(line + 4, &end);
+      float loss = 0.0f;
+      bool ok = end != line + 4;
+      if (ok) {
+        while (*end == ' ') end++;
+        if (*end) {
+          char *end2 = nullptr;
+          loss = strtof(end, &end2);
+          ok = end2 != end && *end2 == '\0';
+        }
+      }
+      if (ok && fmApcSetAntenna(gain, loss)) {
+        fmApcPrintAntenna();
+      } else {
+        Serial.println("[ANT] usage: ant <gain dBi -5..20> [cable loss dB 0..20], e.g. ant 6 1");
+      }
+    } else if (strcmp(line, "apc") == 0) {
+      fmApcPrintStatus(millis());
+    } else if (strcmp(line, "apc on") == 0 || strcmp(line, "apc off") == 0) {
+      const bool on = line[5] == 'n';
+      if (fmApcSetEnabled(on)) {
+        Serial.printf("[APC] power control %s%s\n", on ? "ON" : "OFF",
+                      on ? "" : " - every frame at full power (range tests)");
+      } else {
+        Serial.println(on ? "[APC] not built in (FM_APC=0)" : "[APC] could not save the setting");
+      }
     } else if (strcmp(line, "heard") == 0) {
       printHeard();
     } else if (strcmp(line, "cover") == 0) {
@@ -2170,6 +2210,7 @@ void setup() {
     fmMeshSetEchoHandler(onEcho);
     fmMeshBegin();
   }
+  fmApcBegin();                    // antenna cap and power control (`ant`, `apc`)
   otaTrialBegin(radioOk);
 
   fmPowerBegin();                  // look for the GPIO 3 power-sense divider
@@ -2199,6 +2240,7 @@ void loop() {
 
   pollSerial();
   fmMeshLoop(now);
+  fmApcLoop(now);
 
   switch (fmOtaLoop(now)) {
     case FM_OTA_EV_JOINED: {

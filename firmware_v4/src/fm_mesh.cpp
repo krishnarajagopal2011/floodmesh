@@ -20,6 +20,7 @@
 
 #include "fm_airtime.h"
 #include "fm_alarm.h"
+#include "fm_apc.h"
 #include "fm_auth.h"
 #include "fm_dedup.h"
 #include "fm_ids.h"
@@ -172,6 +173,10 @@ void cancelQueuedAck(uint8_t heardKind, const char *target, uint8_t targetMsgId)
 
 int16_t sendNow(const uint8_t *buf, size_t len) {
   const uint32_t toa = fmToaMs((uint16_t)len);
+  // 4.4: SOS, ACK and heartbeat at full power, texts at the APC level (fm_apc.h).
+  const uint8_t type = fmFrameType(buf);
+  const int8_t dBm = fmApcPowerFor(type, millis());
+  fmRadioSetPower(dBm);
   const int16_t st = fmRadioTransmit(buf, len);
   if (st == FM_RADIO_ERR_TX_ACTIVE) return st;
   if (st != FM_RADIO_OK) {
@@ -179,6 +184,7 @@ int16_t sendNow(const uint8_t *buf, size_t len) {
     return st;
   }
   fmAirtimeCharge(toa);
+  Serial.printf("[MESH] tx %s %u B at %d dBm\n", typeName(type), (unsigned)len, (int)dBm);
   return FM_RADIO_OK;
 }
 
@@ -220,6 +226,7 @@ void handleFrame(const uint8_t *buf, size_t len, float rssi, float snr, uint32_t
 
   // Our own frame coming back = a neighbour relayed it. Report once, then drop.
   if (memcmp(h.callSign, fmCallSign(), FM_CALLSIGN_LEN) == 0) {
+    fmApcOnEcho(h.type, h.msgId);   // a text of ours was forwarded: keep APC's reduction
     if (g_onEcho) {
       FmEchoRx e = {h.type, h.msgId, rssi, snr};
       g_onEcho(&e);
@@ -240,6 +247,9 @@ void handleFrame(const uint8_t *buf, size_t len, float rssi, float snr, uint32_t
                   h.callSign);
     return;
   }
+  // A genuine frame: if it was sent at full power, its SNR is an APC link
+  // sample. Taken before dedup, since every relayed copy is a different link.
+  fmApcOnReceive(h.type, snr, now);
   const uint32_t counter = fmRd32(buf + fmCounterOffset(h.type));
   if (!fmReplayAccept(h.callSign, counter)) {
     Serial.printf("[MESH] %s from %s is a replay - dropped\n", typeName(h.type), h.callSign);
@@ -428,6 +438,7 @@ int fmMeshSendText(const char *text) {
   fmWr32(f + FM_OFF_TCOUNTER, fmNextAuthCounter());
   fmAuthSignFrame(f, len);
   const bool ok = sendWaiting(f, len) == FM_RADIO_OK;
+  if (ok) fmApcOnTextSent(id, millis());
   fmLogTx(lt, id, ok, onAir, -1);
   return ok ? id : -1;
 }

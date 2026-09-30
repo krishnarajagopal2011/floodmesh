@@ -32,8 +32,10 @@ responder and relay behaviour of §5–6 is being field-tested. 4.3.0 adds the f
 logger (§10) and shows civilian units as `USER` in the header (the role is still
 `civilian` in serial output and the admin-app protocol).
 
-**Next build (4.4.0, planned):** +22 dBm maximum, an antenna-gain power cap and
-adaptive power control. Plan: [`docs/next-build-4.4.md`](docs/next-build-4.4.md).
+**4.4.0 (30 Sep, not yet field-tested):** +22 dBm maximum, a per-unit
+antenna-gain power cap and adaptive power control on texts (§11 below). Plan and
+checks: [`docs/next-build-4.4.md`](docs/next-build-4.4.md). **Run every unit in
+a test on 4.4.0**, so they share one maximum power.
 
 ## 1. What changed from V3
 
@@ -53,6 +55,9 @@ adaptive power control. Plan: [`docs/next-build-4.4.md`](docs/next-build-4.4.md)
 | One SF, chosen by field tests (§13.7) | SF is a build setting; the relay contention slot and the listen-before-talk slot now follow it |
 | Rollback (§13.6) | A newly installed image stays on trial until it has run 60 s with a working radio; otherwise the bootloader returns to the old one |
 | Relay race weighting (§4.4) | The relay delay now adds a term for the unit's own battery (external power counts as full) |
+| Maximum power +22 dBm (§16.1), 4.4.0 | Was 20 dBm. About 160 mW e.r.p. on the standard whip, inside the 500 mW limit |
+| Antenna cap (§14.4), 4.4.0 | `ant <gain> [loss]` stores the fitted antenna; the maximum power drops so power + gain − loss stays within 500 mW e.r.p. |
+| Adaptive power control (§16.3), 4.4.0 | SOS, ACKs and heartbeats at full power; texts at a lower power when every neighbour heard lately is strong (§11 below) |
 
 Not in V4, because they need more than firmware:
 
@@ -355,6 +360,11 @@ You need a responder unit (registered with the FloodMesh Admin app: boot with
 
 **Common to all frames:** the PSK signs every frame except the hop byte, and every frame carries an anti-replay counter.
 
+**Transmit power (4.4.0):** SOS, ACK and heartbeat frames always go at the
+unit's maximum (22 dBm, or less after `ant`); texts, including `PING` texts,
+go at the adaptive power control level (§11). Every transmission logs
+`[MESH] tx <type> <bytes> B at <dBm> dBm`.
+
 **Relay priority bands, earliest first:** SOS and ACK, then text, then heartbeat. Heartbeats are refused once the hour's airtime passes 80% of the 2.5% budget, so they go quiet first.
 
 ## 8. WiFi updates, trial and rollback
@@ -381,6 +391,10 @@ still need signed images, which come with the Bluetooth update (§13.6).
 `wifi forget`, `ota` / `ota off`, `batt`, `batt cal <volts>`, `batt cal reset`
 (§4, battery reading per board), `beep tone <Hz>`, `buzzer`, `buzzer active`,
 `buzzer passive [Hz]`.
+
+Transmit power (4.4.0, §11): `ant`, `ant <gain dBi> [cable loss dB]`,
+`ant reset`, `apc`, `apc on|off`. `info` also shows the maximum power and
+whether power control is on.
 
 **Buzzer type (4.3.3).** The wiring expects an ACTIVE buzzer (it has its own
 oscillator; the pin is held HIGH). A PASSIVE buzzer driven that way only clicks:
@@ -540,3 +554,52 @@ The **Status screen** (B) shows one line: `LOG 12 waiting, sent 3m ago`
 4. Pull the battery mid-window, power up again: nothing is lost, nothing is
    stored twice (the server keeps each `(unit, seq)` once).
 5. Check `log` for the uploader's stack and heap margins and note them here.
+
+## 11. Transmit power and adaptive power control (4.4.0)
+
+Reasoning: `docs/architecture.md` §1.1 (G.S.R. 853(E) Table II: 500 mW
+e.r.p., adaptive power control required), §14.4 and §16. Code:
+`include/fm_apc.h`, `src/fm_apc.cpp`.
+
+**Maximum power.** `FM_LORA_TX_DBM=22`, the SX1262's limit. The 140 mA
+overcurrent trip is unchanged and allows it.
+
+**Antenna cap.** Each unit stores its antenna in flash; a factory reset keeps
+it, because it describes the hardware.
+
+```
+ant            -> [ANT] antenna 2.2 dBi, cable loss 0.0 dB -> max 22 dBm (160 mW e.r.p., limit 500)
+ant 6 1        -> a 6 dBi collinear on 1 dB of cable: still 22 dBm
+ant 12 1       -> a 12 dBi Yagi on 1 dB of cable: max 18 dBm
+ant reset      -> back to the standard whip
+```
+
+Maximum = min(22, 29.15 − gain + loss). **Whoever fits a different antenna
+runs `ant` on that unit.**
+
+**Adaptive power control** (on by default, `FM_APC=1`):
+- SOS, ACK and heartbeat frames, sent or relayed, go at the maximum. The SNR of
+  each one received is kept for 65 min as a sample of a neighbour link.
+- Texts go at the maximum minus a reduction: lowest SNR sample − the
+  demodulation floor at the network SF (−7.5 dB at SF7, −12.5 at SF9) − 10 dB,
+  in 2 dB steps, never below 8 dBm.
+- Full power with fewer than 2 samples, and for 15 min after a text the unit
+  sent wasn't heard being forwarded within 30 s.
+- The reduction grows by one step a minute and falls at once when a weaker
+  neighbour is heard.
+- A powered unit's texts are forwarded only by other powered units (§13.3), so
+  a powered unit with only battery neighbours soon goes back to full power for
+  its texts. That's the safe direction.
+
+```
+apc        -> [APC] ON, max 22 dBm, 5 samples in 65 min, lowest SNR 6.5 dB, floor SF7 -7.5 dB, margin 10 dB
+              [APC] SOS/ACK/heartbeat 22 dBm, texts 20 dBm (reduction 2 dB)
+apc off    -> every frame at the maximum (saved; a factory reset turns it back on)
+```
+
+**Turn it off for range tests** (`apc off`), or the `PING` texts go out at
+reduced power and the results mean nothing.
+
+Not yet: the field logger doesn't record transmit power (it needs a
+`docs/field-logger-protocol.md` change first); read it from the `[MESH] tx`
+serial lines.

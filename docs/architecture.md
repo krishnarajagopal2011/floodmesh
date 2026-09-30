@@ -539,7 +539,7 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 | Area | Current | Needed |
 |---|---|---|
 | `fm_airtime` | Alarms exempt from duty cycle (V4: SOS and ACK) | Reserved alarm budget (§1.1) |
-| Transmit power | Fixed 20 dBm (`FM_LORA_TX_DBM`) | Maximum +22 dBm, adaptive power control required by Table II, and a cap from the fitted antenna's gain (§16; V4 plan: `firmware_v4/docs/next-build-4.4.md`) |
+| Transmit power | Fixed 20 dBm (`FM_LORA_TX_DBM`); V4 4.4.0 implements the change | Maximum +22 dBm, adaptive power control required by Table II, and a cap from the fitted antenna's gain (§16; V4 plan: `firmware_v4/docs/next-build-4.4.md`) |
 | `FM_REPLAY_SLOTS` (`include/fm_auth.h`) | 32 | **≥128** for 100 senders (~2 KB) |
 | `FM_DEDUP_SLOTS` (`include/fm_dedup.h`) | 32 | **~256** to survive a burst of 100 distress + retries (~3 KB) |
 | Pin map | Heltec V3 only (`include/floodmesh_pins.h`) | Separate board variant for PCB V1 |
@@ -1280,6 +1280,9 @@ whether to use more of the allowance.
   (§14.4), which help both directions.
 
 ### 16.3 Adaptive power control (DECIDED to add; design PROPOSED)
+Implemented in firmware V4 4.4.0 (`firmware_v4/src/fm_apc.cpp`), not yet
+field-tested.
+
 Required by Table II (§1.1). The SX1262 sets its power from −9 to +22 dBm
 in 1 dB steps, so it is firmware only.
 

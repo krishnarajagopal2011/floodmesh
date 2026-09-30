@@ -60,6 +60,8 @@ uint32_t g_txTimeoutMs = 0;   // watchdog: 5x expected time-on-air
 float    g_lastSnr     = 0.0f;
 bool     g_dutyCycle   = false;  // V4: RX duty-cycle mode while on battery
 bool     g_sleepArmed  = false;  // DIO1 is currently a light-sleep wake source
+int8_t   g_power       = FM_LORA_TX_DBM;  // what the chip is set to
+int8_t   g_wantPower   = FM_LORA_TX_DBM;  // what the next transmit should use (fm_apc)
 
 /**
  * Set by the DIO1 ISR and cleared before every register read. Nothing else may
@@ -183,6 +185,22 @@ int16_t launchTx(const uint8_t *buf, size_t len) {
   g_dio1Fired = false;
   g_pending = 0;
 
+  // V4 4.4: transmit power per frame (fm_apc). Changed here, in standby and
+  // after the CAD, so receive is never torn down just to change power.
+  // RadioLib 7 restores the overcurrent limit itself; set it again anyway, as
+  // fmRadioBegin() does, so the 140 mA trip can never be lost.
+  if (g_wantPower != g_power) {
+    state = g_radio.setOutputPower(g_wantPower);
+    if (state == RADIOLIB_ERR_NONE) state = g_radio.setCurrentLimit(FM_LORA_CURRENT_MA);
+    if (state != RADIOLIB_ERR_NONE) {
+      Serial.printf("[ERR] SX1262 setOutputPower(%d dBm) failed: %d\n", (int)g_wantPower,
+                    (int)state);
+      resumeRx();
+      return state;
+    }
+    g_power = g_wantPower;
+  }
+
   state = g_radio.startTransmit(buf, len);
   if (state != RADIOLIB_ERR_NONE) {
     resumeRx();
@@ -262,6 +280,8 @@ bool fmRadioBegin() {
     Serial.printf("[ERR] SX1262 setCurrentLimit failed: %d\n", (int)state);
     return false;
   }
+  g_power = FM_LORA_TX_DBM;
+  g_wantPower = FM_LORA_TX_DBM;
 
   state = g_radio.setCRC(FM_LORA_CRC_BYTES);
   if (state != RADIOLIB_ERR_NONE) {
@@ -410,6 +430,14 @@ bool fmRadioPoll(uint8_t *buf, size_t cap, size_t *outLen, float *rssi, float *s
 }
 
 float fmRadioLastSnr() { return g_lastSnr; }
+
+bool fmRadioSetPower(int8_t dBm) {
+  if (dBm < -9 || dBm > 22) return false;   // SX1262 high-power PA range
+  g_wantPower = dBm;
+  return true;
+}
+
+int8_t fmRadioPower() { return g_wantPower; }
 
 bool fmRadioIsTransmitting() {
   if (!g_ready) return false;

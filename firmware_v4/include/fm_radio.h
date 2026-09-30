@@ -151,7 +151,9 @@
 #define FM_LORA_SYNC_WORD 0x12     // private network; 0x34 is the public/LoRaWAN one
 #endif
 #ifndef FM_LORA_TX_DBM
-#define FM_LORA_TX_DBM 20          // 100 mW, inside the 1 W ERP allowance
+#define FM_LORA_TX_DBM 22          // SX1262 maximum (~160 mW); ~160 mW e.r.p. on the
+                                   // half-wave whip, inside G.S.R. 853(E) Table II's
+                                   // 500 mW. fm_apc caps it for high-gain antennas.
 #endif
 #ifndef FM_LORA_CURRENT_MA
 #define FM_LORA_CURRENT_MA 140.0f  // PA overcurrent trip, not a power setting
@@ -313,6 +315,15 @@ bool fmRadioPoll(uint8_t *buf, size_t cap, size_t *outLen, float *rssi, float *s
 
 /** SNR in dB of the last frame fmRadioPoll() returned true for. 0 before then. */
 float fmRadioLastSnr();
+
+/**
+ * V4 4.4: transmit power for the next transmission, -9..22 dBm (fm_apc decides
+ * it per frame). Applied inside the next transmit, in standby after the CAD,
+ * so receive is not disturbed. Returns false and changes nothing if out of
+ * range. fmRadioPower() returns the power the next transmit will use.
+ */
+bool fmRadioSetPower(int8_t dBm);
+int8_t fmRadioPower();
 
 /**
  * True while a packet is on the air. Also services transmit completion, so it

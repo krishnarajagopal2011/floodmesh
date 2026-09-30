@@ -1,6 +1,9 @@
 # Firmware V4, next build (4.4.0): transmit power and power control
 
-Implementation plan, not yet built. The reasoning is in `docs/architecture.md`
+**Implemented 30 Sep 2026 (4.4.0), not yet built by CI or field-tested.**
+Differences from the plan: the field logger does not record transmit power
+yet (§3, last item); read it from the `[MESH] tx ... at <dBm> dBm` lines.
+Originally the implementation plan. The reasoning is in `docs/architecture.md`
 §1.1 (the gazette's Table II), §14.4 (antenna gain) and §16 (power,
 bandwidth, adaptive power control). Change those first if the design changes.
 
