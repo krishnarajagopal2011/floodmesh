@@ -143,6 +143,9 @@ If paralleling cells for capacity, match them within 0.05 V before connecting.
 |---|
 | Heltec U.FL socket → U.FL-to-SMA-female pigtail → SMA-**male** antenna, 863–928 MHz |
 
+The standard antenna for every unit (an 868 MHz half-wave rubber duck) and the
+per-role upgrades are in `docs/architecture.md` §14.
+
 **Not RP-SMA** — it mates mechanically but the centre pin is inverted.
 
 Never transmit without an antenna fitted; an unterminated output can damage the

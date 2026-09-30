@@ -18,6 +18,9 @@ Two boards exist. Check which one a change targets.
   **not yet fabricated**): `docs/hardware/pcb-v1/`. Read its `README.md`
   (parts, GPIO map, design implications, concerns) before suggesting features
   or components. Pending board changes are in `docs/architecture.md` §9.
+- **Antenna (all builds):** every unit uses the same 868 MHz half-wave rubber
+  duck on an SMA socket; per-role upgrades and rules are in
+  `docs/architecture.md` §14.
 - **Prototype v2 perfboard build** (15 Heltec V3 units, 4×4 keypad via MCP23017, SOS
   button, power sense, mic on Vext): `docs/prototype-v2-build.md`. Firmware
   envs `proto_v2` and `proto_v2_selftest` (`-D FM_BOARD_PROTO_V2=1`).

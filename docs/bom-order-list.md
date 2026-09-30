@@ -30,7 +30,7 @@ transmitter-only firmware.
 
 | Item | Qty per unit | Why |
 |---|---|---|
-| **Antenna, 863–928 MHz, SMA male** | 1 | **Check you have two.** Transmitting into an unterminated output can damage the SX1262's PA |
+| **Antenna: 868 MHz half-wave rubber duck, SMA male** (e.g. 860–928 MHz 2.2 dBi, LWC-868-RD-RA-SMA-PLUG-02; see `docs/architecture.md` §14) | 1 | **Check you have two.** Transmitting into an unterminated output can damage the SX1262's PA |
 | **IPEX (U.FL) to SMA-female pigtail** | 1 | The Heltec has a U.FL socket, not SMA. Easy to forget entirely |
 | **Passive piezo buzzer** | 1 | Must be **passive** (KY-006), not active (KY-012). Passive gives pitch control; active gives one fixed note |
 | **100 kΩ resistor** | 1 | `GAIN` to GND on the MAX98357A → 15 dB instead of the 9 dB you get with it floating |

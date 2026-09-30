@@ -105,6 +105,14 @@ divider draws current only while plugged in. V4 finds it at boot
 (`[PWR] power-sense divider on GPIO 3: fitted`) and then knows the power state
 exactly; without it V4 falls back to the battery-voltage trend (§4).
 
+**Antenna (every unit):**
+- Fit an 868 MHz **half-wave rubber duck**, SMA male, ~20 cm, with a tilting
+  base, kept vertical. Every role uses the same one.
+- Connect it with a U.FL → SMA-female bulkhead pigtail from the Heltec's U.FL
+  socket.
+- Never power on without it: an unterminated radio output can be damaged.
+- Choice, candidate part and per-role upgrades: `docs/architecture.md` §14.
+
 ## 3. Keys
 
 ```

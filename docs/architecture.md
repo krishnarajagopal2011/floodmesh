@@ -5,6 +5,7 @@ owner and Claude (acting as reviewing mesh architect). It records what was
 decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
+Updated 30 September 2026: antennas (§14).
 Updated 28 September 2026: SOS retry limit and keep-alive (§7.6), the
 responder reply key, reminder alarms and a shorter Medical escalation (§13.8),
 power sensing on the Heltec builds (§13.2).
@@ -968,3 +969,117 @@ Not in V4: Bluetooth updates with signed images (the
 protocol doc and the app come first), presetting responder channels from the
 app, the PCB changes, and the open items in 13.9. Details:
 `firmware_v4/README.md`.
+
+---
+
+## 14. Antennas (30 Sep 2026)
+
+Everything here is for the 865–867 MHz LoRa radio. The Bluetooth (2.4 GHz)
+antenna is a separate part: built in on the Heltec, a sticker antenna on the
+PCB's WROOM-1U (§9 #7).
+
+### 14.1 One antenna for every unit (DECIDED)
+"Same hardware for every role" (§2) includes the antenna. Every unit
+(civilian, responder, or on external power) has an **SMA socket on the case**
+and ships with the same **868 MHz half-wave rubber-duck whip**.
+
+| Requirement | Why |
+|---|---|
+| Covers 865–867 MHz (sold as 868 MHz, 863–870 or 860–930 MHz) | Not 915 MHz or 433 MHz antennas |
+| **Half-wave** (sleeve dipole): ~17–21 cm long, ~2 dBi | Needs no ground plane, so it works the same in a hand, on a table or on a pole. A quarter-wave or coiled ("helical") rubber duck depends on the unit's small ground and loses |
+| VSWR ≤ 1.5 (at most 2) at 866 MHz | Little power reflected back into the radio |
+| **SMA male** (a pin in the centre), not RP-SMA | RP-SMA looks the same but will not mate |
+| Tilting (right-angle hinge) base | Stays vertical whichever way the unit sits. All antennas must be vertical: a horizontal one against a vertical one loses 10–20 dB |
+| Flexible | Survives drops and handling. Keep spares |
+
+**Candidate part (owner, 30 Sep):** "860–928 MHz 2.2 dBi Rubber Duck
+Antenna", model **LWC-868-RD-RA-SMA-PLUG-02** (retailer SKU 1444595), ₹307
+incl. GST. Listed specs:
+
+| Spec | Value |
+|---|---|
+| Frequency | 860–928 MHz |
+| Gain | 2.2 dBi (the honest figure for a half-wave) |
+| VSWR | ≤ 1.5 |
+| Polarisation | vertical |
+| Size | 195 × 12 mm |
+| Connector | SMA male, 50 Ω |
+| Beam | 360° horizontal, 40° vertical |
+| Temperature | −30 to 60 °C |
+| Humidity | 5–75% (indoor-grade) |
+
+The listing's "3600 / 400" and "−300 to 600" are formatting errors for
+these. Before ordering in quantity, check one or two:
+
+1. A pin in the centre of the connector (SMA, not RP-SMA).
+2. The base tilts from straight to 90°. If the angle is fixed at 90°, put
+   the SMA socket on the side of the case so the antenna points up.
+3. VSWR at 866 MHz on a NanoVNA, if one is available.
+4. Signal strength against the stock antenna, same unit, same field-test
+   spot.
+
+**Mounting:**
+- **Heltec:** U.FL socket → U.FL-to-SMA-female bulkhead pigtail → SMA
+  bulkhead with an O-ring through the case wall (IP67:
+  `docs/enclosure-ip67-notes.md`).
+- **PCB V1:** the Wio-SX1262 brings RF out on its own U.FL socket, so the
+  same pigtail. The PCB also has a 2.4 GHz U.FL cable (Bluetooth): label the
+  two, or use different cable lengths, so they are never swapped. The priced
+  BoM (`docs/hardware/pcb-v1/flood-mesh-v1.0-bom-priced.xlsx`) still lists
+  the 868 MHz antenna as "not in this BoM". Add the antenna and pigtail.
+- **U.FL is rated for about 30 matings:** leave the pigtail fitted, swap
+  antennas at the SMA end, and strain-relieve the pigtail inside the case.
+- **Never transmit without an antenna:** fit it before powering on. An
+  unterminated output can damage the SX1262's transmitter.
+- **Same model on every test unit**, so field results compare.
+
+### 14.2 Upgrades by role (PROPOSED)
+Every unit keeps the same SMA socket; only the antenna screwed on changes.
+
+| Unit | Antenna | Why |
+|---|---|---|
+| Handheld (civilian, responder) | The standard whip | Higher gain means a longer, more fragile antenna with a thin beam that misses units on other floors, and tilting it in a hand points the beam at the sky or the ground |
+| Unit on external power on a terrace or pole | 5–6 dBi outdoor-rated omni (fibreglass, ~50 cm), short low-loss coax, surge arrestor and earth | Reaches further at rooftop level. Houses close below the beam are near enough to still hear it |
+| Link between two distant clusters | Yagi, 8–12 dBi, one at each end, aimed at each other | A point-to-point link needs only one direction |
+| Responder homing (§3) | Optional small Yagi or panel | Shows direction as well as closeness |
+
+**Rules:**
+
+1. **Height first.** Raising a unit from road level to 6–10 m is estimated at
+   +15–20 dB (`docs/field-tests.md`). A 6 dBi omni adds about 3–4 dB over
+   the whip.
+2. **Legal limit.** Assuming the 500 mW e.r.p. of §1.1 (not yet verified
+   against the gazette), the radio's 20 dBm allows about 9 dBi of antenna
+   gain, before subtracting cable loss. Above that, lower `FM_LORA_TX_DBM`.
+   Rule: max transmit dBm ≈ 29 − antenna dBi + cable loss dB. For example, a
+   12 dBi Yagi with 1 dB of cable loss allows ~18 dBm.
+3. **Cable loss.** Keep the unit close to the antenna:
+
+   | Cable | Loss per metre at 868 MHz |
+   |---|---|
+   | RG174 | ~1 dB |
+   | RG58 | ~0.5 dB |
+   | LMR-240 | ~0.25 dB |
+   | LMR-400 | ~0.13 dB |
+
+4. **Real gain follows length.** A short rubber duck labelled "8 dBi" isn't:
+
+   | Gain | Physical length |
+   |---|---|
+   | ~2 dBi | ~20 cm |
+   | ~5 dBi | ~50 cm |
+   | ~8 dBi | ~1–1.5 m (fibreglass) |
+
+5. **Outdoor units.** The standard whip is indoor-grade (humidity 5–75%). A
+   terrace unit in the monsoon sits under a shelter, or gets an outdoor-rated
+   antenna.
+
+### 14.3 Rejected as the standard antenna
+| Antenna | Why not for every unit |
+|---|---|
+| The stock Heltec antenna | Poorly tuned; part of the 350 m limit in the 26 Sep field test. Bench use only |
+| Internal sticker (flex) antenna | A few dB weaker, detuned by the case, battery and hand, and no upgrade path for terrace units |
+| Coiled ("helical") stubby rubber duck | Often below 0 dBi whatever the label says, and needs a ground plane |
+| Telescoping metal whip | Really a quarter-wave (needs a ground plane); easy to leave at the wrong length, badly mismatched; fragile; bare metal corrodes. Bench experiments only |
+| High-gain omni | Too long and fragile for a handheld; its thin beam misses units on other floors |
+| Yagi | One direction only; a mesh node must hear all around |
