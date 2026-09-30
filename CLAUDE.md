@@ -39,7 +39,8 @@ Two boards exist. Check which one a change targets.
   wake, SF as a build setting, OTA trial + rollback, and an optional
   5V -> GPIO 3 power-sense divider (probed at boot). Envs `v4`, `v4_sf9`,
   `v4_wake`. Build: `pio run -d firmware_v4 -e v4`. Read
-  `firmware_v4/README.md`. V3 stays as it is for comparison; keep V3 and V4
+  `firmware_v4/README.md`; the next build's plan is
+  `firmware_v4/docs/next-build-4.4.md`. V3 stays as it is for comparison; keep V3 and V4
   changes separate.
 
 ## Firmware and app

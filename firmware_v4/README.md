@@ -32,6 +32,9 @@ responder and relay behaviour of §5–6 is being field-tested. 4.3.0 adds the f
 logger (§10) and shows civilian units as `USER` in the header (the role is still
 `civilian` in serial output and the admin-app protocol).
 
+**Next build (4.4.0, planned):** +22 dBm maximum, an antenna-gain power cap and
+adaptive power control. Plan: [`docs/next-build-4.4.md`](docs/next-build-4.4.md).
+
 ## 1. What changed from V3
 
 | Decision (`docs/architecture.md`) | V4 behaviour |

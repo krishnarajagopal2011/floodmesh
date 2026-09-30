@@ -6,7 +6,8 @@ decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
 Updated 30 September 2026: antennas (§14); the 865–868 MHz rules read from
-the gazette (§1.1) and certification (§15).
+the gazette (§1.1), certification (§15), and transmit power, bandwidth and
+adaptive power control (§16).
 Updated 28 September 2026: SOS retry limit and keep-alive (§7.6), the
 responder reply key, reminder alarms and a shorter Medical escalation (§13.8),
 power sensing on the Heltec builds (§13.2).
@@ -538,7 +539,7 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 | Area | Current | Needed |
 |---|---|---|
 | `fm_airtime` | Alarms exempt from duty cycle (V4: SOS and ACK) | Reserved alarm budget (§1.1) |
-| Transmit power | Fixed 20 dBm (`FM_LORA_TX_DBM`) | Adaptive power control, required by Table II (§1.1, §12.2) |
+| Transmit power | Fixed 20 dBm (`FM_LORA_TX_DBM`) | Maximum +22 dBm, adaptive power control required by Table II, and a cap from the fitted antenna's gain (§16; V4 plan: `firmware_v4/docs/next-build-4.4.md`) |
 | `FM_REPLAY_SLOTS` (`include/fm_auth.h`) | 32 | **≥128** for 100 senders (~2 KB) |
 | `FM_DEDUP_SLOTS` (`include/fm_dedup.h`) | 32 | **~256** to survive a burst of 100 distress + retries (~3 KB) |
 | Pin map | Heltec V3 only (`include/floodmesh_pins.h`) | Separate board variant for PCB V1 |
@@ -1088,8 +1089,10 @@ Every unit keeps the same SMA socket; only the antenna screwed on changes.
 1. **Height first.** Raising a unit from road level to 6–10 m is estimated at
    +15–20 dB (`docs/field-tests.md`). A 6 dBi omni adds about 3–4 dB over
    the whip.
-2. **Legal limit.** With Table II's 500 mW e.r.p. (§1.1), the radio's 20 dBm allows about 9 dBi of antenna
-   gain, before subtracting cable loss. Above that, lower `FM_LORA_TX_DBM`.
+2. **Legal limit.** With Table II's 500 mW e.r.p. (§1.1), the radio's
+   maximum of +22 dBm (§16.1) allows about 7 dBi of antenna gain, plus
+   whatever the cable loses. Above that the firmware must lower the power
+   (§14.4).
    Rule: max transmit dBm ≈ 29 − antenna dBi + cable loss dB. For example, a
    12 dBi Yagi with 1 dB of cable loss allows ~18 dBm.
 3. **Cable loss.** Keep the unit close to the antenna:
@@ -1122,6 +1125,54 @@ Every unit keeps the same SMA socket; only the antenna screwed on changes.
 | Telescoping metal whip | Really a quarter-wave (needs a ground plane); easy to leave at the wrong length, badly mismatched; fragile; bare metal corrodes. Bench experiments only |
 | High-gain omni | Too long and fragile for a handheld; its thin beam misses units on other floors |
 | Yagi | One direction only; a mesh node must hear all around |
+
+### 14.4 Raising antenna gain (PROPOSED)
+The legal limit is on **radiated** power, so it counts the antenna. At the
++22 dBm maximum (§16.1) the standard whip gives about 160 mW e.r.p., leaving
+about 5 dB of the 500 mW allowance unused. Antenna gain is the way to use it,
+because it helps receiving as much as transmitting and costs no battery.
+
+**In order of what it buys:**
+1. **Height and a clear view first.** Road level to 6–10 m is estimated at
+   +15–20 dB (`docs/field-tests.md`), more than any antenna. Put the antenna
+   above the parapet, clear of metal water tanks, and at least ~35 cm
+   (one wavelength) from walls and other antennas.
+2. **Recover what the whip is losing** (handhelds). Keep it vertical, outside
+   the case, not covered by a hand, and away from metal and the body. A whip
+   lying flat against a vertical one loses 10–20 dB (§14.1).
+3. **A higher-gain omni for powered units on terraces or poles**: an
+   outdoor-rated fibreglass collinear of **5–6 dBi** tuned to 868 MHz
+   (about 50 cm long), N-type or SMA, VSWR ≤ 1.5 at 866.5 MHz. Real gain
+   follows length (§14.2 rule 4); a short antenna labelled 8 dBi isn't.
+   Don't go above about 6 dBi for mesh nodes: the vertical beam gets thin
+   and misses units on the floors below (§14.3).
+4. **Short, low-loss cable.** Each dB lost in the cable cancels a dB of
+   gain. Mount the unit near the antenna, use LMR-240 or better beyond a
+   metre (§14.2 rule 3), and use weatherproof connectors with
+   self-amalgamating tape.
+5. **Yagis only for fixed point-to-point links** between two powered units
+   (8–12 dBi, aimed at each other), never as a mesh node's only antenna.
+
+**Safety on a roof:** surge arrestor and earth at the entry point, as in
+§14.2, and a mast that can't fall onto a walkway.
+
+**Staying legal:** conducted power ≤ 29.15 − antenna gain (dBi) + cable loss
+(dB). Examples at the +22 dBm maximum:
+
+| Antenna | Cable loss | Allowed power | Result |
+|---|---|---|---|
+| Whip, 2.15 dBi | 0 dB | 27 dBm | +22 dBm (chip limit) |
+| Collinear, 6 dBi | 1 dB | 24 dBm | +22 dBm |
+| Collinear, 8 dBi | 1 dB | 22 dBm | +22 dBm |
+| Yagi, 12 dBi | 1 dB | 18 dBm | **firmware lowers to 18 dBm** |
+
+The firmware therefore stores the fitted antenna's gain and cable loss per
+unit and caps its power from them (`firmware_v4/docs/next-build-4.4.md`).
+Whoever fits a different antenna must update that setting.
+
+**Before buying in quantity:** check one sample on a NanoVNA (VSWR at
+866.5 MHz), then compare signal strength against the standard whip at the
+same field-test spot.
 
 ---
 
@@ -1174,7 +1225,7 @@ list with an accredited test lab before relying on it.
   the final antennas; changing one later can mean retesting.
 
 ### 15.5 Firmware needed before the RF test
-1. **Adaptive power control** (Table II condition, §1.1).
+1. **Adaptive power control** (Table II condition, §1.1; design in §16.3).
 2. **A duty-cycle limit that covers SOS and ACK frames**, e.g. the reserved
    alarm budget (§1.1).
 3. **Transmit power capped and locked** so power + antenna gain stays within
@@ -1199,3 +1250,68 @@ tests, ask the lab whether an experimental licence is needed.
 Sources: the gazette PDF in `docs/reference/`; Bureau Veritas, Granite River
 Labs and PCN India Global guides on WPC ETA; TEC's MTCTE page
 (tec.gov.in); UL and Nemko on MTCTE.
+
+---
+
+## 16. Transmit power, bandwidth and power control (30 Sep 2026)
+
+The legal limits (§1.1, Table II) are 500 mW e.r.p. and ≤ 200 kHz. Firmware
+V4 uses 20 dBm (about 100 mW e.r.p. on the whip) and 125 kHz. Reviewed
+whether to use more of the allowance.
+
+### 16.1 Maximum transmit power +22 dBm (DECIDED, owner)
+- Raise `FM_LORA_TX_DBM` from 20 to **+22 dBm**, the SX1262's maximum
+  (about 160 mW conducted, about 160 mW e.r.p. on the whip). Gain: +2 dB.
+- Cost: SX1262 transmit current about 118 mA instead of about 100 mA, a
+  little more heat. The existing 140 mA overcurrent limit
+  (`FM_LORA_CURRENT_MA`) already allows it.
+- **Every unit in a test must use the same maximum**, or links become
+  one-sided (a unit hears a neighbour that can't hear it back).
+- The antenna cap (§14.4) can lower it on units with high-gain antennas.
+
+### 16.2 Bandwidth stays 125 kHz; no external amplifier (DECIDED, owner)
+- **125 kHz is the widest legal LoRa bandwidth.** LoRa offers 62.5, 125,
+  250 and 500 kHz; 250 kHz breaks the 200 kHz limit. A wider bandwidth would
+  also cost about 3 dB of sensitivity per doubling, so it would shorten range.
+- **No external power amplifier (1 W modules).** It raises transmit power
+  only, so a unit would reach neighbours that can't answer it, which breaks
+  forwarding and ACKs. It also means 500 mA+ bursts, heat and board changes.
+  The rest of the 500 mW allowance is used with antenna gain and height
+  (§14.4), which help both directions.
+
+### 16.3 Adaptive power control (DECIDED to add; design PROPOSED)
+Required by Table II (§1.1). The SX1262 sets its power from −9 to +22 dBm
+in 1 dB steps, so it is firmware only.
+
+**Benefits:** it meets the rule (the main reason); fewer collisions in dense
+clusters, because texts stop reaching every unit in the neighbourhood; a
+modest battery saving (about 118 mA at +22 dBm against about 45 mA at
++14 dBm while transmitting, but transmitting is at most 2.5% of the time).
+**Cost:** fewer overlapping paths in the flood mesh, which is why SOS and
+ACKs stay at full power.
+
+**Design without a frame change** (a broadcast mesh has no single link to
+tune):
+- **Full-power frames:** SOS, ACK and heartbeat, originated or relayed,
+  always go out at the unit's maximum. Every received full-power frame is a
+  sample of a neighbour link heard at full power: its SNR (the last hop's,
+  whoever relayed it) goes into a list of recent samples (65 min, the
+  forwarding rule's window, §13.3).
+- **Reduced-power frames:** texts (originated or relayed) use the maximum
+  minus a reduction:
+  `margin = (weakest recent SNR sample) − (demodulation floor at the network
+  SF) − 10 dB safety margin`, reduction = margin, rounded down to 2 dB steps,
+  never below 0 and never taking power below +8 dBm. SX1262 floors: about
+  −7.5 dB at SF7, −12.5 dB at SF9, −15 dB at SF10.
+- Using the **weakest** sample means power only drops when every neighbour
+  heard lately is strong: conservative, suited to a flood mesh. Savings are
+  largest in dense clusters, none in sparse areas.
+- **Fall back to full power** when there are fewer than 2 samples, and for
+  15 min after a text the unit sent was not heard being forwarded.
+- **The gazette doesn't define APC.** Ask the test lab
+  whether power control on texts only is accepted, or whether ACKs and
+  heartbeats need it too (§15.5).
+
+**Later (needs a frame change):** carry the transmit power (and the RSSI
+heard, §12.2) in heartbeats and ACKs, so any frame can be a link sample and
+power can be set per neighbour.
