@@ -45,7 +45,10 @@ Two boards exist. Check which one a change targets.
 ## Firmware and app
 - Build with PlatformIO locally, or let `.github/workflows/build.yml` build
   all envs and the Android APK. This cloud sandbox cannot build either: its
-  network policy blocks the PlatformIO registry and dl.google.com.
+  network policy blocks the PlatformIO registry and dl.google.com (see
+  "Cloud sandbox network" below). raw.githubusercontent.com and
+  api.github.com are reachable: use them to read library headers and CI run
+  status.
 - BLE role registration: protocol `docs/ble-provisioning-protocol.md`, unit side
   `src/fm_prov.cpp` + `src/fm_role.cpp`, admin app `app/floodmesh_admin/`
   (Flutter). Change the protocol doc first, then both sides.
@@ -54,7 +57,25 @@ Two boards exist. Check which one a change targets.
 India, 865–867 MHz licence-exempt band. The firmware assumes G.S.R. 853(E) (2021)
 Table II: 2.5% duty cycle, 125 kHz bandwidth. Not yet verified against the gazette
 text. The current firmware's duty-cycle exemption for alarms is a legal risk;
-see `docs/architecture.md` §1.1.
+see `docs/architecture.md` §1.1. The 2021 rules for 865–868 MHz may also
+require adaptive transmit power control (§1.1, unverified). What must be
+certified before sale (WPC ETA, BIS for the battery, CPCB EPR) is in
+`docs/certification-india.md`.
+
+## Cloud sandbox network
+The environment's network policy blocks some hosts this project needs. The
+owner changes it in the cloud environment menu in the session's title bar →
+Edit → Network access: a broader access level, or these hosts added to the
+allowed domains (levels: https://code.claude.com/docs/en/claude-code-on-the-web).
+
+| For | Hosts |
+|---|---|
+| Gazette and regulatory text | `dot.gov.in`, `dms.dot.gov.in`, `thc.nic.in`, `egazette.gov.in`, `tec.gov.in`, `saralsanchar.gov.in` |
+| Legal and consultancy summaries | `legalitysimplified.com`, `legitquest.com`, `pcnindiaglobal.com`, `sunren.net`, `thejeshgn.com` |
+| Local firmware and app builds | the PlatformIO registry, `dl.google.com` |
+
+Until they are allowed, ask the owner to download a gazette PDF and commit it
+to `docs/reference/`.
 
 ## Architecture in one paragraph
 Same hardware for every role. Civilian units work out of the box (optional

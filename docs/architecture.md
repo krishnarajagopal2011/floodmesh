@@ -5,7 +5,8 @@ owner and Claude (acting as reviewing mesh architect). It records what was
 decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
-Updated 30 September 2026: antennas (§14).
+Updated 30 September 2026: antennas (§14); regulatory findings and
+certification (§1.1, `docs/certification-india.md`).
 Updated 28 September 2026: SOS retry limit and keep-alive (§7.6), the
 responder reply key, reminder alarms and a shorter Medical escalation (§13.8),
 power sensing on the Heltec builds (§13.2).
@@ -36,6 +37,28 @@ duty cycle). Still unknown: whether the limit is per device or per channel, and
 whether listen-before-talk relaxes it.
 
 Action: put the gazette PDF in `docs/reference/` so it can be read directly.
+
+**Found 30 Sep 2026 (search summaries, not the gazette text):**
+- The rule now in force for this band is reported to be the **Use of Low
+  Power Equipment in the Frequency Band 865–868 MHz for Short Range Devices
+  (Exemption from Licence) Rules, 2021**, notified 10 December 2021. Its
+  tables are reported to allow:
+  - non-specific short-range devices: 25 mW e.r.p., 1% duty cycle, frequency
+    hopping;
+  - another table: **500 mW e.r.p., ≤ 200 kHz bandwidth, a duty-cycle limit,
+    and adaptive power control required**.
+- Equipment "shall be type approved": a WPC ETA is needed before sale
+  (`docs/certification-india.md`).
+- If FloodMesh falls under the 500 mW table, the firmware needs **adaptive
+  transmit power control**. It transmits at a fixed 20 dBm today; §12.2
+  already proposes ACKs carrying the received signal strength for this.
+- The older G.S.R. 564(E) (2008) conditions (1 W transmitter, 4 W e.r.p.,
+  200 kHz) are still quoted by consultants for 865–867 MHz.
+
+This section stays OPEN until the 2021 gazette text is read. The sandbox's
+network policy blocks the government sites (CLAUDE.md lists the hosts to
+allow). The same test decides the per-device vs per-channel and
+listen-before-talk questions above.
 
 **Legal risk in the current firmware:** `fm_airtime` exempts Layer 1 alarms
 from the duty-cycle ledger as a "life-safety choice". The licence-exempt rules
@@ -509,6 +532,7 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 | Sleep | Continuous receive | Deep sleep + SX1262 receive duty cycle, wake on `DIO1`; wake-up preamble on packets for sleeping units (§13.1) |
 | Auth | One PSK (public placeholder) | Per-unit alarm keys for registered units; Ed25519 responder signatures; super-admin public key built in |
 | Voice | Codec2 Layer 2, PTT, voice ring buffer | Remove (§7.4) |
+| Transmit power | Fixed 20 dBm (`FM_LORA_TX_DBM`) | Adaptive power control, if the 2021 rules' 500 mW table requires it (§1.1, §11 item 16) |
 | Spreading factor | Fixed SF7 (`FM_LORA_SF`), chosen for voice | One network SF chosen by field tests; retune the `fm_mesh` contention slot. v1.1: SF step-up retries for SOS, dual-SF scan on powered units (§13.7) |
 | Display | – | SOS shown and sounded only on responder units; text shown on every unit (§13.4) |
 | SOS channels | V3: SOS has no category; alerts menu (A) sends 4 presets | Channel screen after the SOS hold; remove the civilian alerts menu; responder channel filter in NVS; tab bar with dot/highlight for unopened SOS in unselected channels; "Help coming" preset reply; escalation (§13.8) |
@@ -541,6 +565,9 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 14. Frame format, message IDs, ACKs, SOS categories, the Verified Responder
     label and the owner's 26 Sep proposal: see §12.5.
 15. Details left open by the 27 Sep decisions: see §13.9.
+16. Which table of the 865–868 MHz rules (2021) applies, and so whether
+    adaptive transmit power control is required before the WPC type-approval
+    test (§1.1, `docs/certification-india.md`).
 
 Measurements needed from the bench: deep-sleep current at the battery (OLED
 off); light-sleep + radio-receive current; buzzer loudness at 3.3 V; a
