@@ -33,8 +33,9 @@ and needs a native speaker's check before launch). No build step and no librarie
   `docs/field-tests.md`. Battery life says "designed to", because it hasn't
   been measured. Don't claim waterproofing until the case is tested.
 - **Real footage for anything that shows results.** AI images only for mood
-  and scenes, labelled "Illustration". Never an AI image of the product
-  presented as a photo, and never on a product card once taking orders.
+  and scenes. The owner decided (4 Oct 2026) that scene images carry no
+  "Illustration" label or caption. Never an AI image of the product, and
+  never on a product card.
 - **Only what version 1 does:** an SOS (hold * and #, then pick the type of
   help) and short text messages. Leave out features dropped from version 1
   (`docs/architecture.md` §8).
@@ -100,7 +101,7 @@ Put files in `assets/img/`.
 
 | Slot | What | Source |
 |---|---|---|
-| `story-scene` | A flooded city street at dusk, water at knee height, apartment blocks, one lit window | AI illustration, labelled |
+| `story-scene` | A flooded city street at dusk, ground floors under water, one lit window | AI scene (in place), no caption |
 | `product-unit` | The unit in a hand, screen lit, plain background | **Real photo** |
 | `product-street`, `product-neighbourhood`, `product-area`, `product-custom` | Boxed units stacked: 10, 25, 100 (or one photo of a stack for all four) | **Real photo** |
 | `product-antenna` | The 1 m rooftop antenna mounted on a terrace railing, unit beside it | **Real photo** |
@@ -108,11 +109,10 @@ Put files in `assets/img/`.
 | `og.png` (1200 × 630) | Share image for WhatsApp, X and LinkedIn. A placeholder card is there now | Real photo + wordmark |
 | Hero (optional) | Short loop of a real field test, 6–10 s, no sound | **Real video** |
 
-### Prompts for AI scenes (illustrations only)
+### Prompts for AI scenes
 
 For Higgsfield, or any image or video generator. Never show the FloodMesh
-unit itself in AI output: product shots must be real photos. Label every
-result "Illustration" on the page. Drop finished files into the Google Drive
+unit itself in AI output: product shots must be real photos. Drop finished files into the Google Drive
 folder "FloodMesh website" and they can be placed from there.
 
 - Water level: the owner wants severe floods, not knee-deep water. Add to

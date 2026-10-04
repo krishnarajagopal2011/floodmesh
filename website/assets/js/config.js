@@ -1,7 +1,7 @@
 /* FloodMesh website settings. Edit these, nothing else, to go live. */
 window.FM_CONFIG = {
-  // true: shows the "Preview" ribbon (photos are placeholders). Set false at
-  // launch. Whether orders are sent depends only on orderEndpoint below.
+  // true: shows the "draft" note on the privacy page. Set false at launch.
+  // Whether orders are sent depends only on orderEndpoint below.
   preview: true,
 
   // "/api/preorder" once the Vercel function and the Google Sheet script are

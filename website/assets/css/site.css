@@ -22,8 +22,6 @@
   --key-ink: #e6eef1;
   --ok: #2b7a4b;
   --err: #b42318;
-  --ribbon: #fff4d6;
-  --ribbon-ink: #5c4400;
 
   --display: "Anek Latin", "Anek Tamil", "Anek Devanagari", "Arial Narrow", system-ui, sans-serif;
   --body: "Hind", "Hind Madurai", "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -61,8 +59,6 @@
     --key-ink: #e6eef1;
     --ok: #5cc68a;
     --err: #ff7b6b;
-    --ribbon: #3a2f10;
-    --ribbon-ink: #ffe3a1;
     color-scheme: dark;
   }
 }
@@ -85,8 +81,6 @@
   --key-ink: #e6eef1;
   --ok: #5cc68a;
   --err: #ff7b6b;
-  --ribbon: #3a2f10;
-  --ribbon-ink: #ffe3a1;
   color-scheme: dark;
 }
 
@@ -149,15 +143,6 @@ p { margin: 0; }
 :lang(ta) .eyebrow, :lang(hi) .eyebrow { letter-spacing: 0.02em; }
 .skip { position: absolute; left: -9999px; }
 .skip:focus { left: 16px; top: 16px; z-index: 50; background: var(--surface); padding: 8px 12px; }
-
-/* ---------------------------------------------------------------- ribbon */
-.ribbon {
-  background: var(--ribbon);
-  color: var(--ribbon-ink);
-  font-size: var(--step--1);
-  text-align: center;
-  padding: 6px 16px;
-}
 
 /* ---------------------------------------------------------------- header */
 .site-head {
@@ -355,7 +340,7 @@ p { margin: 0; }
   .gauge .danger-label { left: 30px; }
 }
 
-/* AI scene photos (labelled "Illustration"); assets/img/*.jpg */
+/* AI scene photos, assets/img/*.jpg */
 .hero.has-photo { background: var(--paper); }
 .hero-photo, .band-photo { position: absolute; inset: 0; margin: 0; z-index: 0; }
 .hero-photo img, .band-photo img { width: 100%; height: 100%; object-fit: cover; }
@@ -374,17 +359,6 @@ p { margin: 0; }
   .hero-photo::after {
     background: linear-gradient(to bottom, color-mix(in srgb, var(--paper) 80%, transparent) 0%, color-mix(in srgb, var(--paper) 94%, transparent) 40%, var(--paper) 70%);
   }
-}
-.ai-tag {
-  position: absolute;
-  right: 12px;
-  bottom: 10px;
-  z-index: 2;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
-  color: var(--muted);
 }
 .cta-band.has-photo { position: relative; overflow: hidden; }
 .band-photo::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--ink) 82%, transparent); }
@@ -491,7 +465,7 @@ p { margin: 0; }
 .story p + p { margin-top: 16px; }
 @media (max-width: 860px) { .story .wrap { grid-template-columns: minmax(0, 1fr); } }
 
-/* media slots: where real photos and labelled illustrations go */
+/* media slots: where real photos go */
 .media-slot {
   position: relative;
   display: grid;

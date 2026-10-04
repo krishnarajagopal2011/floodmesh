@@ -1,4 +1,4 @@
-/* FloodMesh website: language switch, preview ribbon, cart badge, and the
+/* FloodMesh website: language switch, cart badge, and the
    screen on the home page's unit illustration. No libraries. */
 (function () {
   "use strict";
@@ -183,12 +183,8 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     var c = window.FM_CONFIG || {};
-    document.querySelectorAll("[data-preview-ribbon], [data-preview-only]").forEach(function (el) {
+    document.querySelectorAll("[data-preview-only]").forEach(function (el) {
       el.hidden = !c.preview;
-    });
-    // Orders are sent whenever an endpoint is set, preview or not; say which.
-    document.querySelectorAll("[data-preview-ribbon]").forEach(function (el) {
-      if (c.orderEndpoint) el.setAttribute("data-i18n", "preview.ribbon.live");
     });
     document.querySelectorAll("[data-lang]").forEach(function (b) {
       b.hidden = !hasLang(b.getAttribute("data-lang"));
