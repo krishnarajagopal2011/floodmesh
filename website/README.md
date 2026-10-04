@@ -34,8 +34,11 @@ and needs a native speaker's check before launch). No build step and no librarie
   been measured. Don't claim waterproofing until the case is tested.
 - **Real footage for anything that shows results.** AI images only for mood
   and scenes. The owner decided (4 Oct 2026) that scene images carry no
-  "Illustration" label or caption. Never an AI image of the product, and
-  never on a product card.
+  "Illustration" label or caption. The product: the owner decided (4 Oct
+  2026) to show a render of the unit on the unit and pack cards
+  (`assets/img/unit.png`, `.jpg` or `.webp`, whichever exists), with no
+  "render" note. Its screen must not show anything version 1 doesn't do
+  (no microphone or voice icon).
 - **Only what version 1 does:** an SOS (hold * and #, then pick the type of
   help) and short text messages. Leave out features dropped from version 1
   (`docs/architecture.md` §8).
@@ -116,7 +119,7 @@ Put files in `assets/img/`.
 |---|---|---|
 | Hero background (`assets/img/hero.jpg`) | Flooded Chennai street at dusk, houses on the right, calm water on the left behind the headline | AI scene (in place), no caption |
 | `story-scene` | A flooded city street at dusk, ground floors under water, one lit window | AI scene (in place), no caption |
-| `product-unit` | The unit in a hand, screen lit, plain background | **Real photo** |
+| `product-unit` (also on the pack cards) | The unit on a plain light background | Render, `assets/img/unit.png` / `.jpg` / `.webp` (owner, 4 Oct) |
 | `product-street`, `product-neighbourhood`, `product-area`, `product-custom` | Boxed units stacked: 10, 25, 100 (or one photo of a stack for all four) | **Real photo** |
 | `product-antenna` | The 1 m rooftop antenna mounted on a terrace railing, unit beside it | **Real photo** |
 | `product-cable` | The cable coiled, both connectors visible | **Real photo** |

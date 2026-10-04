@@ -22,11 +22,14 @@ window.FM_PRICING = (function () {
 })();
 
 window.FM_PRODUCTS = (function (P) {
+  // Product picture of the unit, used on the unit and pack cards. The first file
+  // that exists is shown; if none does, the card keeps its placeholder.
+  var UNIT_IMG = ["assets/img/unit.png", "assets/img/unit.jpg", "assets/img/unit.webp"];
   function pack(id, units, maxQty) {
-    return { id: id, group: "packs", units: units, pct: P.pctFor(units), price: P.perUnit(units) * units, minQty: 1, maxQty: maxQty, bullets: 3, media: "product-" + id };
+    return { id: id, group: "packs", units: units, pct: P.pctFor(units), price: P.perUnit(units) * units, minQty: 1, maxQty: maxQty, bullets: 3, media: "product-" + id, image: UNIT_IMG };
   }
   return [
-    { id: "unit", group: "units", price: P.unitPrice, minQty: 1, maxQty: 9, bullets: 3, media: "product-unit" },
+    { id: "unit", group: "units", price: P.unitPrice, minQty: 1, maxQty: 9, bullets: 3, media: "product-unit", image: UNIT_IMG },
 
     pack("street", 10, 10),          // 10% off: ₹62,100
     pack("neighbourhood", 25, 10),   // 15% off: ₹1,46,625
@@ -35,7 +38,7 @@ window.FM_PRODUCTS = (function (P) {
     pack("village", 250, 4),         // 30% off: ₹12,07,500
     // Custom pack: the quantity is the number of units; the price per unit
     // follows the tier for that number (P.perUnit).
-    { id: "custom", group: "packs", perUnit: true, price: P.perUnit(10), minQty: 10, maxQty: 500, bullets: 2, media: "product-custom" },
+    { id: "custom", group: "packs", perUnit: true, price: P.perUnit(10), minQty: 10, maxQty: 500, bullets: 2, media: "product-custom", image: UNIT_IMG },
 
     { id: "antenna", group: "accessories", price: 6500, minQty: 1, maxQty: 20, bullets: 2, media: "product-antenna" },
     { id: "cable", group: "accessories", price: 750, minQty: 1, maxQty: 20, bullets: 2, media: "product-cable" },

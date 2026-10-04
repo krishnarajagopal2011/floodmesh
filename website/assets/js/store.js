@@ -64,10 +64,19 @@
     var card = el("article", { class: "product", id: p.id, "aria-labelledby": title });
 
     var media = el("figure", { class: "media-slot", "data-asset": p.media });
-    if (p.image) {
-      media.appendChild(el("img", { src: p.image, alt: opt("p." + p.id + ".alt") || T("p." + p.id + ".name"), loading: "lazy", decoding: "async", width: "1600", height: "1000" }));
+    var srcs = [].concat(p.image || []);   // candidate files, first that loads wins
+    var placeholder = function () { media.appendChild(el("span", { class: "tag" }, T("media.product"))); };
+    if (srcs.length) {
+      var img = el("img", { src: srcs[0], class: "product-photo", alt: opt("p." + p.id + ".alt") || T("p." + p.id + ".name"), loading: "lazy", decoding: "async", width: "1200", height: "1200" });
+      var tried = 0;
+      img.addEventListener("error", function () {
+        tried += 1;
+        if (tried < srcs.length) img.src = srcs[tried];
+        else { img.remove(); placeholder(); }
+      });
+      media.appendChild(img);
     } else {
-      media.appendChild(el("span", { class: "tag" }, T("media.product")));
+      placeholder();
     }
     card.appendChild(media);
 
