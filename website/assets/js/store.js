@@ -22,7 +22,8 @@
   }
   function cartLines(cart) {
     return products.filter(function (p) { return cart[p.id]; }).map(function (p) {
-      return { id: p.id, name: T("p." + p.id + ".name"), qty: cart[p.id], unitPrice: p.price, lineTotal: p.price * cart[p.id],
+      var each = window.FM_PRICE_EACH(p, cart[p.id]);   // a custom pack's price per unit follows its size
+      return { id: p.id, name: T("p." + p.id + ".name"), qty: cart[p.id], unitPrice: each, lineTotal: each * cart[p.id],
                units: p.perUnit ? cart[p.id] : (p.units || (p.group === "units" ? 1 : 0)) * cart[p.id] };
     });
   }
@@ -39,11 +40,16 @@
   /** The text for a key, or null if no language has it. */
   function opt(key) { var v = T(key); return v === key ? null : v; }
 
-  function priceNote(p) {
-    if (p.perUnit) return T("store.perunitpack");
+  function pctText(pct) { return T("store.pct").replace("{pct}", pct); }
+
+  /** The small line under a price. For a custom pack it depends on the units chosen. */
+  function priceNote(p, units) {
+    if (p.perUnit) {
+      return T("store.perunitfor").replace("{n}", units) + " \u00b7 " + pctText(window.FM_PRICING.pctFor(units));
+    }
     if (p.units) {
       var full = window.FM_PRICING.unitPrice * p.units;
-      return T("store.perpack") + " · " + T("store.save").replace("{amount}", money.format(full - p.price));
+      return T("store.perpack") + " \u00b7 " + pctText(p.pct) + " \u00b7 " + T("store.save").replace("{amount}", money.format(full - p.price));
     }
     return T("store.each");
   }
@@ -73,8 +79,10 @@
     card.appendChild(body);
 
     var foot = el("div", { class: "product-foot" });
-    var price = el("p", { class: "price" }, money.format(p.price));
-    price.appendChild(el("small", null, priceNote(p)));
+    var price = el("p", { class: "price" });
+    var priceNum = el("span");
+    var priceSmall = el("small");
+    price.appendChild(priceNum); price.appendChild(priceSmall);
     foot.appendChild(price);
 
     // Each control is described by the product name, so a screen reader's
@@ -87,9 +95,17 @@
     var minus = el("button", { type: "button", "aria-label": T("store.less"), "aria-describedby": title }, "−");
     var input = el("input", { id: qid, "data-qty": p.id, type: "number", inputmode: "numeric", min: String(min), max: String(p.maxQty), value: keep[qid] || String(min), "aria-label": T(p.perUnit ? "store.qtyunits" : "store.qty"), "aria-describedby": title });
     var plus = el("button", { type: "button", "aria-label": T("store.more"), "aria-describedby": title }, "+");
-    minus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || min) - 1)); });
-    plus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || 0) + 1)); });
-    input.addEventListener("change", function () { input.value = String(clamp(input.value)); });
+    minus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || min) - 1)); showPrice(); });
+    plus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || 0) + 1)); showPrice(); });
+    input.addEventListener("change", function () { input.value = String(clamp(input.value)); showPrice(); });
+    // The custom pack's price per unit changes with the number of units.
+    function showPrice() {
+      var units = p.perUnit ? clamp(input.value) : 1;
+      priceNum.textContent = money.format(window.FM_PRICE_EACH(p, units));
+      priceSmall.textContent = priceNote(p, units);
+    }
+    if (p.perUnit) input.addEventListener("input", showPrice);
+    showPrice();
     stepper.appendChild(minus); stepper.appendChild(input); stepper.appendChild(plus);
     var addId = "add-" + p.id;
     var add = el("button", { type: "button", id: addId, "aria-labelledby": addId + " " + title, class: "btn btn-line btn-small" }, T("store.add"));
@@ -102,6 +118,7 @@
       cart[p.id] = after;
       writeCart(cart);
       input.value = String(min);
+      showPrice();
       // Tell the buyer when the per-order cap kept some of the quantity out.
       var capKey = p.perUnit ? "store.maxunits" : (p.id === "unit" ? "store.max.unit" : "store.max");
       note.textContent = after - before < q ? T(capKey).replace("{n}", p.maxQty) : "";

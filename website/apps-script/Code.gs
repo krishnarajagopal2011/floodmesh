@@ -13,24 +13,36 @@
  *   KEY           a long random string, the same as ORDER_KEY on Vercel
  *   NOTIFY_EMAIL  where order notices go (optional)
  *
- * Prices are checked here against PRICES below, so a changed price in the
- * browser can't change what the Sheet records. Keep PRICES in step with
- * website/assets/js/products.js.
+ * Prices are worked out here from UNIT_PRICE, TIERS and PRICES below, so a
+ * changed price in the browser can't change what the Sheet records. Keep them
+ * in step with website/assets/js/products.js.
  */
 
 const SHEET_NAME = 'Pre-orders';
-const PRICES = {                  // rupees, per item (custom: per unit)
-  unit: 6900,
-  street: 62100,          // 10 units at 10% off
-  neighbourhood: 155250,  // 25 units at 10% off
-  area: 621000,           // 100 units at 10% off
-  custom: 6210,           // per unit, 10% off, quantity = units
+const UNIT_PRICE = 6900;
+// Volume discount: the rate for the number of units in one pack or custom pack.
+const TIERS = [[250, 30], [100, 25], [50, 20], [25, 15], [10, 10]];
+function pctFor_(units) {
+  for (const [min, pct] of TIERS) if (units >= min) return pct;
+  return 0;
+}
+/** Price of one unit when buying `units` together, rounded to the rupee. */
+function perUnit_(units) { return Math.round(UNIT_PRICE * (100 - pctFor_(units)) / 100); }
+
+const PRICES = {                  // rupees per item; custom is priced per unit by perUnit_
+  unit: UNIT_PRICE,
+  street: perUnit_(10) * 10,          // 10% off: 62,100
+  neighbourhood: perUnit_(25) * 25,   // 15% off: 1,46,625
+  ward: perUnit_(50) * 50,            // 20% off: 2,76,000
+  area: perUnit_(100) * 100,          // 25% off: 5,17,500
+  village: perUnit_(250) * 250,       // 30% off: 12,07,500
+  custom: null,
   antenna: 6500,
   cable: 750,
 };
-const UNITS_PER_ITEM = { unit: 1, street: 10, neighbourhood: 25, area: 100, custom: 1, antenna: 0, cable: 0 };
+const UNITS_PER_ITEM = { unit: 1, street: 10, neighbourhood: 25, ward: 50, area: 100, village: 250, custom: 1, antenna: 0, cable: 0 };
 const MIN_QTY = { custom: 10 };
-const MAX_QTY = { unit: 9, street: 10, neighbourhood: 10, area: 5, custom: 500, antenna: 20, cable: 20 };
+const MAX_QTY = { unit: 9, street: 10, neighbourhood: 10, ward: 10, area: 5, village: 4, custom: 500, antenna: 20, cable: 20 };
 const MAX_PER_PHONE_PER_HOUR = 5;
 const FLOOD_PER_10_MIN = 30;      // beyond this, rows are marked "Check" and no email is sent
 
@@ -71,7 +83,7 @@ function doPost(e) {
     const items = order.items.map(function (it) {
       const qty = Number(it.qty);
       units += qty * UNITS_PER_ITEM[it.id];
-      total += PRICES[it.id] * qty;
+      total += (it.id === 'custom' ? perUnit_(qty) : PRICES[it.id]) * qty;
       return qty + ' x ' + it.id;
     }).join(', ');
 

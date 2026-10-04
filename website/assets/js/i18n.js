@@ -9,7 +9,7 @@ window.FM_I18N = {
     "media.product": "Product photo to come",
 
     "store.group.units": "Units",
-    "store.group.packs": "Packs: 10% off every unit",
+    "store.group.packs": "Packs: 10% to 30% off, rising with the number of units",
     "store.group.accessories": "Accessories",
 
     "p.unit.name": "FloodMesh unit",
@@ -17,7 +17,7 @@ window.FM_I18N = {
     "p.unit.b1": "SOS with five kinds of help",
     "p.unit.b2": "Keypad for short messages",
     "p.unit.b3": "In the box: unit, antenna and quick-start guide",
-    "p.unit.hint": "Need 10 or more? Packs are 10% off.",
+    "p.unit.hint": "Need 10 or more? Packs are 10% to 30% off.",
 
     "p.street.name": "Street pack",
     "p.street.badge": "10 units",
@@ -29,21 +29,35 @@ window.FM_I18N = {
     "p.neighbourhood.name": "Neighbourhood pack",
     "p.neighbourhood.badge": "25 units",
     "p.neighbourhood.tagline": "For an apartment complex or a few streets.",
-    "p.neighbourhood.b1": "25 units at 10% off",
+    "p.neighbourhood.b1": "25 units at 15% off",
     "p.neighbourhood.b2": "Each in its own box with antenna and quick-start guide",
     "p.neighbourhood.b3": "Add rooftop antennas to reach further",
 
     "p.area.name": "Area pack",
     "p.area.badge": "100 units",
-    "p.area.tagline": "For a colony, ward or village.",
-    "p.area.b1": "100 units at 10% off",
+    "p.area.tagline": "For a colony or a ward.",
+    "p.area.b1": "100 units at 25% off",
     "p.area.b2": "Each in its own box with antenna and quick-start guide",
     "p.area.b3": "Some units can be set up for your local rescue team",
+
+    "p.ward.name": "Ward pack",
+    "p.ward.badge": "50 units",
+    "p.ward.tagline": "For a large apartment complex or several streets.",
+    "p.ward.b1": "50 units at 20% off",
+    "p.ward.b2": "Each in its own box with antenna and quick-start guide",
+    "p.ward.b3": "Add rooftop antennas to reach further",
+
+    "p.village.name": "Village pack",
+    "p.village.badge": "250 units",
+    "p.village.tagline": "For a village, a large colony or a whole ward.",
+    "p.village.b1": "250 units at 30% off",
+    "p.village.b2": "Each in its own box with antenna and quick-start guide",
+    "p.village.b3": "Some units can be set up for your local rescue team",
 
     "p.custom.name": "Custom pack",
     "p.custom.badge": "10 units or more",
     "p.custom.tagline": "Choose exactly how many units you need.",
-    "p.custom.b1": "Any number from 10 units, at 10% off",
+    "p.custom.b1": "Any number from 10 units: 10% off from 10, 15% from 25, 20% from 50, 25% from 100, 30% from 250",
     "p.custom.b2": "Each in its own box with antenna and quick-start guide",
 
     "p.antenna.name": "Rooftop antenna",
@@ -58,7 +72,8 @@ window.FM_I18N = {
 
     "store.each": "each",
     "store.perpack": "per pack",
-    "store.perunitpack": "per unit, units chosen below",
+    "store.perunitfor": "per unit for {n} units",
+    "store.pct": "{pct}% off",
     "store.save": "You save {amount}",
     "store.qty": "Quantity",
     "store.qtyunits": "Number of units",
@@ -69,7 +84,7 @@ window.FM_I18N = {
     "store.remove": "Remove",
     "store.units": "{n} units",
     "store.max": "Up to {n} per order.",
-    "store.max.unit": "Up to {n} single units per order. Packs are 10% off for 10 or more.",
+    "store.max.unit": "Up to {n} single units per order. Packs of 10 or more are 10% to 30% off.",
     "store.maxunits": "Up to {n} units per order.",
 
     "form.sending": "Sending...",

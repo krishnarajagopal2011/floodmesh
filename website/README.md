@@ -9,7 +9,7 @@ and needs a native speaker's check before launch). No build step and no librarie
 | `index.html`, `store.html`, `privacy.html` | The pages. English text is written in the HTML |
 | `assets/css/site.css` | All styling, light and dark |
 | `assets/js/config.js` | **Settings to go live**: preview flag, order endpoint, contact details |
-| `assets/js/products.js` | Products and prices: ₹6,900 a unit, packs of 10, 25, 100 or any number from 10 at 10% off, rooftop antenna ₹6,500, longer antenna cable ₹750 |
+| `assets/js/products.js` | Products and prices: ₹6,900 a unit; volume discount 10% (10–24 units), 15% (25–49), 20% (50–99), 25% (100–249), 30% (250+), for packs of 10, 25, 50, 100 and 250 and custom packs from 10; rooftop antenna ₹6,500, longer antenna cable ₹750 |
 | `assets/js/i18n.js` | Tamil and Hindi text, and English text the scripts create |
 | `assets/js/site.js`, `store.js` | Language switch, cart, order form |
 | `api/preorder.js` | Vercel function that passes pre-orders to the Sheet script with a secret key |
