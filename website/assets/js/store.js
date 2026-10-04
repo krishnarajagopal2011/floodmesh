@@ -85,9 +85,12 @@
 
     var foot = el("div", { class: "product-foot" });
     var price = el("p", { class: "price", "aria-live": "polite", "aria-atomic": "true" });
+    // The full price, struck through, when a pack's discount applies. Screen readers
+    // skip it and hear the saving in the line underneath instead.
+    var was = el("s", { class: "was", "aria-hidden": "true" });
     var priceNum = el("span");
     var priceSmall = el("small");
-    price.appendChild(priceNum); price.appendChild(priceSmall);
+    price.appendChild(was); price.appendChild(priceNum); price.appendChild(priceSmall);
     foot.appendChild(price);
 
     // Each control is described by the product name, so a screen reader's
@@ -111,6 +114,9 @@
       var qty = clamp(input.value);
       var each = window.FM_PRICE_EACH(p, qty);
       var total = each * qty;
+      var full = window.FM_PRICING.unitPrice * (p.perUnit ? qty : (p.units || 0) * qty);
+      was.textContent = full > total ? money.format(full) : "";
+      was.hidden = !(full > total);
       priceNum.textContent = money.format(total);
       priceSmall.textContent = priceNote(p, qty, each);
       if (shown !== null && shown !== total) {

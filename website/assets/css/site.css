@@ -34,8 +34,8 @@
   --step-3: clamp(1.9rem, 2.2vw + 1.2rem, 2.6rem);
   --step-4: clamp(2.4rem, 4.6vw + 1rem, 4.4rem);
 
-  --gutter: clamp(16px, 4vw, 40px);
-  --wrap: 1160px;
+  --gutter: clamp(16px, 4vw, 56px);
+  --wrap: 1440px;
   --radius: 6px;
 }
 
@@ -154,6 +154,7 @@ p { margin: 0; }
   border-bottom: 1px solid var(--line);
 }
 .site-head .wrap {
+  max-width: none;   /* the header runs edge to edge; the content below keeps --wrap */
   display: flex;
   align-items: center;
   gap: 12px 24px;
@@ -173,17 +174,10 @@ p { margin: 0; }
   font-size: 1.35rem;
   letter-spacing: -0.01em;
 }
-.brand-mark {
-  width: 14px;
-  height: 28px;
-  border: 2px solid var(--ink);
-  border-radius: 2px;
-  background:
-    linear-gradient(to top, var(--water) 0 45%, transparent 45%),
-    repeating-linear-gradient(to top, transparent 0 5px, var(--ink) 5px 6px);
-  background-size: 100% 100%, 50% 100%;
-  background-repeat: no-repeat;
-}
+.brand-mark { flex: none; width: 30px; height: 30px; color: var(--ink); }   /* four units, all linked: a mesh */
+.brand-mark .l { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.brand-mark .n { fill: var(--water); }
+.brand-mark .s { fill: var(--sos); }
 .brand small {
   font-family: var(--body);
   font-weight: 400;
@@ -229,16 +223,60 @@ p { margin: 0; }
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-@media (max-width: 760px) {
-  /* On phones the wrapped header is 140-185px tall; let it scroll away. */
-  .site-head { position: static; }
-  html { scroll-padding-top: 12px; }
-  .nav { order: 3; width: 100%; margin-left: 0; gap: 4px 16px; }
+.menu-btn { display: none; }
+/* Tablets: logo, language and pre-order on the first row, the links on a second row.
+   One row needs about 940px in English and Hindi and 1250px in Tamil. */
+@media (max-width: 959px) {
+  .nav { order: 3; width: 100%; margin-left: 0; gap: 4px 20px; }
   .head-tools { margin-left: auto; }
-  .cart-link { white-space: nowrap; }
 }
-@media (max-width: 360px) {
+@media (max-width: 1259px) {
+  html:lang(ta) .nav { order: 3; width: 100%; margin-left: 0; gap: 4px 20px; }
+  html:lang(ta) .head-tools { margin-left: auto; }
+}
+/* Phones: one row (logo, language, menu button); the links and the pre-order button
+   open under it. Without JavaScript (no .js on <html>) the links simply show. */
+@media (max-width: 760px) {
+  .cart-link { white-space: nowrap; }
+  .js .site-head .wrap { gap: 8px; min-height: 56px; }
+  .js .head-tools { display: contents; }
+  .js .lang { order: 1; margin-left: auto; }
+  .js .menu-btn {
+    order: 2;
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .js .menu-btn svg { width: 20px; height: 20px; }
+  .js .menu-btn .x { display: none; }
+  .js .menu-open .menu-btn .bars { display: none; }
+  .js .menu-open .menu-btn .x { display: block; }
+  .js .nav, .js .cart-link { display: none; }
+  .js .menu-open .nav {
+    display: grid;
+    order: 3;
+    width: 100%;
+    margin: 0;
+    gap: 0;
+    border-top: 1px solid var(--line);
+    padding-top: 4px;
+  }
+  .js .menu-open .nav a { padding: 10px 2px; border-bottom: 1px solid var(--line); font-size: 1.05rem; }
+  .js .menu-open .cart-link { display: inline-flex; order: 4; width: 100%; justify-content: center; margin-bottom: 8px; }
+  html:not(.js) .nav { order: 3; width: 100%; margin-left: 0; gap: 4px 16px; }
+  html:not(.js) .site-head { position: static; }
+  html:not(.js) .head-tools { margin-left: auto; }
+}
+@media (max-width: 400px) {
   .head-tools { gap: 6px; }
+  .brand { font-size: 1.25rem; gap: 7px; }
+  .brand-mark { width: 26px; height: 26px; }
   .lang button { padding: 4px 8px; }
   .cart-link.btn-small { padding-inline: 10px; }
 }
@@ -305,6 +343,7 @@ p { margin: 0; }
   font-weight: 600;
   color: color-mix(in srgb, var(--ink) 85%, transparent);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   transform: translateY(-50%);
 }
 .gauge .danger {
@@ -350,8 +389,14 @@ p { margin: 0; }
   content: "";
   position: absolute;
   inset: 0;
+  --x0: max(var(--gutter), calc((100% - var(--wrap)) / 2 + var(--gutter)));   /* where the gauge and text start */
   background:
-    linear-gradient(90deg, var(--paper) 0%, var(--paper) 34%, color-mix(in srgb, var(--paper) 70%, transparent) 46%, color-mix(in srgb, var(--paper) 15%, transparent) 62%, transparent 75%);
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--paper) 55%, transparent) 0,
+      color-mix(in srgb, var(--paper) 86%, transparent) var(--x0),
+      color-mix(in srgb, var(--paper) 86%, transparent) calc(var(--x0) + 620px),
+      color-mix(in srgb, var(--paper) 40%, transparent) calc(var(--x0) + 840px),
+      transparent calc(var(--x0) + 1080px));
 }
 .hero.has-photo .wrap, .hero.has-photo .gauge { position: relative; z-index: 1; }
 .hero.has-photo .gauge { position: absolute; }
@@ -734,6 +779,7 @@ p { margin: 0; }
 }
 .price small { display: block; font-family: var(--body); font-weight: 400; font-size: 0.75rem; color: var(--muted); }
 .price span { display: inline-block; transform-origin: left center; }
+.price .was { margin-right: 8px; font-size: 0.62em; font-weight: 500; color: var(--muted); text-decoration-thickness: 2px; }
 @media (prefers-reduced-motion: no-preference) {
   .price.bump span { animation: price-bump 0.4s ease-out; }
 }

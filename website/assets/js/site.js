@@ -181,8 +181,28 @@
     if ("ResizeObserver" in window) new ResizeObserver(setH).observe(head);
   }
 
+  /* Phone menu: the links and the pre-order button open under the header (site.css, max-width 760px). */
+  function setupMenu() {
+    var head = document.querySelector(".site-head");
+    var btn = document.querySelector(".menu-btn");
+    if (!head || !btn) return;
+    var set = function (open) {
+      head.classList.toggle("menu-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    btn.addEventListener("click", function () { set(!head.classList.contains("menu-open")); });
+    head.addEventListener("click", function (e) { if (e.target.closest(".nav a, .cart-link")) set(false); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && head.classList.contains("menu-open")) { set(false); btn.focus(); }
+    });
+    var wide = window.matchMedia("(min-width: 761px)");
+    var onWide = function () { if (wide.matches) set(false); };
+    if (wide.addEventListener) wide.addEventListener("change", onWide); else if (wide.addListener) wide.addListener(onWide);
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     var c = window.FM_CONFIG || {};
+    setupMenu();
     document.querySelectorAll("[data-preview-only]").forEach(function (el) {
       el.hidden = !c.preview;
     });

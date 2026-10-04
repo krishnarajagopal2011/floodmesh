@@ -8,11 +8,12 @@
 <meta property="og:title" content="Pre-order FloodMesh">
 <meta property="og:image" content="/assets/img/og.png">
 <meta name="theme-color" content="#102530">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 32'%3E%3Crect x='1' y='1' width='14' height='30' rx='2' fill='%23fbfdfd' stroke='%23102530' stroke-width='2'/%3E%3Crect x='2' y='18' width='12' height='12' fill='%231d6a85'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23102530'/%3E%3Cpath d='M8 10 23 7 25 22 9 24ZM8 10 25 22M23 7 9 24' stroke='%23e3ecef' stroke-width='2.4' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='8' cy='10' r='4' fill='%23ff8a3d'/%3E%3Ccircle cx='23' cy='7' r='3.8' fill='%2363b4d0'/%3E%3Ccircle cx='25' cy='22' r='3.8' fill='%2363b4d0'/%3E%3Ccircle cx='9' cy='24' r='3.8' fill='%2363b4d0'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wdth,wght@75..125,400..800&family=Anek+Latin:wdth,wght@75..125,400..800&family=Anek+Tamil:wdth,wght@75..125,400..800&family=Hind+Madurai:wght@400;500;600&family=Hind:wght@400;500;600&family=VT323&display=swap">
 <link rel="stylesheet" href="assets/css/site.css">
+<script src="assets/js/head.js"></script>
 </head>
 <body>
 <a class="skip" href="#main" data-i18n="a11y.skip">Skip to content</a>
@@ -20,10 +21,10 @@
 <header class="site-head">
   <div class="wrap">
     <a class="brand" href="index.html" aria-label="FloodMesh home">
-      <span class="brand-mark" aria-hidden="true"></span>
+      <svg class="brand-mark" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true" focusable="false"><path class="l" d="M6 9 24 5 27 23 8 26ZM6 9 27 23M24 5 8 26"/><circle class="s" cx="6" cy="9" r="4.6"/><circle class="n" cx="24" cy="5" r="4.4"/><circle class="n" cx="27" cy="23" r="4.4"/><circle class="n" cx="8" cy="26" r="4.4"/></svg>
       <span>FloodMesh</span>
     </a>
-    <nav class="nav" aria-label="Main">
+    <nav class="nav" id="main-nav" aria-label="Main">
       <a href="index.html" data-i18n="foot.home">Home</a>
       <a href="index.html#how" data-i18n="nav.how">How it works</a>
       <a href="index.html#who" data-i18n="nav.who">Who it's for</a>
@@ -37,6 +38,7 @@
         <button type="button" data-lang="hi" aria-pressed="false" lang="hi">हिंदी</button>
       </div>
       <a class="btn btn-sos btn-small cart-link" href="#order"><span data-i18n="store.yourorder">Your pre-order</span><span class="count" data-cart-count hidden>0</span></a>
+      <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav"><svg class="bars" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><svg class="x" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5 5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="visually-hidden" data-i18n="nav.menu">Menu</span></button>
     </div>
   </div>
 </header>
