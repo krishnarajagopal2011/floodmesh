@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FloodMesh</title>
+<meta name="description" content="FloodMesh is a rugged messenger for floods. It sends an SOS and short messages house to house when the mobile network, internet and power are down. Pre-orders open.">
+<meta property="og:title" content="FloodMesh: your street still talks when the towers go dark">
+<meta property="og:description" content="A rugged messenger for floods. SOS and short messages house to house, with no mobile network, internet or power grid.">
+<meta property="og:image" content="/assets/img/og.jpg">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#102530">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 32'%3E%3Crect x='1' y='1' width='14' height='30' rx='2' fill='%23fbfdfd' stroke='%23102530' stroke-width='2'/%3E%3Crect x='2' y='18' width='12' height='12' fill='%231d6a85'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Devanagari:wdth,wght@75..125,400..800&family=Anek+Latin:wdth,wght@75..125,400..800&family=Anek+Tamil:wdth,wght@75..125,400..800&family=Hind+Madurai:wght@400;500;600&family=Hind:wght@400;500;600&family=VT323&display=swap">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="a11y.skip">Skip to content</a>
+<div class="ribbon" data-preview-ribbon hidden data-i18n="preview.ribbon">Preview: prices are placeholders and no order is sent.</div>
+
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="FloodMesh home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>FloodMesh <small data-i18n="brand.by">by DVerse Labs</small></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#how" data-i18n="nav.how">How it works</a>
+      <a href="#who" data-i18n="nav.who">Who it's for</a>
+      <a href="#tests" data-i18n="nav.tests">Field tests</a>
+      <a href="#faq" data-i18n="nav.faq">Questions</a>
+    </nav>
+    <div class="head-tools">
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="ta" aria-pressed="false" lang="ta">தமிழ்</button>
+        <button type="button" data-lang="hi" aria-pressed="false" lang="hi">हिंदी</button>
+      </div>
+      <a class="btn btn-sos btn-small cart-link" href="store.html"><span data-i18n="nav.preorder">Pre-order</span><span class="count" data-cart-count hidden>0</span></a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="gauge" aria-hidden="true">
+      <span style="top: 18%">2.0</span>
+      <span style="top: 36%">1.5</span>
+      <span style="top: 54%">1.0</span>
+      <span class="danger" style="top: 62%"></span>
+      <span class="danger-label" style="top: 62%" data-i18n="hero.danger">DANGER LEVEL</span>
+      <span style="top: 72%">0.5</span>
+      <span style="top: 90%">0 m</span>
+    </div>
+    <div class="wrap">
+      <div>
+        <p class="eyebrow" data-i18n="hero.eyebrow">Pre-orders open · Ships after certification</p>
+        <h1 id="hero-title" data-i18n="hero.title">When the towers go dark, your street still talks.</h1>
+        <p class="lede" data-i18n="hero.lede">FloodMesh is a small, rugged messenger for floods. It sends an SOS and short messages from house to house, with no mobile network, no internet and no power grid.</p>
+        <div class="ctas">
+          <a class="btn btn-sos" href="store.html" data-i18n="hero.cta">Pre-order for your home</a>
+          <a class="btn btn-line" href="#how" data-i18n="hero.cta2">See how it works</a>
+        </div>
+        <p class="note" data-i18n="hero.note">No payment now. We call to confirm before anything ships.</p>
+      </div>
+      <figure class="unit-figure">
+        <div class="unit" aria-label="A FloodMesh unit with its screen showing HELP IS COMING">
+          <div class="screen" data-screen aria-live="off">
+            <span class="line"><span class="inv">SOS</span> MEDICAL</span>
+            <span class="line">DELIVERED</span>
+            <span class="line big">HELP IS COMING</span>
+          </div>
+          <div class="keys" aria-hidden="true">
+            <span>1</span><span>2</span><span>3</span><span>A</span>
+            <span>4</span><span>5</span><span>6</span><span>B</span>
+            <span>7</span><span>8</span><span>9</span><span>C</span>
+            <span class="hot pulse">*</span><span>0</span><span class="hot pulse">#</span><span>D</span>
+          </div>
+        </div>
+        <figcaption data-i18n="hero.caption">Illustration. Hold * and # for three seconds to send an SOS.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section story" aria-labelledby="story-title">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow" data-i18n="story.eyebrow">Why we are building it</p>
+        <h2 id="story-title" class="section-title" style="font-size: var(--step-3); margin-top: 12px;" data-i18n="story.title">The phone network and the power failed together.</h2>
+        <div class="dates">
+          <div class="date"><strong>2015</strong><p data-i18n="story.2015">Chennai floods. Mobile towers and power failed together. Neighbours 200 m apart could not tell each other they were safe.</p></div>
+          <div class="date"><strong>2023</strong><p data-i18n="story.2023">Cyclone Michaung. It happened again: no network, no power, and no way to call for help from a flooded street.</p></div>
+        </div>
+      </div>
+      <div class="measure">
+        <figure class="media-slot" data-asset="story-scene">
+          <span class="tag" data-i18n="media.story">Illustration: a flooded street at dusk (to come)</span>
+        </figure>
+        <p style="margin-top: 20px;" data-i18n="story.body1">Phones need a tower. Towers need power and a link back to the network, and in a flood all three fail at once.</p>
+        <p style="margin-top: 14px;" data-i18n="story.body2">FloodMesh needs none of them. Each unit passes messages to the next, so a call for help can travel down a street and around buildings until it reaches a rescue team.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow" data-i18n="how.eyebrow">How it works</p>
+        <h2 id="how-title" data-i18n="how.title">Three steps from trouble to help</h2>
+      </div>
+      <ol class="steps">
+        <li>
+          <h3 data-i18n="how.s1.title">Hold SOS and pick the help you need</h3>
+          <p data-i18n="how.s1.body">Hold two keys for three seconds. Then press one number: medical, evacuation, hazard, food, or general. If you can't choose, it sends a general SOS by itself.</p>
+        </li>
+        <li>
+          <h3 data-i18n="how.s2.title">Units nearby pass it on</h3>
+          <p data-i18n="how.s2.body">Every FloodMesh unit in your area carries your SOS one step further, house to house, until it reaches a rescue team's unit.</p>
+        </li>
+        <li>
+          <h3 data-i18n="how.s3.title">Rescuers answer</h3>
+          <p data-i18n="how.s3.body">The rescue team sees your address and the help you need. Your screen shows DELIVERED, then HELP IS COMING when someone is on the way.</p>
+        </li>
+      </ol>
+      <div class="street" aria-hidden="true">
+        <span class="hop"></span>
+        <div class="house from" style="height: 70px"></div>
+        <div class="house" style="height: 96px"></div>
+        <div class="house" style="height: 58px"></div>
+        <div class="house" style="height: 110px"></div>
+        <div class="house" style="height: 76px"></div>
+        <div class="house to" style="height: 64px"></div>
+        <span class="lbl l" data-i18n="how.street.from">Your home</span>
+        <span class="lbl r" data-i18n="how.street.to">Rescue team</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="does-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow" data-i18n="does.eyebrow">What it does</p>
+        <h2 id="does-title" data-i18n="does.title">Built for the worst week of the year</h2>
+      </div>
+      <div class="features">
+        <div class="feature"><h3 data-i18n="f1.title">SOS with the help you need</h3><p data-i18n="f1.body">Medical, evacuation, hazard, food or general, so rescue teams can send the right people first.</p></div>
+        <div class="feature"><h3 data-i18n="f2.title">Short messages to neighbours</h3><p data-i18n="f2.body">Type up to 60 characters on the keypad, in English or Tanglish. Everyone nearby can read them and help.</p></div>
+        <div class="feature"><h3 data-i18n="f3.title">No SIM, no internet, no towers</h3><p data-i18n="f3.body">Units talk directly to each other. Nothing to subscribe to and nothing that fails when the network does.</p></div>
+        <div class="feature"><h3 data-i18n="f4.title">Plug in to keep your street connected</h3><p data-i18n="f4.body">A unit on solar or a power bank stays awake and carries messages for everyone around it.</p></div>
+        <div class="feature"><h3 data-i18n="f5.title">Rescuers know where you are</h3><p data-i18n="f5.body">Each unit is linked to its home's address, so a rescue team sees the house, not a code.</p></div>
+        <div class="feature"><h3 data-i18n="f6.title">Ready out of the box</h3><p data-i18n="f6.body">Charge it with any phone charger and keep it somewhere you can reach. Designed to last for days on one charge.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tests" id="tests" aria-labelledby="tests-title">
+    <div class="wrap">
+      <div class="section-head" style="margin-bottom: 0;">
+        <p class="eyebrow" data-i18n="tests.eyebrow">Field tests</p>
+        <h2 id="tests-title" data-i18n="tests.title">Tested on real streets, results in public</h2>
+        <p data-i18n="tests.body">We test outdoors, at street level, and share every result, good or bad. These are early numbers from September 2026; rooftop units are next and should reach much further.</p>
+      </div>
+      <div class="readings">
+        <div class="reading"><strong>350 m</strong><span data-i18n="tests.r1">Between two units held at street level, with buildings around.</span></div>
+        <div class="reading"><strong>550 m</strong><span data-i18n="tests.r2">The same street, with a third unit passing the message along.</span></div>
+        <div class="reading"><strong>4</strong><span data-i18n="tests.r3">Units in our first full test. The SOS reached the rescue unit; text messages showed a weakness we are now working on.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="who" aria-labelledby="who-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow" data-i18n="who.eyebrow">Who it's for</p>
+        <h2 id="who-title" data-i18n="who.title">One street works better than one house</h2>
+        <p data-i18n="who.body">FloodMesh gets stronger with every unit nearby. The best start is a whole lane, apartment block or colony.</p>
+      </div>
+      <div class="audiences">
+        <article class="aud"><h3 data-i18n="who.home.title">Homes</h3><p data-i18n="who.home.body">One unit per household, kept by the door with the torch and the documents.</p><a href="store.html#household" data-i18n="who.home.link">Household unit</a></article>
+        <article class="aud"><h3 data-i18n="who.rwa.title">Apartments and residents' associations</h3><p data-i18n="who.rwa.body">A pack for the whole colony, with rooftop units that keep everyone connected.</p><a href="store.html#community" data-i18n="who.rwa.link">Community pack</a></article>
+        <article class="aud"><h3 data-i18n="who.ngo.title">Rescue teams and NGOs</h3><p data-i18n="who.ngo.body">Responder units that receive SOS calls, show addresses and send "Help is coming".</p><a href="store.html#responder" data-i18n="who.ngo.link">Responder kit</a></article>
+        <article class="aud"><h3 data-i18n="who.csr.title">CSR and government partners</h3><p data-i18n="who.csr.body">Equip a flood-prone ward or village. We'll plan it with you.</p><a href="#contact" data-i18n="who.csr.link">Talk to us</a></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow" data-i18n="faq.eyebrow">Questions</p>
+        <h2 id="faq-title" data-i18n="faq.title">Before you pre-order</h2>
+      </div>
+      <div class="faq">
+        <details><summary data-i18n="faq.q1">Do I need a phone, SIM or internet?</summary><p data-i18n="faq.a1">No. FloodMesh units talk to each other directly. You don't need a phone to send an SOS or a message.</p></details>
+        <details><summary data-i18n="faq.q2">What happens when the power is out?</summary><p data-i18n="faq.a2">The unit runs on its own rechargeable battery and sleeps until a message arrives or you press a key. Charge it from any USB-C phone charger or power bank.</p></details>
+        <details><summary data-i18n="faq.q3">Who can read my messages?</summary><p data-i18n="faq.a3">Short messages are public: anyone nearby with a unit can read them, so neighbours can help. An SOS is shown only on rescue team units. Don't send anything you want to keep private.</p></details>
+        <details><summary data-i18n="faq.q4">How far does it reach?</summary><p data-i18n="faq.a4">It depends on buildings, height and how many units are nearby. Each unit passes messages on, so the more homes in your area have one, the further a message travels. See our field tests for measured numbers.</p></details>
+        <details><summary data-i18n="faq.q5">When will it ship?</summary><p data-i18n="faq.a5">After the radio equipment approval and battery safety registration required in India are complete. We will tell everyone who pre-ordered as soon as we have a date.</p></details>
+        <details><summary data-i18n="faq.q6">Do I pay now? Can I cancel?</summary><p data-i18n="faq.a6">You pay nothing now. We call you to confirm before anything ships, and you can cancel a pre-order at any time before that.</p></details>
+        <details><summary data-i18n="faq.q7">Which languages does the unit use?</summary><p data-i18n="faq.a7">The screen is in English. You can type messages in English or in Tanglish (Tamil in English letters).</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band" id="contact" aria-labelledby="cta-title">
+    <div class="wrap">
+      <div>
+        <h2 id="cta-title" data-i18n="cta.title">Get your street ready before the next monsoon</h2>
+        <p data-i18n="cta.body">Pre-order for your home, or talk to us about your colony, NGO or ward.</p>
+        <p data-contact hidden></p>
+      </div>
+      <a class="btn btn-sos" href="store.html" data-i18n="cta.button">Go to the store</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <p data-i18n="foot.copy">© 2026 DVerse Labs. FloodMesh is in development and has not yet been certified for sale.</p>
+    <nav aria-label="Footer">
+      <a href="store.html" data-i18n="foot.store">Store</a>
+      <a href="privacy.html" data-i18n="foot.privacy">Privacy and pre-order terms</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/site.js"></script>
+</body>
+</html>
