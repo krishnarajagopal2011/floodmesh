@@ -108,6 +108,27 @@ Put files in `assets/img/`.
 | `og.png` (1200 × 630) | Share image for WhatsApp, X and LinkedIn. A placeholder card is there now | Real photo + wordmark |
 | Hero (optional) | Short loop of a real field test, 6–10 s, no sound | **Real video** |
 
+### Prompts for AI scenes (illustrations only)
+
+For Higgsfield, or any image or video generator. Never show the FloodMesh
+unit itself in AI output: product shots must be real photos. Label every
+result "Illustration" on the page. Drop finished files into the Google Drive
+folder "FloodMesh website" and they can be placed from there.
+
+- `story-scene` (still, 4:3): "Photorealistic dusk scene in a residential
+  street in Chennai during a monsoon flood, knee-deep brown water, two- and
+  three-storey concrete houses with balconies, power out, one window lit by
+  a small torch, light rain, overcast sky, no people's faces, documentary
+  photography, natural colours."
+- Hero background loop (video, 6-8 s, 16:9, no sound, optional): "Slow aerial
+  drift over a flooded Chennai neighbourhood at blue hour, rooftops and
+  water tanks above the water line, a few lit windows, light rain,
+  calm and quiet, documentary style, no text, no people close up."
+- Rooftop mood (still, 16:9): "A terrace in a Chennai apartment block at
+  dawn after heavy rain, small solar panel and a water tank, wet floor,
+  clouds breaking, documentary photography." (Leave space on the right; a
+  real photo of the rooftop unit goes on the product card, not here.)
+
 Photos: at least 2000 px on the long side, daylight or a lit room, the unit's
 screen on. Don't show the inside of the unit or any circuit board.
 
