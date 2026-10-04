@@ -85,6 +85,8 @@ allowed domains (levels: https://code.claude.com/docs/en/claude-code-on-the-web)
 | Gazette and regulatory text | `dot.gov.in`, `dms.dot.gov.in`, `thc.nic.in`, `egazette.gov.in`, `tec.gov.in`, `saralsanchar.gov.in` |
 | Legal and consultancy summaries | `legalitysimplified.com`, `legitquest.com`, `pcnindiaglobal.com`, `sunren.net`, `thejeshgn.com` |
 | Local firmware and app builds | the PlatformIO registry, `dl.google.com` |
+| Coverage planner maps and search (browser tests) | `tile.openstreetmap.org`, `nominatim.openstreetmap.org`, `overpass-api.de`, `server.arcgisonline.com`, `*.basemaps.cartocdn.com` |
+| Vercel deploys from the sandbox (also needs a `VERCEL_TOKEN` environment variable) | `vercel.com`, `api.vercel.com`, `*.vercel.app` |
 
 Until they are allowed, ask the owner to download a gazette PDF and commit it
 to `docs/reference/`.
