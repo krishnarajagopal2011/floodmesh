@@ -525,7 +525,7 @@ p { margin: 0; }
   border: 1px solid var(--line);
 }
 .media-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.media-slot img.product-photo { object-fit: contain; background: #eef1f2; }   /* whole unit, on a light studio background */
+.media-slot img.product-photo { object-fit: contain; background: #fdfdfd; }   /* whole unit, on the render's own white */
 .media-slot .tag {
   position: relative;
   margin: 12px;

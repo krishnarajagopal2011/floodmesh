@@ -22,9 +22,9 @@ window.FM_PRICING = (function () {
 })();
 
 window.FM_PRODUCTS = (function (P) {
-  // Product picture of the unit, used on the unit and pack cards. The first file
-  // that exists is shown; if none does, the card keeps its placeholder.
-  var UNIT_IMG = ["assets/img/unit.png", "assets/img/unit.jpg", "assets/img/unit.webp"];
+  // Product picture of the unit (a render, owner's decision 4 Oct), used on the
+  // unit and pack cards. If it fails to load, the card keeps its placeholder.
+  var UNIT_IMG = ["assets/img/unit.webp"];
   function pack(id, units, maxQty) {
     return { id: id, group: "packs", units: units, pct: P.pctFor(units), price: P.perUnit(units) * units, minQty: 1, maxQty: maxQty, bullets: 3, media: "product-" + id, image: UNIT_IMG };
   }
