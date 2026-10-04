@@ -1,0 +1,22 @@
+# Dependencies and build output (regenerable)
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local embedded database (PGlite) - test data only
+.pglite/
+
+# Secrets: every .env file except the placeholder template
+.env*
+!.env.example
+
+# Vercel CLI link
+.vercel/
+
+# Logs
+npm-debug.log*
+*.log
+
+.vercel

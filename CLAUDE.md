@@ -49,6 +49,11 @@ Two boards exist. Check which one a change targets.
   "Cloud sandbox network" below). raw.githubusercontent.com and
   api.github.com are reachable: use them to read library headers and CI run
   status.
+- **Coverage planner** (`webapp/coverage-planner/`, Next.js like the field
+  logger): plans unit placement, coverage and cost over OpenStreetMap by
+  constituency, locality or drawn area; `/admin` (password) edits the cost
+  sheet. The radio model in `lib/radio.ts` is fitted to `docs/field-tests.md`;
+  refit it when new field results come in. Read its `README.md`.
 - BLE role registration: protocol `docs/ble-provisioning-protocol.md`, unit side
   `src/fm_prov.cpp` + `src/fm_role.cpp`, admin app `app/floodmesh_admin/`
   (Flutter). Change the protocol doc first, then both sides.
