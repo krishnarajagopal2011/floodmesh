@@ -115,11 +115,15 @@ unit itself in AI output: product shots must be real photos. Label every
 result "Illustration" on the page. Drop finished files into the Google Drive
 folder "FloodMesh website" and they can be placed from there.
 
-- `story-scene` (still, 4:3): "Photorealistic dusk scene in a residential
-  street in Chennai during a monsoon flood, knee-deep brown water, two- and
-  three-storey concrete houses with balconies, power out, one window lit by
-  a small torch, light rain, overcast sky, no people's faces, documentary
-  photography, natural colours."
+- Water level: the owner wants severe floods, not knee-deep water. Add to
+  every flood prompt: "ground floors completely submerged, brown floodwater
+  up to the first-floor balconies and window sills, compound walls and
+  gates fully under water, only upper storeys and roofs above the water".
+- `story-scene` (still, 16:9 or 4:3): "Documentary photograph of a
+  residential lane in Chennai in a severe flood at dusk, [water level as
+  above], flat-roofed concrete houses with square metal grill balconies, a
+  warm torch-lit upstairs window, light rain, overcast sky, no people, no
+  text, natural colours." No caption on the page.
 - Hero background loop (video, 6-8 s, 16:9, no sound, optional): "Slow aerial
   drift over a flooded Chennai neighbourhood at blue hour, rooftops and
   water tanks above the water line, a few lit windows, light rain,
