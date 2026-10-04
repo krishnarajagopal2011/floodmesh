@@ -42,16 +42,21 @@
 
   function pctText(pct) { return T("store.pct").replace("{pct}", pct); }
 
-  /** The small line under a price. For a custom pack it depends on the units chosen. */
-  function priceNote(p, units) {
+  function saveText(amount) { return T("store.save").replace("{amount}", money.format(amount)); }
+
+  /** The small line under a price: how the total for `qty` is made up, and
+      the saving on packs. `each` is the price of one item at that quantity. */
+  function priceNote(p, qty, each) {
+    var unitPrice = window.FM_PRICING.unitPrice;
     if (p.perUnit) {
-      return T("store.perunitfor").replace("{n}", units) + " \u00b7 " + pctText(window.FM_PRICING.pctFor(units));
+      return T("store.units").replace("{n}", qty) + " \u00d7 " + money.format(each) + " \u00b7 " +
+        pctText(window.FM_PRICING.pctFor(qty)) + " \u00b7 " + saveText((unitPrice - each) * qty);
     }
     if (p.units) {
-      var full = window.FM_PRICING.unitPrice * p.units;
-      return T("store.perpack") + " \u00b7 " + pctText(p.pct) + " \u00b7 " + T("store.save").replace("{amount}", money.format(full - p.price));
+      return (qty > 1 ? qty + " \u00d7 " + money.format(each) : T("store.perpack")) + " \u00b7 " +
+        pctText(p.pct) + " \u00b7 " + saveText((unitPrice * p.units - each) * qty);
     }
-    return T("store.each");
+    return qty > 1 ? qty + " \u00d7 " + money.format(each) : T("store.each");
   }
 
   function productCard(p, keep) {
@@ -79,7 +84,7 @@
     card.appendChild(body);
 
     var foot = el("div", { class: "product-foot" });
-    var price = el("p", { class: "price" });
+    var price = el("p", { class: "price", "aria-live": "polite", "aria-atomic": "true" });
     var priceNum = el("span");
     var priceSmall = el("small");
     price.appendChild(priceNum); price.appendChild(priceSmall);
@@ -98,13 +103,24 @@
     minus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || min) - 1)); showPrice(); });
     plus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || 0) + 1)); showPrice(); });
     input.addEventListener("change", function () { input.value = String(clamp(input.value)); showPrice(); });
-    // The custom pack's price per unit changes with the number of units.
+    // The price follows the quantity: the total for what is chosen, with how
+    // it is made up underneath. A custom pack's price per unit also changes
+    // with the number of units. A short highlight marks each change.
+    var shown = null;
     function showPrice() {
-      var units = p.perUnit ? clamp(input.value) : 1;
-      priceNum.textContent = money.format(window.FM_PRICE_EACH(p, units));
-      priceSmall.textContent = priceNote(p, units);
+      var qty = clamp(input.value);
+      var each = window.FM_PRICE_EACH(p, qty);
+      var total = each * qty;
+      priceNum.textContent = money.format(total);
+      priceSmall.textContent = priceNote(p, qty, each);
+      if (shown !== null && shown !== total) {
+        price.classList.remove("bump");
+        void price.offsetWidth;   // restart the highlight on quick repeated clicks
+        price.classList.add("bump");
+      }
+      shown = total;
     }
-    if (p.perUnit) input.addEventListener("input", showPrice);
+    input.addEventListener("input", showPrice);
     showPrice();
     stepper.appendChild(minus); stepper.appendChild(input); stepper.appendChild(plus);
     var addId = "add-" + p.id;
