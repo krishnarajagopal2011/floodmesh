@@ -355,6 +355,45 @@ p { margin: 0; }
   .gauge .danger-label { left: 30px; }
 }
 
+/* AI scene photos (labelled "Illustration"); assets/img/*.jpg */
+.hero.has-photo { background: var(--paper); }
+.hero-photo, .band-photo { position: absolute; inset: 0; margin: 0; z-index: 0; }
+.hero-photo img, .band-photo img { width: 100%; height: 100%; object-fit: cover; }
+.hero-photo img { object-position: 70% 50%; }
+.hero-photo::after {
+  /* fade the photo into the page behind the headline so text stays readable */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, var(--paper) 0%, color-mix(in srgb, var(--paper) 92%, transparent) 34%, color-mix(in srgb, var(--paper) 55%, transparent) 58%, color-mix(in srgb, var(--paper) 10%, transparent) 100%),
+    linear-gradient(to top, color-mix(in srgb, var(--paper) 70%, transparent), transparent 30%);
+}
+.hero.has-photo .wrap, .hero.has-photo .gauge { position: relative; z-index: 1; }
+.hero.has-photo .gauge { position: absolute; }
+@media (max-width: 860px) {
+  .hero-photo::after {
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--paper) 80%, transparent) 0%, color-mix(in srgb, var(--paper) 94%, transparent) 40%, var(--paper) 70%);
+  }
+}
+.ai-tag {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  color: var(--muted);
+}
+.cta-band.has-photo { position: relative; overflow: hidden; }
+.band-photo::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--ink) 82%, transparent); }
+.cta-band.has-photo .wrap { position: relative; z-index: 1; }
+.who-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: clamp(24px, 4vw, 48px); align-items: center; margin-bottom: clamp(28px, 4vw, 48px); }
+.who-head .section-head { margin-bottom: 0; }
+@media (max-width: 860px) { .who-head { grid-template-columns: minmax(0, 1fr); } }
+
 /* ---------------------------------------------------------------- the unit (illustration) */
 .unit-figure { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 10px; }
 .unit-figure figcaption { font-size: 0.78rem; color: var(--muted); }

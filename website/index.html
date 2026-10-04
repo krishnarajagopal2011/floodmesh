@@ -44,7 +44,11 @@
 </header>
 
 <main id="main">
-  <section class="hero" aria-labelledby="hero-title">
+  <section class="hero has-photo" aria-labelledby="hero-title">
+    <figure class="hero-photo">
+      <img src="assets/img/hero.jpg" alt="" width="1536" height="864" fetchpriority="high" decoding="async">
+      <figcaption class="ai-tag" data-i18n="media.illus">Illustration</figcaption>
+    </figure>
     <div class="gauge" aria-hidden="true">
       <span style="top: 18%">2.0</span>
       <span style="top: 36%">1.5</span>
@@ -97,7 +101,8 @@
       </div>
       <div class="measure">
         <figure class="media-slot" data-asset="story-scene">
-          <span class="tag" data-i18n="media.story">Illustration: a flooded street at dusk (to come)</span>
+          <img src="assets/img/story.jpg" alt="" width="1152" height="864" loading="lazy" decoding="async">
+          <figcaption class="tag" data-i18n="media.story">Illustration: a flooded street at dusk</figcaption>
         </figure>
         <p style="margin-top: 20px;" data-i18n="story.body1">Phones need a tower. Towers need power and a link back to the network, and in a flood all three fail at once.</p>
         <p style="margin-top: 14px;" data-i18n="story.body2">FloodMesh needs none of them. Each unit passes messages to the next, so a call for help can travel down a street and around buildings to a rescue team that has a FloodMesh responder unit.</p>
@@ -194,10 +199,16 @@
 
   <section class="section" id="who" aria-labelledby="who-title">
     <div class="wrap">
-      <div class="section-head">
-        <p class="eyebrow" data-i18n="who.eyebrow">Who it's for</p>
-        <h2 id="who-title" data-i18n="who.title">One street works better than one house</h2>
-        <p data-i18n="who.body">FloodMesh gets stronger with every unit nearby. The best start is a whole lane, apartment block or colony.</p>
+      <div class="who-head">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="who.eyebrow">Who it's for</p>
+          <h2 id="who-title" data-i18n="who.title">One street works better than one house</h2>
+          <p data-i18n="who.body">FloodMesh gets stronger with every unit nearby. The best start is a whole lane, apartment block or colony.</p>
+        </div>
+        <figure class="media-slot">
+          <img src="assets/img/neighbours.jpg" alt="" width="1152" height="864" loading="lazy" decoding="async">
+          <figcaption class="tag" data-i18n="media.neighbours">Illustration: neighbours checking on each other across a flooded lane</figcaption>
+        </figure>
       </div>
       <div class="audiences">
         <article class="aud"><h3 data-i18n="who.home.title">Homes</h3><p data-i18n="who.home.body">One unit per household, kept near a window or upstairs, ready to grab with the torch and the documents.</p><a href="store.html#unit" data-i18n="who.home.link">FloodMesh unit</a></article>
@@ -229,7 +240,11 @@
     </div>
   </section>
 
-  <section class="cta-band" id="contact" aria-labelledby="cta-title">
+  <section class="cta-band has-photo" id="contact" aria-labelledby="cta-title">
+    <figure class="band-photo">
+      <img src="assets/img/rooftop.jpg" alt="" width="1536" height="864" loading="lazy" decoding="async">
+      <figcaption class="ai-tag" data-i18n="media.illus">Illustration</figcaption>
+    </figure>
     <div class="wrap">
       <div>
         <h2 id="cta-title" data-i18n="cta.title">Get your street ready for the next flood</h2>
