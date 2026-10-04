@@ -5,6 +5,7 @@ owner and Claude (acting as reviewing mesh architect). It records what was
 decided, what was proposed and is still awaiting the owner's confirmation, what
 was rejected and why, and the numbers behind each call.
 
+Updated 4 October 2026: lessons from bitchat, all PROPOSED (§15).
 Updated 30 September 2026: antennas (§14); regulatory findings and
 certification (§1.1, `docs/certification-india.md`).
 Updated 28 September 2026: SOS retry limit and keep-alive (§7.6), the
@@ -568,6 +569,11 @@ frees IO4–IO6 and IO15–IO18, all RTC-capable.
 16. Which table of the 865–868 MHz rules (2021) applies, and so whether
     adaptive transmit power control is required before the WPC type-approval
     test (§1.1, `docs/certification-india.md`).
+17. Lessons from bitchat (§15, all PROPOSED): path-triggered SOS retries and
+    keeping an SOS across a reboot, held SOS with responder sweeps,
+    "already have" filters, per-sender forwarding limits, counters on every
+    unit, the eavesdropper write-up with a guard against forged "Help is
+    coming", and checkable releases.
 
 Measurements needed from the bench: deep-sleep current at the battery (OLED
 off); light-sleep + radio-receive current; buzzer loudness at 3.3 V; a
@@ -1110,3 +1116,272 @@ Every unit keeps the same SMA socket; only the antenna screwed on changes.
 | Telescoping metal whip | Really a quarter-wave (needs a ground plane); easy to leave at the wrong length, badly mismatched; fragile; bare metal corrodes. Bench experiments only |
 | High-gain omni | Too long and fragile for a handheld; its thin beam misses units on other floors |
 | Yagi | One direction only; a mesh node must hear all around |
+
+---
+
+## 15. Lessons from bitchat (4 Oct 2026, all PROPOSED)
+
+bitchat (`github.com/permissionlesstech/bitchat`, whitepaper v2.0, 6 July
+2026, public domain) is a phone messaging app that forms a Bluetooth mesh
+between nearby phones. Its problem is close to ours, but its radio is not:
+Bluetooth has plenty of bandwidth and no duty-cycle limit, and phones are
+charged every day. So most of its mechanisms don't carry over. It sends
+presence announcements every 4–30 s, syncs history every ~15 s, opens an
+encrypted session per pair of phones, pads frames, fragments large messages
+and routes along neighbour lists. At 90 s of airtime per unit per hour (§1.1)
+any one of those would use up the budget, so none are proposed here. It also
+confirms what we already do: hop count outside the auth tag (§12.2), duplicate
+cancelling with a random delay (§4.4), and plain flooding as the fallback.
+
+Seven ideas do carry over. Nothing below is agreed; each item needs the
+owner's decision. Airtime figures are for BW 125 kHz, CR 4/5, 16-symbol
+preamble unless a wake-up preamble is stated (~0.53 s, §13.1).
+
+### 15.1 Retry when a path appears, not only on a timer (PROPOSED)
+bitchat re-sends queued messages whenever a new neighbour connects, as well
+as on a timer.
+
+Today (V4, `fm_sos.cpp`) an SOS retries after 1, 2, 4, 8 and 15 min. After the
+5th retry the unit shows "SOS not delivered" and sends nothing more. A late
+answer still counts, but nothing prompts one. A unit cut off when it pressed
+SOS stays silent when a path opens later: a neighbour plugs in a power bank,
+or a boat comes past.
+
+Proposed:
+- A unit whose own SOS is waiting or "not delivered" also retries when it
+  **hears a sign of a new path**:
+  - a powered unit's heartbeat heard directly (0 hops) from a call sign it
+    has not heard directly in the last 65 min (the §13.3 window), or
+  - any frame from a responder unit heard directly (today an ACK; later the
+    sweep beacon, §15.2).
+- Before such a retry, wait a random **0–60 s**. Every unit in a cut-off area
+  with an open SOS hears the same heartbeat, so without the spread they would
+  all transmit together.
+- At most **one such retry per 10 min**. They don't count towards the 5
+  retries, and they continue after "not delivered" for **24 h** from the SOS.
+  A delivery ACK ends them, as now.
+- **Keep the SOS across a reboot.** V4 keeps the sender's SOS state in RAM
+  only, so a brownout on a flat battery, a watchdog reset or a power cycle
+  silently drops an unanswered SOS. Save the state (channel, state, retries,
+  age) to NVS when it changes, a few writes per SOS. At boot, resume it and
+  show "SOS RESUMED"; D still stops it. OPEN: whether switching off and on
+  should count as cancelling.
+- Cost: one SOS frame (65 ms at SF7, 239 ms at SF9, plus the wake-up preamble
+  where used) per event, at most 6 per hour per unit and usually none.
+- Firmware: `fm_sos.cpp` and the heartbeat and ACK handlers in `main.cpp`.
+  Small enough for the next field test. Test: take a unit out of range until
+  it shows "not delivered", walk a powered unit into range, and time the
+  DELIVERED.
+
+### 15.2 Held SOS and responder sweeps (PROPOSED)
+bitchat's "couriers": when no path exists, a message is handed to up to 3
+nearby phones. They carry it as their owners move and deliver it when they
+meet the recipient. Each copy has a lifetime (24 h) and a copy budget
+(4, at most 8) that is split each time it passes to another carrier ("spray
+and wait"). Each sender has a quota, and a carrier tries at most once per
+message per 10 min.
+
+FloodMesh differs in two ways. The destination is any responder unit, not one
+person. And the possible carriers are powered units, which don't move, and
+responder units, which do (boats, foot patrols) and are themselves
+destinations. Copying between fixed units adds nothing that flooding doesn't
+already do, so **no copy budget or spraying**. What carries over is
+**holding** and **handing over when a responder comes past**. §4.4 already
+counts on boats collecting stored messages; this is the mechanism for it.
+
+1. **Who holds.** Powered units and responder units keep a copy of every SOS
+   frame they receive: the original bytes (22 B) plus the time heard.
+   Battery units keep only their own SOS (§15.1).
+2. **What they keep.** One entry per call sign: a newer SOS from the same
+   call sign replaces the older one (the drop policy in §12.1). An entry is
+   kept until "Help is coming" is heard for it, or for 24 h. 32 entries take
+   about 1 KB. Powered units also keep them in flash, so a power cut doesn't
+   lose them. Holding until "Help is coming" rather than until DELIVERED
+   covers the §7.6 case of the one responder unit that heard an SOS being
+   switched off or lost.
+3. **Sweep beacon.** A responder unit on patrol switches on "Sweep" in a
+   menu. It then sends a short beacon every 2 min with the wake-up preamble.
+   The beacon is never forwarded (hop limit 0): it means "a responder is in
+   range now". With the list filter of §15.3 it is ~53 B, about 0.62 s at SF7
+   or 0.81 s at SF9. At 30 per hour that is ~19–24 s of the responder's own
+   90 s.
+4. **Handover.** A unit holding SOS that hears a sweep beacon, or any
+   responder frame, directly sends each held SOS that the beacon's filter
+   does not list. Each goes in a **held-SOS frame**: the holder's header, the
+   age in minutes, and the original SOS frame unchanged (~32 B, 80 ms at SF7,
+   280 ms at SF9). It is sent one hop only, with a normal preamble, because
+   responders always listen. The responder checks the inner auth tag, lists
+   the SOS as "held 3 h by B-07" and ACKs it as usual. The ACK floods back,
+   so the sender (if still alive) sees DELIVERED.
+5. **Limits.** Each held SOS goes to a given responder at most once per
+   10 min, at most 3 times without an ACK. Holders wait a random 0–20 s
+   before a handover and skip an entry that another holder hands over first
+   (the §4.4 race). A holder skips a responder that has already ACKed that
+   SOS (it remembers up to 2 responder call signs per entry).
+6. **Why it's wrapped, not resent as it is.** Every unit remembers the last
+   counter it saw from each sender (`fm_auth`). An old SOS resent later is
+   dropped as a replay by every unit that heard the sender's newer retry,
+   responders included. In a held-SOS frame, the responder checks the inner
+   tag but deduplicates by call sign and message ID instead of the replay
+   counter. Replay protection stays unchanged for everything else. Like hops,
+   the age is outside the auth tag, so a forger could change it, or replay an
+   old held SOS that then shows as "held". Both are bounded by the dedup and
+   accepted for v1.
+7. **Responder to responder.** Responder units hold too. When a boat returns
+   to the command post, its unit and the others there exchange held SOS the
+   same way, using their filters (§15.3).
+8. **Cost per encounter.** 16 held SOS × 280 ms ≈ 4.5 s at SF9 for one holder,
+   limited by rule 5. Only holders and responders pay it; battery units don't.
+
+Security: anyone with the network key can send a sweep beacon and collect
+held SOS. SOS frames are already readable by anyone nearby (§15.6), so this
+reveals nothing new. A forged beacon costs holders some airtime (limited by
+rule 5) but can't make them drop entries; only "Help is coming" does, and
+that can be forged today too (§15.6).
+
+OPEN: lifetime (24 h, or until the flood is over); whether holders should
+also keep texts (proposed: no, SOS only); flash wear on powered units
+(append-only, as `fm_log` does).
+
+### 15.3 "What I already have" lists, sent only at a meeting (PROPOSED)
+bitchat phones swap a compact summary of the messages they hold every ~15 s,
+and each side sends only what the other lacks. That would use far too much
+airtime if done on a timer on LoRa. At a meeting it is cheap:
+
+- The sweep beacon (§15.2) carries a **32-byte filter** (a Bloom filter: 256
+  bits, 6 hashes) of the call signs whose SOS this responder unit already
+  holds. Holders skip those.
+- With up to 16 SOS held (`FM_SOS_TABLE` in V4), a call sign the responder
+  does *not* hold is wrongly shown as held ~0.1% of the time; with 30, ~1.7%.
+  An error only means one holder skips one SOS for that one responder: the
+  sender's own retries (§15.1) and other responders are unaffected. If the
+  table grows past ~20, use a 64-byte filter.
+- Cost: +32 B on the beacon, ~46 ms at SF7 or ~143 ms at SF9, small next to
+  the ~0.53 s wake-up preamble it already pays.
+- OPEN: a second filter for SOS already answered with "Help is coming", so a
+  responder coming back from a sweep learns what was handled while it was away.
+- OPEN, lower priority: syncing responder units' SOS lists over Bluetooth
+  (unit to unit, or through the admin app at the command post), which uses
+  no LoRa airtime.
+
+### 15.4 Per-sender forwarding limits (PROPOSED)
+bitchat limits how often any one peer can announce itself and how much it
+can deposit with couriers.
+
+`fm_airtime` caps each unit's own 2.5%, but not the area. A stuck keypad, a
+firmware bug or a forger with the shared key (§13.9 item 4) can make one call
+sign fill the channel, and every forwarding unit spends its own budget
+repeating it.
+
+Proposed: each forwarding unit keeps a small table by source call sign (32
+entries of ~12 B; the oldest drops out). It forwards non-SOS frames from one
+source only within an allowance:
+
+| Frame | Burst | Refill | Normal use |
+|---|---|---|---|
+| Text | 6 | 1 per 6 min (10 per hour) | a few per hour (§12.1 capacity) |
+| Heartbeat | 2 | 1 per 15 min | 2 per hour (§13.5) |
+| ACK | 20 | 1 per min | one per SOS a responder answers |
+| SOS | no limit | | |
+
+- Over the allowance, the frame is still shown and acted on locally, just not
+  forwarded, and it is counted (§15.5).
+- The sending unit applies the same text allowance to itself and tells the
+  user ("WAIT 4 MIN"), so a normal user never reaches the forwarding limit.
+- **SOS is exempt on purpose.** Call signs aren't proven per unit, so a
+  forger can use someone else's. A limit on SOS would let them use up a real
+  sender's allowance and silence the real SOS; the same trick on text only
+  delays texts. Per-unit keys (§11 item 7) are the real fix.
+- This doesn't stop a forger who changes call signs; it cheaply stops the
+  accidental cases. `fm_airtime` refusing texts when the budget runs low
+  stays as the backstop.
+
+### 15.5 Counters on every unit (PROPOSED)
+bitchat keeps simple counters on each phone, with no identities, message IDs
+or times in them; they never leave the device.
+
+V4 has `fm_log`, a field-test logger that records every frame and uploads it
+over a phone hotspot. It is a test tool: the product has no WiFi and builds
+it out (`FM_LOG_ENABLE=0`). So a deployed unit has no record of how it has
+behaved.
+
+Proposed: counters in every build, since boot and lifetime. Lifetime values
+go to NVS at most once an hour, when no relay or ACK is waiting, as `fm_log`
+already does for its own NVS writes. ~40 counters × 4 B ≈ 160 B.
+- Frames heard (by type), forwarded, cancelled (someone else forwarded
+  first), dropped as duplicates, dropped as replays or bad auth tags, refused
+  by the airtime budget, refused by the §15.4 allowance.
+- Own SOS: retries, path retries (§15.1), ACKs received, minutes to the first
+  ACK in the last SOS.
+- Held SOS (§15.2): held, handed over, expired.
+- Airtime used in the last hour, wake-ups per hour, hours on external power.
+
+No call signs, message IDs or text are stored, so reading a unit reveals
+nothing about who sent what. Read them on an OLED status page, or through a
+read-only Bluetooth characteristic for the app (change
+`docs/ble-provisioning-protocol.md` first). After a field test or a real
+event, read every unit instead of guessing. The 28 Sep text-rule failure
+(§13.9 item 8) would have shown up as "texts heard 40, forwarded 0, heartbeat
+heard". A rising bad-auth count flags a forger or a unit with the wrong key.
+
+### 15.6 What an eavesdropper can learn (PROPOSED: write it down and tell users)
+bitchat's whitepaper says plainly that metadata is its weakest point. FloodMesh
+should be as plain. Frames are **authenticated, not encrypted**. Anyone with a
+cheap LoRa receiver set to the network's frequency can read every frame:
+
+| What a listener learns | From | Why it matters |
+|---|---|---|
+| Which call signs sent an SOS, when, on which channel, and their battery % | SOS frames | Call signs are printed on labels and handed out per household, so a few sightings tie them to houses: who is trapped, who needs medical help, whose battery is dying |
+| Which SOS have had "Help is coming" and which haven't | ACK frames | A list of households still waiting |
+| Which households have external power | Heartbeats | |
+| Everything typed | Text frames | Already public by design (§13.4) |
+| Rough distance to the sender | Hop count, signal strength | 0 hops and a strong signal means close by |
+
+Anyone who holds the network key (every unit has it; V4 uses a public
+placeholder) can also forge frames. The worst forgery is a fake **"Help is
+coming"** for a real SOS. The sender's unit shows HELP IS COMING and stops its
+keep-alive, because `fmSosOnAck` accepts any ACK naming a message ID of the
+SOS. Responder reminders also stop (§13.8 4a). The real SOS goes quiet.
+
+Proposed:
+1. **Until ACKs are signed, "Help is coming" doesn't fully stop the
+   keep-alive.** The sender's unit shows it, but keeps re-sending every
+   30 min instead of 15. A forged reply then can't silence the SOS, and the
+   cost is one SOS frame per half hour per answered SOS.
+2. **Sign "Help is coming"** with the responder's own key, using the §12.4
+   mechanism (`fmRoleSign`, `fmP256Verify`). A P-256 signature makes the ACK
+   ~92 B (~167 ms at SF7, ~546 ms at SF9). Verifying it also needs the
+   responder's certificate, which is either sent with it or cached (§12.4).
+   With that in place, rule 1 applies only to unverified replies.
+3. **Tell users:** anything sent can be read by anyone nearby with a
+   receiver, and an SOS shows the house. Put it in the user guide and on the
+   handout.
+4. Keep the address registry on responder units only (§3), as now.
+5. Considered, not recommended for v1:
+   - Daily-changing aliases on air instead of call signs (bitchat's rotating
+     tags). Every unit holds the network key, so anyone with a unit can
+     reverse them, and responders would need extra lookups.
+   - Encrypting SOS to responders. It needs a key that only responders hold.
+     If they all share one, a single lost unit leaks it. Revisit with
+     per-unit keys.
+
+### 15.7 Releases anyone can check (PROPOSED)
+bitchat publishes a list of hashes for every release and a guide to checking
+a build. It did so after takedown demands led to mirrors nobody could verify.
+
+§13.6 will push signed images over Bluetooth. That protects units from a bad
+image, but not volunteers from a fake app or a fake "update" file passed
+around on WhatsApp.
+
+- Each release: CI (`.github/workflows/build.yml`) builds every env and the
+  APK, and publishes a manifest with the SHA-256 of each file, signed with
+  the release-signing key (§13.6, separate from the super-admin key).
+- The app checks an image's hash against the signed manifest before pushing
+  it, and the unit checks the image signature (§13.6): two independent checks.
+- **Pin exact library versions.** The PlatformIO platform is pinned
+  (`espressif32@6.9.0`) and so is Flutter (3.47.5), but `lib_deps` use ranges
+  (`^`, `~`), so a rebuild of the same tag can pull newer libraries and give a
+  different image. Pin exact versions so anyone can rebuild a tag and get the
+  same hash.
+- Add `docs/verifying-a-release.md`: where the official downloads are, and how
+  to check a hash.
