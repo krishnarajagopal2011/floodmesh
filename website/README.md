@@ -101,6 +101,7 @@ Put files in `assets/img/`.
 
 | Slot | What | Source |
 |---|---|---|
+| Hero background (`assets/img/hero.jpg`) | Flooded Chennai street at dusk, houses on the right, calm water on the left behind the headline | AI scene; water raised by hand on 4 Oct to the owner's reference depth (everything above the water line is the original image) |
 | `story-scene` | A flooded city street at dusk, ground floors under water, one lit window | AI scene (in place), no caption |
 | `product-unit` | The unit in a hand, screen lit, plain background | **Real photo** |
 | `product-street`, `product-neighbourhood`, `product-area`, `product-custom` | Boxed units stacked: 10, 25, 100 (or one photo of a stack for all four) | **Real photo** |
@@ -115,10 +116,20 @@ For Higgsfield, or any image or video generator. Never show the FloodMesh
 unit itself in AI output: product shots must be real photos. Drop finished files into the Google Drive
 folder "FloodMesh website" and they can be placed from there.
 
-- Water level: the owner wants severe floods, not knee-deep water. Add to
-  every flood prompt: "ground floors completely submerged, brown floodwater
-  up to the first-floor balconies and window sills, compound walls and
-  gates fully under water, only upper storeys and roofs above the water".
+- Water level: the owner's reference (4 Oct, a real Chennai flood photo) is
+  about 1.5 m: a parked car shows only its roof, compound walls and gates are
+  fully under water, ground-floor windows are about half under, and the
+  water is calm, silty grey-brown and nearly still. Add to every flood
+  prompt: "floodwater about 1.5 metres deep, compound walls and gates
+  completely under water, water halfway up the ground-floor doors and
+  windows, calm silty grey-brown water with reflections".
+- Composition: a street needs houses on both sides, or a close view. Open
+  water to a flat horizon reads as a lake or the sea (owner, 4 Oct).
+- Raising the water in an image we already like: image-edit models (FLUX.2
+  edit, Kontext, Qwen edit) either redraw the whole scene or barely move the
+  water. A hand composite works better: a level water line through the
+  street's vanishing point, the photo's own water continued above the old
+  water line, and the houses' reflection below the new line.
 - `story-scene` (still, 16:9 or 4:3): "Documentary photograph of a
   residential lane in Chennai in a severe flood at dusk, [water level as
   above], flat-roofed concrete houses with square metal grill balconies, a
