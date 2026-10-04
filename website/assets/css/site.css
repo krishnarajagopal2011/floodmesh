@@ -464,7 +464,6 @@ p { margin: 0; }
 }
 .story p + p { margin-top: 16px; }
 @media (max-width: 860px) { .story .wrap { grid-template-columns: minmax(0, 1fr); } }
-.story .mesh { grid-column: 1 / -1; }   /* the street map, full width under the story */
 
 /* media slots: where real photos go */
 .media-slot {
@@ -578,7 +577,6 @@ p { margin: 0; }
 
 /* how it works: messages and SOS side by side */
 .tracks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(28px, 4vw, 56px); margin-top: clamp(36px, 5vw, 56px); }
-.section-head + .tracks { margin-top: 0; }
 .track { display: grid; gap: 18px; align-content: start; }
 .track > h3 { font-size: var(--step-2); }
 .tracks .steps { grid-template-columns: minmax(0, 1fr); gap: 18px; }

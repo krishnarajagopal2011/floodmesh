@@ -101,7 +101,7 @@ Put files in `assets/img/`.
 
 | Slot | What | Source |
 |---|---|---|
-| Hero background (`assets/img/hero.jpg`) | Flooded Chennai street at dusk, houses on the right, calm water on the left behind the headline | AI scene; water raised by hand on 4 Oct to the owner's reference depth (everything above the water line is the original image) |
+| Hero background (`assets/img/hero.jpg`) | Flooded Chennai street at dusk, houses on the right, calm water on the left behind the headline | AI scene (in place), no caption |
 | `story-scene` | A flooded city street at dusk, ground floors under water, one lit window | AI scene (in place), no caption |
 | `product-unit` | The unit in a hand, screen lit, plain background | **Real photo** |
 | `product-street`, `product-neighbourhood`, `product-area`, `product-custom` | Boxed units stacked: 10, 25, 100 (or one photo of a stack for all four) | **Real photo** |
@@ -125,11 +125,11 @@ folder "FloodMesh website" and they can be placed from there.
   windows, calm silty grey-brown water with reflections".
 - Composition: a street needs houses on both sides, or a close view. Open
   water to a flat horizon reads as a lake or the sea (owner, 4 Oct).
-- Raising the water in an image we already like: image-edit models (FLUX.2
-  edit, Kontext, Qwen edit) either redraw the whole scene or barely move the
-  water. A hand composite works better: a level water line through the
-  street's vanishing point, the photo's own water continued above the old
-  water line, and the houses' reflection below the new line.
+- Raising the water in an image we already have (tried 4 Oct): image-edit
+  models (FLUX.2 edit, Kontext, Qwen edit) either redraw the whole scene or
+  barely move the water, and a hand composite looked like a haze over the
+  walls, not water (owner rejected it). Generate a new image at the right
+  depth instead.
 - `story-scene` (still, 16:9 or 4:3): "Documentary photograph of a
   residential lane in Chennai in a severe flood at dusk, [water level as
   above], flat-roofed concrete houses with square metal grill balconies, a
