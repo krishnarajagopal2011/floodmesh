@@ -366,8 +366,7 @@ p { margin: 0; }
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, var(--paper) 0%, color-mix(in srgb, var(--paper) 92%, transparent) 34%, color-mix(in srgb, var(--paper) 55%, transparent) 58%, color-mix(in srgb, var(--paper) 10%, transparent) 100%),
-    linear-gradient(to top, color-mix(in srgb, var(--paper) 70%, transparent), transparent 30%);
+    linear-gradient(90deg, var(--paper) 0%, var(--paper) 34%, color-mix(in srgb, var(--paper) 70%, transparent) 46%, color-mix(in srgb, var(--paper) 15%, transparent) 62%, transparent 75%);
 }
 .hero.has-photo .wrap, .hero.has-photo .gauge { position: relative; z-index: 1; }
 .hero.has-photo .gauge { position: absolute; }
@@ -392,11 +391,13 @@ p { margin: 0; }
 .cta-band.has-photo .wrap { position: relative; z-index: 1; }
 .who-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: clamp(24px, 4vw, 48px); align-items: center; margin-bottom: clamp(28px, 4vw, 48px); }
 .who-head .section-head { margin-bottom: 0; }
+.who-head:not(:has(figure)) { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 860px) { .who-head { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------------------------------------------------------------- the unit (illustration) */
 .unit-figure { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 10px; }
 .unit-figure figcaption { font-size: 0.78rem; color: var(--muted); }
+.hero.has-photo .unit-figure figcaption { position: relative; z-index: 1; padding: 4px 10px; border-radius: 4px; background: color-mix(in srgb, var(--surface) 88%, transparent); max-width: 34ch; text-align: center; }
 .unit {
   position: relative;
   min-width: 0;
