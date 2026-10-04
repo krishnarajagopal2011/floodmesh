@@ -55,7 +55,8 @@ and needs a native speaker's check before launch). No build step and no librarie
    ships" (FAQ and terms).
 6. In the same commit: `preview: false` and `orderEndpoint: "/api/preorder"`
    in `config.js` (or test the endpoint first on a Vercel preview deployment
-   of a branch).
+   of a branch), and remove the `X-Robots-Tag: noindex, nofollow` header
+   from `vercel.json` so search engines can list the site.
 7. Once the domain is known, make the `og:image` URLs in the three pages
    absolute (`https://<domain>/assets/img/og.png`); WhatsApp and LinkedIn
    previews need that.
@@ -64,8 +65,20 @@ and needs a native speaker's check before launch). No build step and no librarie
 
 ## Deploy on Vercel
 
-New project → import the repository → **Root Directory: `website`** →
-Framework preset: **Other** → no build command, no output directory. For now
+The repository's default branch must be `9th-Sept-2026` before importing
+(GitHub → Settings → General → Default branch): Vercel's import builds the
+default branch, and `main` has an unrelated older history with no `website/`
+folder (and old firmware that must never be published). Then: New project →
+import the repository → **Root Directory: `website`** → Framework preset:
+**Other** → no build command, no output directory. Check Settings →
+Environments → Production → Branch Tracking says `9th-Sept-2026`; every push
+to it deploys the live site. Pushes to other branches make preview
+deployments, which by default only people logged in to your Vercel team can
+open (Settings → Deployment Protection).
+
+Until launch the site sends `X-Robots-Tag: noindex, nofollow` (in
+`vercel.json`), so search engines leave it out; `config.js` has
+`preview: true`, so the order form says pre-orders are not sent yet. For now
 the site uses Vercel's free `<project>.vercel.app` address; a custom domain
 can be added later under Settings → Domains. `vercel.json` already sets clean URLs
 (`/store` instead of `/store.html`; the pages link to `store.html`, which
