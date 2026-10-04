@@ -1,7 +1,8 @@
 # FloodMesh website
 
 A static site: home page, store with pre-orders, and privacy and pre-order
-terms, in English, Tamil and Hindi. No build step and no libraries.
+terms, in English, Tamil and Hindi (the Tamil and Hindi text is machine-assisted
+and needs a native speaker's check before launch). No build step and no libraries.
 
 | File | What it is |
 |---|---|

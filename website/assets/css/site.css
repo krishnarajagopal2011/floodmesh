@@ -343,6 +343,8 @@ p { margin: 0; }
   transform: translateY(-50%) rotate(180deg);
 }
 .hero h1 { font-size: var(--step-4); font-weight: 700; }
+/* Tamil and Devanagari words run long; keep the hero headline inside the column. */
+:lang(ta) .hero h1, :lang(hi) .hero h1 { font-size: clamp(2rem, 3.4vw + 1rem, 3.5rem); }
 .hero .lede { margin-top: 20px; font-size: var(--step-1); color: var(--muted); max-width: 46ch; }
 .hero .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .hero .note { margin-top: 18px; font-size: var(--step--1); color: var(--muted); }
