@@ -27,7 +27,9 @@ terms, in English, Tamil and Hindi. No build step and no libraries.
 - **Real footage for anything that shows results.** AI images only for mood
   and scenes, labelled "Illustration". Never an AI image of the product
   presented as a photo, and never on a product card once taking orders.
-- **No voice notes.** Voice is not in version 1.
+- **Only what version 1 does:** an SOS (hold * and #, then pick the type of
+  help) and short text messages. Leave out features dropped from version 1
+  (`docs/architecture.md` §8).
 
 ## Go-live checklist
 
@@ -50,9 +52,6 @@ terms, in English, Tamil and Hindi. No build step and no libraries.
    previews need that.
 8. Deploy (below), open `/store` in a private window and send one test
    pre-order. Check that `/README.md` and `/apps-script/Code.gs` return 404.
-9. Confirm with the owner which SOS gesture the shipping unit uses (the side
-   button or * + #) and match `hero.caption`, `how.s1.body` and the unit
-   illustration to it.
 
 ## Deploy on Vercel
 

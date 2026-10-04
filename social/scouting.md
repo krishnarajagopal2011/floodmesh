@@ -137,8 +137,8 @@ words; LinkedIn and Reddit under 120 words.
 
 1. First sentence answers or responds to what they actually said.
 2. One concrete thing we learned, with its limit stated: the 350 m test
-   through buildings, the 10-second voice note and why, the four alarm
-   buttons.
+   through buildings, the 550 m relay test, why messages are kept to 60
+   characters, confirmed SOS delivery.
 3. Mention FloodMesh only if it directly helps them, by name, and say it is
    our project. No link at all until the website exists, then only the
    website. Never the code repository, never the words "open source" or

@@ -371,8 +371,14 @@ GROUND FLOOR, NEED EVACUATION), carrying head count and flags where possible.~~
 replies (§7.5).
 
 ### 7.2 SOS key (DECIDED)
-A dedicated SOS on the **side button** (S1 on the PCB). On the V3 keypad build
-(no side button): **hold `*` and `#` together for 3 s** (DECIDED 27 Sep). The
+**DECIDED (owner, 4 Oct 2026): holding `*` and `#` together for 3 s is the
+SOS on the shipping unit**, as on the V3 and V4 keypad builds. The website
+and the unit label say so. Whether the PCB keeps its side button (S1) as a
+second way to send an SOS is OPEN.
+
+Earlier: a dedicated SOS on the **side button** (S1 on the PCB). On the V3
+keypad build (no side button): **hold `*` and `#` together for 3 s**
+(DECIDED 27 Sep). The
 sender picks an SOS channel (§13.8). PROPOSED behaviour:
 hold 3 s, with a countdown and cancel; highest priority of all traffic;
 addressed to responders; other civilian units relay it silently. It still hops
@@ -870,8 +876,9 @@ SOS frame (4 bits, up to 16 values), not a separate radio channel; every SOS
 still uses the one network SF.
 
 **DECIDED (owner, 27 Sep):**
-- Holding **`*` + `#`** for 3 s (V3's 4×4 keypad) or the side button (PCB) is
-  the SOS. It is for responders only (§13.4).
+- Holding **`*` + `#`** for 3 s is the SOS, on the keypad builds and on the
+  shipping unit (owner, 4 Oct 2026, §7.2). Whether the PCB's side button
+  stays as a second way is OPEN. It is for responders only (§13.4).
 - **Channels: General, Medical, Evacuation, Hazard, Food supply.** Trapped /
   water rising goes under **General**, as does anything that fits no other
   channel.

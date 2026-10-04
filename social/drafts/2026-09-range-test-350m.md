@@ -72,8 +72,8 @@ actually help you? A neighbour, a volunteer post, a hospital?
 
 Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
-FloodMesh passes alarms and 10-second voice notes between buildings with no
-tower and no internet. It is designed to run for days on ordinary batteries.
+FloodMesh passes SOS alerts and short text messages between buildings with
+no tower and no internet. It is designed to run for days on one charge.
 Built in public.
 
 #floodmesh #rangetest #floodsafety #disastertech #buildinpublic #chennai

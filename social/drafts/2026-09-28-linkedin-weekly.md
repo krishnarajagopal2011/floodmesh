@@ -15,8 +15,8 @@ Visual: one photo from this week. The sender or relay unit from the
   none answer, "DELIVERED" the moment one does, re-sent every 15 minutes
   after that until a responder answers. Not yet run on a real unit.
   docs/architecture.md §13.8; firmware_v4/README.md; commit b18a92e.
-- Voice dropped from version 1; text messages and alarms only. Decided
-  27 September. docs/architecture.md, "no voice in version 1".
+- First version: SOS alarms and short text messages. Decided 27 September.
+  docs/architecture.md §7 and §13.
 - Priced BoM moved to Indian and Chinese suppliers as the cheaper source
   over US distributors. Decided 27 September. docs/hardware/pcb-v1/README.md.
 - Not measured: signal strength during the relay test, so the cause of the
@@ -36,8 +36,8 @@ reaches someone who can help, with no phone network.
   350 m a single pager reaches alone.
 - We decided a pager should say clearly whether help is coming, not just
   that a message went out, and wrote that into the software this week.
-- We decided the first version will be text messages and alarms only, no
-  voice, so we can test that well before adding more.
+- We decided the first version will do two things, SOS alarms and short
+  text messages, so we can test those well before adding more.
 - We found where to build the units for less, mostly from Indian and
   Chinese suppliers instead of the US.
 

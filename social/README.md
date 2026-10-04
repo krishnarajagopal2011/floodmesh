@@ -51,7 +51,7 @@ Tags in use: `#announcement` `#discussion` `#feedback` `#trials` `#pilot`
 
 ```
 Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed together. Neighbours 200 m apart could not reach each other.
-FloodMesh passes alarms and 10-second voice notes between buildings with no tower and no internet. It is designed to run for days on ordinary batteries.
+FloodMesh passes SOS alerts and short text messages between buildings with no tower and no internet. It is designed to run for days on one charge.
 Built in public: [website link]
 ```
 
@@ -59,8 +59,15 @@ On X the footer goes in the last post of a thread, or is cut to the third
 line only on a single post. On Instagram the third line reads "Built in
 public: link in bio." with the website in the bio.
 
-There is no website yet. Until there is, the third line is just
-"Built in public." with no link, on every channel.
+The website is built (`website/`) but not live yet. Until it is deployed,
+the third line is just "Built in public." with no link, on every channel.
+Once it is live (on its Vercel `.vercel.app` address at first), use that
+address.
+
+Posts and replies describe only what version 1 does: an SOS (hold * and #
+for 3 s, then pick the type of help) and short text messages
+(`docs/architecture.md` §13.8). Leave out every feature dropped from
+version 1 (§8), even where older notes in the repo still describe it.
 
 FloodMesh is not open source. Never link to, name or hint at the code
 repository in any post, caption, bio, email or comment reply, and never

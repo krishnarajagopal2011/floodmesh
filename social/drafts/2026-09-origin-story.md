@@ -1,5 +1,11 @@
 # The starting story
 
+> **HOLD (4 Oct 2026): the four one-press alarm buttons were replaced** by
+> an SOS (hold * and # for 3 s, then pick the type of help) plus short text
+> messages (`docs/architecture.md` §13.8). The visual, the facts list, X post
+> 3, the Instagram caption and the LinkedIn post still describe the four
+> buttons. Rewrite those lines before queueing. Footer updated.
+
 Tags: #story
 Channels: X thread, Instagram carousel, LinkedIn
 Visual: photo of the prototype in hand with the screen lit. Carousel: the
@@ -14,10 +20,9 @@ details.
 - Chennai 2015 and Cyclone Michaung: towers and power failed together. README intro.
 - Pager, not walkie-talkie; messages are stored and passed on, so they get
   around buildings instead of needing a clear line. README.
-- Four alarms: SAFE, NEED MEDICAL, WATER GROUND FLOOR, NEED EVACUATION. One
-  10-second voice note. README.
+- Four alarms: SAFE, NEED MEDICAL, WATER GROUND FLOOR, NEED EVACUATION. README.
 - Verified on the bench 9 September 2026: two devices linked, alarms
-  through, voice notes played back. README Status.
+  through. README Status.
 - Battery life is a design goal, not measured. Footer says "designed to".
 - Range and through-wall performance: first test done, 350 m, see the range
   test draft. Not claimed here.
@@ -45,11 +50,9 @@ device to the next until it reaches someone who can help.
 **3/**
 Four buttons: SAFE, NEED MEDICAL, WATER ON GROUND FLOOR, NEED EVACUATION.
 
-When a button is not enough, you can send a 10-second voice note.
-
 **4/**
 It works on the bench as of 9 September 2026. Two devices talk to each
-other, alarms get through, voice notes play back.
+other and alarms get through.
 
 Range testing has just started. I will post every result, good or bad.
 
@@ -79,8 +82,7 @@ no way to say "we are okay" or "we need a boat".
 FloodMesh is a small handheld with four buttons: SAFE, NEED MEDICAL, WATER
 ON GROUND FLOOR, NEED EVACUATION. Press one and the message is passed from
 device to device, building to building, until it reaches someone who can
-help. No tower, no internet. When a button is not enough, you can send a
-10-second voice note.
+help. No tower, no internet.
 
 I am building this because I do not want another flood where a family
 cannot tell anyone they need help.
@@ -95,8 +97,8 @@ send?
 
 Why: in Chennai 2015 and during Cyclone Michaung, towers and power failed
 together. Neighbours 200 m apart could not reach each other.
-FloodMesh passes alarms and 10-second voice notes between buildings with no
-tower and no internet. It is designed to run for days on ordinary batteries.
+FloodMesh passes SOS alerts and short text messages between buildings with
+no tower and no internet. It is designed to run for days on one charge.
 Built in public.
 
 #floodmesh #floodsafety #chennaifloods #disastertech #buildinpublic #makerindia #chennai
@@ -113,13 +115,13 @@ could not reach each other. Rescue teams could not hear who needed a boat.
 FloodMesh is a small handheld with four buttons: SAFE, NEED MEDICAL, WATER
 ON GROUND FLOOR, NEED EVACUATION. Press one and the message is passed from
 device to device until it reaches someone who can help. No tower, no
-internet. A 10-second voice note is there for when a button is not enough.
+internet.
 
 I am building this because I do not want another flood where a family
 cannot tell anyone they need help.
 
 Where it stands on 9 September 2026: it works on the bench. Two devices
-talk to each other, alarms get through, voice notes play back. It has not
+talk to each other and alarms get through. It has not
 been through a flood yet. Range testing has started. A proper case, pilot
 units and the paperwork come next. It is early, and I would rather hear
 what is wrong now than after someone depends on it.
