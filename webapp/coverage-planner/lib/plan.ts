@@ -149,6 +149,17 @@ export function pickCellSize(areaM2: number, maxCells = 40_000): number {
   return Math.ceil(raw / 100) * 100;
 }
 
+/**
+ * Cell size for an area: from its own area, but never so small that the
+ * grid over its bounding box passes ~400,000 cells. Two small polygons far
+ * apart (a crafted or mistaken plan file) would otherwise make a grid of
+ * billions of cells and freeze the browser.
+ */
+export function gridCellSize(a: ProjectedArea): number {
+  const bboxM2 = Math.max(a.maxX - a.minX, 1) * Math.max(a.maxY - a.minY, 1);
+  return Math.max(pickCellSize(a.areaM2), pickCellSize(bboxM2, 400_000));
+}
+
 export function buildGrid(a: ProjectedArea, cellM: number): Grid {
   const cols = Math.max(1, Math.ceil((a.maxX - a.minX) / cellM));
   const rows = Math.max(1, Math.ceil((a.maxY - a.minY) / cellM));
@@ -192,21 +203,15 @@ export interface Backbone {
   components: number;
   /** For each unit: relays an SOS needs from it to a responder (powered: ≥ 1, responder: 0, unreachable: -1). */
   relaysToResponder: Int32Array;
-  /** Powered units each powered unit would relay heartbeats for (within the hop limit). */
+  /**
+   * Powered units each powered unit would relay heartbeats for (within the
+   * hop limit). Only filled for the units it was counted for: all of them,
+   * or the best-connected ones when `heartbeatEstimated`.
+   */
   heartbeatSources: Int32Array;
+  heartbeatEstimated: boolean;
   /** Links worth drawing: a minimum spanning tree of `edges` (indices). */
   treeEdges: number[];
-}
-
-function linkMarginDb(d: number, a: UnitProfile, b: UnitProfile, m: RadioModel): number {
-  const pl = Math.max(
-    FSPL_1M_DB + 10 * m.pathLossExponent * Math.log10(Math.max(d, 1)) -
-      heightGainDb(a.heightM, m.heightGainCapDb) -
-      heightGainDb(b.heightM, m.heightGainCapDb) +
-      m.clutterDb,
-    FSPL_1M_DB + 20 * Math.log10(Math.max(d, 1)),
-  );
-  return maxPathLossDb(a, b, m) - pl;
 }
 
 function nodes(units: PlacedUnit[], profiles: Record<UnitKind, UnitProfile>, proj: Projection): Node[] {
@@ -215,6 +220,69 @@ function nodes(units: PlacedUnit[], profiles: Record<UnitKind, UnitProfile>, pro
     return { unit: u, profile: unitProfile(u, profiles), x, y };
   });
 }
+
+/**
+ * Units grouped by profile, with the link budget and range worked out once
+ * per pair of profiles (in practice 2–6 profiles), not once per unit pair.
+ */
+function profileTable(ns: Node[], m: RadioModel) {
+  const keyOf = (p: UnitProfile) => `${p.heightM}|${p.antennaDbi}|${p.cableLossDb}|${p.indoorLossDb}|${p.txDbm}`;
+  const index = new Map<string, number>();
+  const profiles: UnitProfile[] = [];
+  const pIdx = new Int32Array(ns.length);
+  ns.forEach((nd, i) => {
+    const k = keyOf(nd.profile);
+    let j = index.get(k);
+    if (j === undefined) {
+      j = profiles.length;
+      index.set(k, j);
+      profiles.push(nd.profile);
+    }
+    pIdx[i] = j;
+  });
+  const P = profiles.length;
+  const maxPl = new Float64Array(P * P);
+  const r2 = new Float64Array(P * P);
+  let maxR = 0;
+  for (let a = 0; a < P; a++) {
+    for (let b = 0; b < P; b++) {
+      maxPl[a * P + b] = maxPathLossDb(profiles[a], profiles[b], m);
+      const r = rangeM(profiles[a], profiles[b], m);
+      r2[a * P + b] = r * r;
+      if (r > maxR) maxR = r;
+    }
+  }
+  const hg = profiles.map((p) => heightGainDb(p.heightM, m.heightGainCapDb));
+  return { P, pIdx, maxPl, r2, maxR, hg };
+}
+
+/** Uniform spatial hash: points bucketed into square cells of `size` metres. */
+function bucketise(xs: ArrayLike<number>, ys: ArrayLike<number>, n: number, size: number) {
+  const s = Math.max(size, 1);
+  const map = new Map<string, number[]>();
+  for (let i = 0; i < n; i++) {
+    const k = `${Math.floor(xs[i] / s)},${Math.floor(ys[i] / s)}`;
+    const b = map.get(k);
+    if (b) b.push(i);
+    else map.set(k, [i]);
+  }
+  /** Indices in the 3×3 buckets around (x, y): everything within `size`. */
+  const near = (x: number, y: number, fn: (i: number) => void) => {
+    const bx = Math.floor(x / s);
+    const by = Math.floor(y / s);
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const b = map.get(`${bx + dx},${by + dy}`);
+        if (b) for (const i of b) fn(i);
+      }
+    }
+  };
+  return { near };
+}
+
+/** Exact heartbeat counts up to this many powered units; above it, an estimate. */
+const HEARTBEAT_EXACT_MAX = 600;
+const HEARTBEAT_SAMPLE = 150;
 
 /** Links between placed units, islands, SOS relay counts and heartbeat load. */
 export function analyseBackbone(
@@ -227,18 +295,34 @@ export function analyseBackbone(
   const n = ns.length;
   const edges: BackboneEdge[] = [];
   const adj: number[][] = ns.map(() => []);
+  const t = profileTable(ns, m);
+  const xs = ns.map((nd) => nd.x);
+  const ys = ns.map((nd) => nd.y);
+  const hash = bucketise(xs, ys, n, t.maxR);
+  const logScale = 10 * m.pathLossExponent;
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
+    const pi = t.pIdx[i];
+    hash.near(xs[i], ys[i], (j) => {
+      if (j <= i) return;
       // Responder to responder is not a relay path; skip it.
-      if (ns[i].unit.kind === "responder" && ns[j].unit.kind === "responder") continue;
-      const d = Math.hypot(ns[i].x - ns[j].x, ns[i].y - ns[j].y);
-      const marginDb = linkMarginDb(d, ns[i].profile, ns[j].profile, m);
+      if (ns[i].unit.kind === "responder" && ns[j].unit.kind === "responder") return;
+      const pj = t.pIdx[j];
+      const dx = xs[i] - xs[j];
+      const dy = ys[i] - ys[j];
+      const d2 = dx * dx + dy * dy;
+      if (d2 > t.r2[pi * t.P + pj]) return;
+      const d = Math.max(Math.sqrt(d2), 1);
+      const pl = Math.max(
+        FSPL_1M_DB + logScale * Math.log10(d) - t.hg[pi] - t.hg[pj] + m.clutterDb,
+        FSPL_1M_DB + 20 * Math.log10(d),
+      );
+      const marginDb = t.maxPl[pi * t.P + pj] - pl;
       if (marginDb >= 0) {
-        edges.push({ a: i, b: j, distanceM: d, marginDb });
+        edges.push({ a: i, b: j, distanceM: Math.sqrt(d2), marginDb });
         adj[i].push(j);
         adj[j].push(i);
       }
-    }
+    });
   }
 
   const component = new Int32Array(n).fill(-1);
@@ -295,27 +379,38 @@ export function analyseBackbone(
     treeEdges.push(k);
   }
 
-  // Heartbeat flooding: every powered unit within hopLimit hops of a source relays it.
+  // Heartbeat flooding: every powered unit within hopLimit hops of a source
+  // relays it. Reachability through powered units is symmetric, so a unit
+  // relays for exactly the powered units in its own hop ball. Exact for up to
+  // HEARTBEAT_EXACT_MAX powered units; above that, counted only for the
+  // best-connected units (where the load peaks) to keep the page responsive.
   const heartbeatSources = new Int32Array(n);
+  const powered: number[] = [];
+  for (let i = 0; i < n; i++) if (ns[i].unit.kind === "powered") powered.push(i);
+  const heartbeatEstimated = powered.length > HEARTBEAT_EXACT_MAX;
+  const sources = heartbeatEstimated
+    ? [...powered].sort((a, b) => adj[b].length - adj[a].length).slice(0, HEARTBEAT_SAMPLE)
+    : powered;
   const dist = new Int32Array(n);
-  for (let s = 0; s < n; s++) {
-    if (ns[s].unit.kind !== "powered") continue;
+  for (const s0 of sources) {
     dist.fill(-1);
-    dist[s] = 0;
-    const bq = [s];
+    dist[s0] = 0;
+    const bq = [s0];
+    let reached = 0;
     for (let q = 0; q < bq.length; q++) {
       const v = bq[q];
       if (dist[v] >= m.hopLimit) continue;
       for (const w of adj[v]) {
         if (dist[w] >= 0 || ns[w].unit.kind !== "powered") continue;
         dist[w] = dist[v] + 1;
-        heartbeatSources[w]++;
+        reached++;
         bq.push(w);
       }
     }
+    heartbeatSources[s0] = reached;
   }
 
-  return { edges, component, components, relaysToResponder, heartbeatSources, treeEdges };
+  return { edges, component, components, relaysToResponder, heartbeatSources, heartbeatEstimated, treeEdges };
 }
 
 // ----------------------------------------------------------------- coverage
@@ -360,6 +455,14 @@ export function analyseCoverage(
     hg: heightGainDb(nd.profile.heightM, m.heightGainCapDb),
     responder: nd.unit.kind === "responder",
   }));
+  // Only units within the largest household reach can cover a cell.
+  const maxR = Math.sqrt(per.reduce((a, p) => Math.max(a, p.r2), 0));
+  const hash = bucketise(
+    per.map((p) => p.x),
+    per.map((p) => p.y),
+    per.length,
+    maxR,
+  );
   const nCells = grid.inside.length;
   const count = new Uint16Array(nCells);
   const bestMarginDb = new Float32Array(nCells).fill(-Infinity);
@@ -372,15 +475,15 @@ export function analyseCoverage(
     let cnt = 0;
     let best = -Infinity;
     let minRelays = Infinity;
-    for (let i = 0; i < per.length; i++) {
+    hash.near(x, y, (i) => {
       const p = per[i];
       const dx = p.x - x;
       const dy = p.y - y;
       const d2 = dx * dx + dy * dy;
-      if (d2 > p.r2) continue;
+      if (d2 > p.r2) return;
       if (p.responder) {
         minRelays = 0;
-        continue;
+        return;
       }
       cnt++;
       const d = Math.max(Math.sqrt(d2), 1);
@@ -392,7 +495,7 @@ export function analyseCoverage(
       if (margin > best) best = margin;
       const r = backbone.relaysToResponder[i];
       if (r > 0 && r < minRelays) minRelays = r;
-    }
+    });
     count[k] = Math.min(cnt, 65535);
     bestMarginDb[k] = best;
     if (minRelays <= m.hopLimit) {
@@ -428,6 +531,11 @@ export function analyseCoverage(
  * Lattice spacing: R·√3 puts every point within R of one lattice point; R
  * puts every point within R of two (worst case is next to a lattice point,
  * whose neighbours are R away). `spacingFactor` < 1 tightens it for safety.
+ *
+ * Powered units already placed count first: a lattice point is skipped when
+ * one of them stands within half a spacing, so "keep the units already
+ * placed" adds only what is missing. Lattice points are taken from the centre
+ * outward, so a run that hits `maxUnits` covers the middle, not one edge.
  */
 export function autoPlace(
   area: ProjectedArea,
@@ -443,56 +551,101 @@ export function autoPlace(
   const civ = profiles.civilian;
   const R = rangeM(civ, profiles.powered, m);
   if (R <= 0) return [];
-  const R2 = R * R;
   const spacing = (redundancy === 2 ? R : R * Math.sqrt(3)) * spacingFactor;
   const placed: [number, number][] = [];
 
+  // Coverage count per cell. `add` visits only the cells in the square
+  // around a unit, through a lookup from grid position to cell.
+  const nCells = grid.inside.length;
+  const xs = new Float64Array(nCells);
+  const ys = new Float64Array(nCells);
+  for (let k = 0; k < nCells; k++) [xs[k], ys[k]] = cellXY(grid, grid.inside[k]);
+  const cellAt = new Int32Array(grid.cols * grid.rows).fill(-1);
+  for (let k = 0; k < nCells; k++) cellAt[grid.inside[k]] = k;
+  const count = new Uint16Array(nCells);
+  const add = (px: number, py: number, r: number) => {
+    const c0 = Math.max(0, Math.floor((px - r - grid.originX) / grid.cellM));
+    const c1 = Math.min(grid.cols - 1, Math.floor((px + r - grid.originX) / grid.cellM));
+    const r0 = Math.max(0, Math.floor((py - r - grid.originY) / grid.cellM));
+    const r1 = Math.min(grid.rows - 1, Math.floor((py + r - grid.originY) / grid.cellM));
+    const rr2 = r * r;
+    for (let row = r0; row <= r1; row++) {
+      for (let col = c0; col <= c1; col++) {
+        const k = cellAt[row * grid.cols + col];
+        if (k < 0) continue;
+        const dx = xs[k] - px;
+        const dy = ys[k] - py;
+        if (dx * dx + dy * dy <= rr2) count[k]++;
+      }
+    }
+  };
+
+  // Powered units already standing, bucketed to test "is one near this point".
+  const standing: [number, number][] = [];
+  for (const u of existing) {
+    if (u.kind !== "powered") continue;
+    const [x, y] = proj.toXY(u.lng, u.lat);
+    standing.push([x, y]);
+    add(x, y, rangeM(civ, unitProfile(u, profiles), m));
+  }
+  const half = spacing / 2;
+  const occupied = new Map<string, [number, number][]>();
+  const keyOf = (x: number, y: number) => `${Math.floor(x / half)},${Math.floor(y / half)}`;
+  const occupy = (x: number, y: number) => {
+    const k = keyOf(x, y);
+    const b = occupied.get(k);
+    if (b) b.push([x, y]);
+    else occupied.set(k, [[x, y]]);
+  };
+  const nearOccupied = (x: number, y: number) => {
+    const bx = Math.floor(x / half);
+    const by = Math.floor(y / half);
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (const [ox, oy] of occupied.get(`${bx + dx},${by + dy}`) ?? []) {
+          if ((ox - x) ** 2 + (oy - y) ** 2 < half * half) return true;
+        }
+      }
+    }
+    return false;
+  };
+  for (const [x, y] of standing) occupy(x, y);
+
+  // Lattice, nearest the centre first.
   const cx = (area.minX + area.maxX) / 2;
   const cy = (area.minY + area.maxY) / 2;
   const rowH = (spacing * Math.sqrt(3)) / 2;
   const nx = Math.ceil((area.maxX - area.minX) / spacing / 2) + 1;
   const ny = Math.ceil((area.maxY - area.minY) / rowH / 2) + 1;
+  const lattice: [number, number][] = [];
   for (let j = -ny; j <= ny; j++) {
     const y = cy + j * rowH;
     const off = (Math.abs(j) % 2) * (spacing / 2);
     for (let i = -nx; i <= nx; i++) {
       const x = cx + i * spacing + off;
-      if (insideArea(area, x, y)) placed.push([x, y]);
-      if (placed.length >= maxUnits) break;
+      if (insideArea(area, x, y)) lattice.push([x, y]);
     }
   }
-
-  // Coverage count per cell from existing powered units and the lattice.
-  const nCells = grid.inside.length;
-  const xs = new Float64Array(nCells);
-  const ys = new Float64Array(nCells);
-  for (let k = 0; k < nCells; k++) [xs[k], ys[k]] = cellXY(grid, grid.inside[k]);
-  const count = new Uint16Array(nCells);
-  const add = (px: number, py: number, r2: number) => {
-    for (let k = 0; k < nCells; k++) {
-      const dx = xs[k] - px;
-      const dy = ys[k] - py;
-      if (dx * dx + dy * dy <= r2) count[k]++;
-    }
-  };
-  for (const u of existing) {
-    if (u.kind !== "powered") continue;
-    const [x, y] = proj.toXY(u.lng, u.lat);
-    const r = rangeM(civ, unitProfile(u, profiles), m);
-    add(x, y, r * r);
+  lattice.sort((a, b) => (a[0] - cx) ** 2 + (a[1] - cy) ** 2 - ((b[0] - cx) ** 2 + (b[1] - cy) ** 2));
+  for (const [x, y] of lattice) {
+    if (placed.length >= maxUnits) break;
+    if (nearOccupied(x, y)) continue;
+    placed.push([x, y]);
+    occupy(x, y);
+    add(x, y, R);
   }
-  for (const [x, y] of placed) add(x, y, R2);
 
   // Greedy fill: centre a new unit on the uncovered cells near each gap. One
   // pass per level of redundancy, so a gap that needs two units gets them
   // from two different centres rather than two at the same spot.
-  for (let pass = 0; pass < redundancy + 1; pass++) {
-    for (let k = 0; k < nCells && placed.length < maxUnits; k++) {
+  const lim = (R / 2) ** 2;
+  fill: for (let pass = 0; pass < redundancy + 1; pass++) {
+    for (let k = 0; k < nCells; k++) {
+      if (placed.length >= maxUnits) break fill;
       if (count[k] >= redundancy) continue;
       let sx = 0;
       let sy = 0;
       let n = 0;
-      const lim = (R / 2) ** 2;
       for (let q = k; q < nCells; q++) {
         const dy = ys[q] - ys[k];
         if (dy * dy > lim) break; // cells are in row order, so nothing further is closer
@@ -511,7 +664,7 @@ export function autoPlace(
         py = ys[k];
       }
       placed.push([px, py]);
-      add(px, py, R2);
+      add(px, py, R);
     }
   }
 
@@ -528,6 +681,8 @@ export interface AirtimeReport {
   /** Worst powered unit's heartbeat transmissions per hour, upper bound (no race cancellation). */
   worstHeartbeatSPerHour: number;
   worstHeartbeatSources: number;
+  /** True when the network was too large to count every unit (see analyseBackbone). */
+  heartbeatEstimated: boolean;
   /**
    * Channel time heartbeats take around the busiest powered unit when the
    * forwarding race works (§13.3): each heartbeat is sent once by its source
@@ -553,6 +708,7 @@ export function airtimeReport(units: PlacedUnit[], backbone: Backbone, m: RadioM
     budgetSPerHour: 3600 * (m.dutyCyclePct / 100),
     worstHeartbeatSPerHour: anyPowered ? m.heartbeatsPerHour * (1 + worst) * hb : 0,
     worstHeartbeatSources: worst,
+    heartbeatEstimated: backbone.heartbeatEstimated,
     heartbeatChannelSPerHour: anyPowered ? m.heartbeatsPerHour * (1 + worst) * hb * (1 + m.hopLimit) : 0,
   };
 }

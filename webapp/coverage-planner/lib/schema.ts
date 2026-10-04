@@ -10,6 +10,8 @@ export const SCHEMA: readonly string[] = [
     value      jsonb       NOT NULL,
     updated_at timestamptz NOT NULL DEFAULT now()
   )`,
+  // Revision of each setting, bumped on every save (lib/costStore.ts).
+  `ALTER TABLE settings ADD COLUMN IF NOT EXISTS rev bigint NOT NULL DEFAULT 0`,
   // Login rate limiting (lib/ratelimit.ts).
   `CREATE TABLE IF NOT EXISTS login_limits (
     key          text PRIMARY KEY,

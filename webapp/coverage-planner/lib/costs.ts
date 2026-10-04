@@ -5,11 +5,8 @@
  * planner page only ever receives the public view: one price per unit kind
  * and one rate per project line, markup included, no breakdown.
  *
- * Default amounts: the electronics line is the landed cost per unit from the
- * priced PCB V1 BoM (docs/hardware/pcb-v1/flood-mesh-v1.0-bom-priced.xlsx,
- * 15-unit build, 27 Sep 2026), the whip antenna is the §14.1 candidate part,
- * WPC type approval is from docs/certification-india.md. Every other default
- * is a placeholder estimate to be replaced with quotes.
+ * The built-in default sheet lives in defaultCosts.ts, which only server code
+ * imports, so its breakdown is not shipped in the public JavaScript.
  */
 import type { UnitKind } from "./radio.ts";
 
@@ -31,6 +28,12 @@ export interface CostLine {
 
 export interface ProjectLine extends CostLine {
   basis: CostBasis;
+  /**
+   * Add the markup to this line's public rate. Off for pass-through fees whose
+   * real cost is public (WPC approval): marking those up would let anyone work
+   * out the markup by dividing the rate by the known fee.
+   */
+  markup: boolean;
 }
 
 export interface CostSheet {
@@ -55,80 +58,6 @@ export interface PublicCosts {
 
 const UNIT_KINDS: UnitKind[] = ["civilian", "powered", "responder"];
 
-const base = (): CostLine[] => [
-  {
-    id: "electronics",
-    name: "Electronics, battery and case parts (PCB V1 priced BoM, landed)",
-    amount: 2417,
-    note: "BoM: 15-unit build, 27 Sep 2026",
-  },
-  { id: "pcb", name: "PCB fabrication and assembly", amount: 450, note: "Estimate" },
-  { id: "enclosure", name: "IP67 enclosure", amount: 450, note: "Estimate" },
-  { id: "pigtail", name: "U.FL to SMA bulkhead pigtail", amount: 150, note: "Estimate" },
-  { id: "keypad", name: "4×4 membrane keypad", amount: 60, note: "Estimate" },
-  { id: "label", name: "Label with call sign and QR code, packaging", amount: 40, note: "Estimate" },
-];
-
-export const DEFAULT_COSTS: CostSheet = {
-  version: 1,
-  currency: "INR",
-  markupPct: 0,
-  contingencyPct: 10,
-  units: {
-    civilian: [
-      ...base(),
-      { id: "whip", name: "868 MHz half-wave whip antenna (LWC-868-RD-RA-SMA)", amount: 307, note: "§14.1 candidate" },
-    ],
-    powered: [
-      ...base(),
-      { id: "omni", name: "Outdoor omni antenna, 5–6 dBi fibreglass", amount: 2500, note: "Estimate" },
-      { id: "coax", name: "Low-loss coax (LMR-240, 2 m) and connectors", amount: 600, note: "Estimate" },
-      { id: "surge", name: "Surge arrestor and earthing", amount: 1200, note: "Estimate" },
-      { id: "solar", name: "Solar panel 20 W, charge controller and backup battery", amount: 3500, note: "Estimate" },
-      { id: "mount", name: "Pole or wall mount", amount: 800, note: "Estimate" },
-      { id: "install", name: "Terrace installation labour", amount: 1500, note: "Estimate" },
-    ],
-    responder: [
-      ...base(),
-      { id: "whip", name: "868 MHz half-wave whip antenna (LWC-868-RD-RA-SMA)", amount: 307, note: "§14.1 candidate" },
-      { id: "powerbank", name: "Power bank, 10,000 mAh", amount: 900, note: "Estimate" },
-      { id: "pouch", name: "Waterproof pouch and lanyard", amount: 250, note: "Estimate" },
-    ],
-  },
-  project: [
-    { id: "survey", name: "Site survey and walk test", basis: "per_km2", amount: 3000, note: "Estimate" },
-    {
-      id: "calibration",
-      name: "Field calibration test (2 days, team of 4)",
-      basis: "fixed",
-      amount: 20000,
-      note: "Estimate",
-    },
-    {
-      id: "wpc",
-      name: "WPC equipment type approval (per hardware model)",
-      basis: "fixed",
-      amount: 10000,
-      note: "docs/certification-india.md",
-    },
-    {
-      id: "handover",
-      name: "Household handover and registry entry",
-      basis: "per_household_unit",
-      amount: 50,
-      note: "Estimate",
-    },
-    { id: "training", name: "Responder training", basis: "per_responder_unit", amount: 1500, note: "Estimate" },
-    {
-      id: "maintenance",
-      name: "Year-1 maintenance and battery swaps",
-      basis: "per_powered_unit",
-      amount: 600,
-      note: "Estimate",
-    },
-  ],
-};
-
 // ------------------------------------------------------------- validation
 
 const MAX_LINES = 40;
@@ -138,20 +67,31 @@ function text(v: unknown, max: number): string {
   return typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max) : "";
 }
 
+/** Numbers and non-empty numeric strings only: null, "", true and [] are not 0 or 1. */
+function strictNumber(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string" && v.trim() !== "") return Number(v);
+  return NaN;
+}
+
 function amount(v: unknown): number | null {
-  const n = typeof v === "number" ? v : Number(v);
+  const n = strictNumber(v);
   if (!Number.isFinite(n) || n < 0 || n > MAX_AMOUNT) return null;
   return Math.round(n * 100) / 100;
 }
 
 function pct(v: unknown): number | null {
-  const n = typeof v === "number" ? v : Number(v);
+  const n = strictNumber(v);
   return Number.isFinite(n) && n >= 0 && n <= 500 ? Math.round(n * 100) / 100 : null;
 }
 
-function lineId(v: unknown, i: number): string {
-  const s = text(v, 40).replace(/[^a-zA-Z0-9_-]/g, "");
-  return s || `line${i + 1}`;
+/** A clean id, unique within its list (React keys and edits rely on it). */
+function lineId(v: unknown, i: number, used: Set<string>): string {
+  const base = text(v, 40).replace(/[^a-zA-Z0-9_-]/g, "") || `line${i + 1}`;
+  let id = base;
+  for (let k = 2; used.has(id); k++) id = `${base}-${k}`;
+  used.add(id);
+  return id;
 }
 
 /** Check an untrusted cost sheet. Returns the clean sheet or the first problem found. */
@@ -167,13 +107,14 @@ export function validateCosts(input: unknown): { ok: true; sheet: CostSheet } | 
     if (!Array.isArray(v)) return `${where}: list of lines expected.`;
     if (v.length > MAX_LINES) return `${where}: at most ${MAX_LINES} lines.`;
     const out: CostLine[] = [];
+    const used = new Set<string>();
     for (let i = 0; i < v.length; i++) {
       const l = (v[i] ?? {}) as Record<string, unknown>;
       const name = text(l.name, 120);
       const a = amount(l.amount);
       if (!name) return `${where}, line ${i + 1}: name is empty.`;
       if (a === null) return `${where}, "${name}": amount must be a number from 0 to ${MAX_AMOUNT}.`;
-      out.push({ id: lineId(l.id, i), name, amount: a, note: text(l.note, 200) });
+      out.push({ id: lineId(l.id, i, used), name, amount: a, note: text(l.note, 200) });
     }
     return out;
   };
@@ -192,10 +133,13 @@ export function validateCosts(input: unknown): { ok: true; sheet: CostSheet } | 
   const project: ProjectLine[] = [];
   for (let i = 0; i < projIn.length; i++) {
     const basis = rawProject[i]?.basis;
-    if (typeof basis !== "string" || !(basis in COST_BASES)) {
+    // Object.hasOwn, not `in`: "toString" or "__proto__" must not pass.
+    if (typeof basis !== "string" || !Object.hasOwn(COST_BASES, basis)) {
       return { ok: false, error: `Project costs, "${projIn[i].name}": unknown basis.` };
     }
-    project.push({ ...projIn[i], basis: basis as CostBasis });
+    // Sheets saved before the flag existed marked every line up.
+    const markup = rawProject[i]?.markup;
+    project.push({ ...projIn[i], basis: basis as CostBasis, markup: typeof markup === "boolean" ? markup : true });
   }
 
   return { ok: true, sheet: { version: 1, currency: "INR", markupPct, contingencyPct, units, project } };
@@ -219,7 +163,7 @@ export function publicCosts(sheet: CostSheet, updatedAt: string | null, isDefaul
       powered: round(sumLines(sheet.units.powered) * k),
       responder: round(sumLines(sheet.units.responder) * k),
     },
-    project: sheet.project.map((l) => ({ id: l.id, name: l.name, basis: l.basis, rate: round(l.amount * k) })),
+    project: sheet.project.map((l) => ({ id: l.id, name: l.name, basis: l.basis, rate: round(l.amount * (l.markup ? k : 1)) })),
     updatedAt,
     isDefault,
   };

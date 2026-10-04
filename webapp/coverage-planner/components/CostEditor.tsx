@@ -2,12 +2,12 @@
 /**
  * The admin's cost sheet editor. Component lines per unit kind, project
  * lines with their basis, markup and contingency. Saving replaces the whole
- * sheet on the server (PUT /api/admin/costs), which validates it again.
+ * sheet on the server (PUT /api/admin/costs), which validates it again and
+ * refuses it if someone else saved since this page loaded (revision check).
  */
 import { useEffect, useRef, useState } from "react";
 import {
   COST_BASES,
-  DEFAULT_COSTS,
   formatInr,
   publicCosts,
   sumLines,
@@ -58,6 +58,7 @@ function LinesTable<T extends CostLine>({
             <th>Item</th>
             {withBasis && <th>Basis</th>}
             <th className="num">Cost (₹)</th>
+            {withBasis && markupPct > 0 && <th title="Add the markup to this line's public rate">Markup</th>}
             {markupPct > 0 && <th className="num">Price</th>}
             <th>Source / note</th>
             <th aria-label="Actions"></th>
@@ -87,7 +88,21 @@ function LinesTable<T extends CostLine>({
               <td className="num">
                 <NumInput ariaLabel="Cost in rupees" value={l.amount} min={0} max={1e9} step={1} onChange={(v) => set(i, { amount: v } as Partial<T>)} />
               </td>
-              {markupPct > 0 && <td className="num muted">{formatInr(l.amount * (1 + markupPct / 100))}</td>}
+              {withBasis && markupPct > 0 && (
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label="Add the markup to this line"
+                    checked={(l as unknown as ProjectLine).markup}
+                    onChange={(e) => set(i, { markup: e.target.checked } as unknown as Partial<T>)}
+                  />
+                </td>
+              )}
+              {markupPct > 0 && (
+                <td className="num muted">
+                  {formatInr(l.amount * (!withBasis || (l as unknown as ProjectLine).markup ? 1 + markupPct / 100 : 1))}
+                </td>
+              )}
               <td>
                 <input aria-label="Note" value={l.note} maxLength={200} onChange={(e) => set(i, { note: e.target.value } as Partial<T>)} />
               </td>
@@ -110,7 +125,10 @@ function LinesTable<T extends CostLine>({
         type="button"
         className="secondary small"
         onClick={() =>
-          onChange([...lines, { id: lineId(), name: "New item", amount: 0, note: "", ...(withBasis ? { basis: "fixed" } : {}) } as unknown as T])
+          onChange([
+            ...lines,
+            { id: lineId(), name: "New item", amount: 0, note: "", ...(withBasis ? { basis: "fixed", markup: true } : {}) } as unknown as T,
+          ])
         }
         disabled={lines.length >= 40}
       >
@@ -120,21 +138,42 @@ function LinesTable<T extends CostLine>({
   );
 }
 
+interface ServerReply {
+  ok: boolean;
+  error?: string;
+  conflict?: boolean;
+  sheet?: CostSheet;
+  updatedAt?: string | null;
+  isDefault?: boolean;
+  rev?: number | null;
+}
+
+/** "Last saved" in India time, so the server render and the browser agree. */
+function savedLabel(updatedAt: string | null): string {
+  if (!updatedAt) return "";
+  return new Date(updatedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
+}
+
 export default function CostEditor({
   initial,
   initialUpdatedAt,
   initialIsDefault,
+  initialRev,
 }: {
   initial: CostSheet;
   initialUpdatedAt: string | null;
   initialIsDefault: boolean;
+  initialRev: number | null;
 }) {
   const [sheet, setSheet] = useState<CostSheet>(initial);
   const [saved, setSaved] = useState<CostSheet>(initial);
   const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt);
   const [isDefault, setIsDefault] = useState(initialIsDefault);
+  const [rev, setRev] = useState<number | null>(initialRev);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  /** The newer sheet from the server after a 409, until the admin chooses what to do. */
+  const [conflict, setConflict] = useState<ServerReply | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(sheet) !== JSON.stringify(saved);
 
@@ -146,28 +185,52 @@ export default function CostEditor({
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  async function send(method: "PUT" | "DELETE", body?: CostSheet) {
+  function adopt(j: ServerReply) {
+    setSheet(j.sheet!);
+    setSaved(j.sheet!);
+    setUpdatedAt(j.updatedAt ?? null);
+    setIsDefault(Boolean(j.isDefault));
+    setRev(j.rev ?? null);
+  }
+
+  async function send(method: "PUT" | "DELETE", body?: CostSheet, force = false) {
     setBusy(true);
     setMsg(null);
+    setConflict(null);
     try {
-      const res = await fetch("/api/admin/costs", {
-        method,
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const j = (await res.json()) as { ok: boolean; error?: string; sheet?: CostSheet; updatedAt?: string | null; isDefault?: boolean };
+      const expected = rev === null ? "none" : String(rev);
+      const res = await fetch(
+        method === "PUT" ? "/api/admin/costs" : `/api/admin/costs?expectedRev=${expected}${force ? "&force=1" : ""}`,
+        {
+          method,
+          headers: body ? { "Content-Type": "application/json" } : undefined,
+          body: body ? JSON.stringify({ sheet: body, expectedRev: rev, force }) : undefined,
+        },
+      );
+      let j: ServerReply;
+      try {
+        j = (await res.json()) as ServerReply;
+      } catch {
+        // A platform error page, not this API's JSON.
+        setMsg({ tone: "bad", text: `Not saved: the server answered HTTP ${res.status}. Try again in a minute.` });
+        return;
+      }
       if (res.status === 401) {
-        setMsg({ tone: "bad", text: "Your login has expired. Copy anything you need, then reload the page and log in again." });
+        setMsg({
+          tone: "bad",
+          text: "Your login has expired. Your changes are still on this page: log in again at /admin in a new tab, then press Save here. Or use Download sheet to keep a copy.",
+        });
+        return;
+      }
+      if (res.status === 409 && j.sheet) {
+        setConflict(j);
         return;
       }
       if (!j.ok || !j.sheet) {
         setMsg({ tone: "bad", text: j.error ?? `Not saved (HTTP ${res.status}).` });
         return;
       }
-      setSheet(j.sheet);
-      setSaved(j.sheet);
-      setUpdatedAt(j.updatedAt ?? null);
-      setIsDefault(Boolean(j.isDefault));
+      adopt(j);
       setMsg({ tone: "ok", text: method === "PUT" ? "Saved. The planner uses the new prices from its next page load." : "Reset to the built-in defaults." });
     } catch {
       setMsg({ tone: "bad", text: "Not saved: no connection to the server." });
@@ -176,13 +239,13 @@ export default function CostEditor({
     }
   }
 
-  function save() {
+  function save(force = false) {
     const v = validateCosts(sheet);
     if (!v.ok) {
       setMsg({ tone: "bad", text: v.error });
       return;
     }
-    void send("PUT", v.sheet);
+    void send("PUT", v.sheet, force);
   }
 
   async function importSheet(file: File) {
@@ -203,11 +266,9 @@ export default function CostEditor({
       <div className="adminTop">
         <div>
           <h1>Planner admin: costs</h1>
-          <p className="muted">
-            {isDefault
-              ? "Built-in placeholder prices are in use; nothing has been saved yet."
-              : `Last saved ${new Date(updatedAt!).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}.`}{" "}
-            The planner shows one price per unit type and one rate per project line; this breakdown and the markup stay on this page.
+          <p className="muted" suppressHydrationWarning>
+            {isDefault ? "Built-in placeholder prices are in use; nothing has been saved yet." : `Last saved ${savedLabel(updatedAt)} (India time).`}{" "}
+            The planner shows one price per unit type and one rate per project line; this breakdown stays on this page.
           </p>
         </div>
         <div className="row">
@@ -221,7 +282,7 @@ export default function CostEditor({
       </div>
 
       <div className="saveBar">
-        <button type="button" onClick={save} disabled={busy || !dirty}>
+        <button type="button" onClick={() => save()} disabled={busy || !dirty}>
           {busy ? "Saving…" : dirty ? "Save changes" : "Saved"}
         </button>
         <button type="button" className="secondary" onClick={() => setSheet(saved)} disabled={busy || !dirty}>
@@ -231,7 +292,7 @@ export default function CostEditor({
         <button type="button" className="secondary" onClick={() => download("floodmesh-cost-sheet.json", JSON.stringify(sheet, null, 1), "application/json")}>
           Download sheet
         </button>
-        <button type="button" className="secondary" onClick={() => fileRef.current?.click()}>
+        <button type="button" className="secondary" onClick={() => fileRef.current?.click()} disabled={busy}>
           Load sheet
         </button>
         <input
@@ -261,7 +322,39 @@ export default function CostEditor({
           {msg.text}
         </p>
       )}
+      {conflict && (
+        <div className="error" role="alert">
+          <p>
+            Not saved: {conflict.error} The newer list was{" "}
+            {conflict.isDefault ? "reset to the built-in defaults" : `saved ${savedLabel(conflict.updatedAt ?? null)} (India time)`}.
+          </p>
+          <div className="row wrap">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                if (!dirty || window.confirm("Load the newer list? Your unsaved changes on this page are lost.")) {
+                  adopt(conflict);
+                  setConflict(null);
+                }
+              }}
+            >
+              Load the newer list
+            </button>
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                if (window.confirm("Replace the newer list with the one on this page?")) save(true);
+              }}
+            >
+              Overwrite it with mine
+            </button>
+          </div>
+        </div>
+      )}
 
+      <fieldset className="plain" disabled={busy}>
       <section className="card">
         <h2>Pricing</h2>
         <div className="row wrap">
@@ -328,12 +421,19 @@ export default function CostEditor({
         <h2>Project costs</h2>
         <p className="muted">Survey, testing, certification, training and maintenance. Each line is multiplied by its basis in the planner.</p>
         <LinesTable withBasis lines={sheet.project} markupPct={sheet.markupPct} onChange={(project) => setSheet({ ...sheet, project })} />
+        {sheet.markupPct > 0 && (
+          <p className="hint">
+            The markup is added to every unit price and to the project lines ticked under Markup. Anyone who knows a line&apos;s real cost can
+            work the markup out from its public rate, so leave public fees (such as WPC approval) unticked.
+          </p>
+        )}
       </section>
+      </fieldset>
 
       <p className="hint">
         Default sources: electronics from the priced PCB V1 BoM (docs/hardware/pcb-v1, 15-unit build, landed), the whip antenna from
-        docs/architecture.md §14.1, WPC type approval from docs/certification-india.md. Other defaults are placeholders:{" "}
-        {DEFAULT_COSTS.units.powered.filter((l) => l.note === "Estimate").length} powered-unit lines are marked “Estimate”. Replace them with quotes.
+        docs/architecture.md §14.1, WPC type approval from docs/certification-india.md. Lines marked “Estimate” are placeholders: replace
+        them with quotes.
       </p>
     </main>
   );

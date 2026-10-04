@@ -30,8 +30,22 @@ function errorText(code: string, wait: string): string | null {
 export default async function AdminPage({ searchParams }: { searchParams: Search }) {
   const s = await getSession();
   if (s) {
-    const c = await loadCosts();
-    return <CostEditor initial={c.sheet} initialUpdatedAt={c.updatedAt} initialIsDefault={c.isDefault} />;
+    let c: Awaited<ReturnType<typeof loadCosts>>;
+    try {
+      c = await loadCosts();
+    } catch (err) {
+      console.error("[admin] could not load the cost sheet", err);
+      return (
+        <main className="adminPage narrow">
+          <h1>Planner admin</h1>
+          <p className="error" role="alert">
+            The database is unavailable right now, so the price list cannot be shown. Reload in a minute.
+          </p>
+          <a href="/">Back to the planner</a>
+        </main>
+      );
+    }
+    return <CostEditor initial={c.sheet} initialUpdatedAt={c.updatedAt} initialIsDefault={c.isDefault} initialRev={c.rev} />;
   }
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";

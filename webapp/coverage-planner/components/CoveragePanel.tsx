@@ -80,13 +80,13 @@ export function Legend({ view, hopLimit }: { view: CoverageView; hopLimit: numbe
             ["#c81e1e", "no link"],
           ]
         : view === "sos"
-          ? [
+          ? ([
               ["#146e32", "direct to responder"],
-              ["#149646", "1 relay"],
-              ["#82be3c", `2–${hopLimit - 1} relays`],
-              ["#ebaa00", `${hopLimit} relays (limit)`],
+              hopLimit > 1 ? ["#149646", "1 relay"] : null,
+              hopLimit > 2 ? ["#82be3c", hopLimit === 3 ? "2 relays" : `2–${hopLimit - 1} relays`] : null,
+              ["#ebaa00", `${hopLimit} relay${hopLimit === 1 ? "" : "s"} (limit)`],
               ["#c81e1e", "not reached"],
-            ]
+            ].filter(Boolean) as [string, string][])
           : [];
   return (
     <div className="legend">
@@ -191,7 +191,10 @@ export default function CoveragePanel(p: Props) {
                 </td>
               </tr>
               <tr>
-                <td>Heartbeat channel time around the busiest powered unit (each sent once per hop)</td>
+                <td>
+                  Heartbeat channel time around the busiest powered unit (each sent once per hop)
+                  {a.airtime.heartbeatEstimated && <span className="muted"> · estimated from the best-connected units</span>}
+                </td>
                 <td className="num">
                   {a.airtime.heartbeatChannelSPerHour.toFixed(0)} of ~{USABLE_CHANNEL_S_PER_HOUR} s/h
                 </td>

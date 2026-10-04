@@ -1,11 +1,12 @@
 "use client";
 /** The printed report: hidden on screen, laid out under the map when printing. */
+import { useEffect, useState } from "react";
 import { formatInr, type PublicCosts } from "@/lib/costs";
-import { householdUnits, households, type PlanState } from "@/lib/planState";
+import { demandPending, householdUnits, households, type PlanState } from "@/lib/planState";
 import { ENVIRONMENTS, SENSITIVITY_DBM, UNIT_LABELS, legalTxDbm, type UnitKind } from "@/lib/radio";
 import type { Analysis } from "./analysis";
 import { findings } from "./CoveragePanel";
-import { EstimateTable, planEstimate } from "./CostPanel";
+import { EstimateTable, planEstimate, priceSource } from "./CostPanel";
 import { fmtInt, fmtM, fmtPct } from "./ui";
 
 export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanState; analysis: Analysis | null; costs: PublicCosts | null }) {
@@ -17,13 +18,23 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
   const title = plan.report.title || `FloodMesh deployment plan: ${plan.area?.name ?? "area"}`;
   const est = costs ? planEstimate(plan, a, costs) : null;
   const m = plan.model;
+  // The date is set in the browser, not in the page built on the server
+  // (which would print the build day), and refreshed just before printing.
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    const stamp = () => setToday(new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }));
+    stamp();
+    window.addEventListener("beforeprint", stamp);
+    return () => window.removeEventListener("beforeprint", stamp);
+  }, []);
+  const pending = demandPending(plan.demand);
   return (
     <div className="printReport">
       <h1>{title}</h1>
       <p className="muted">
         {plan.report.preparedFor && <>Prepared for {plan.report.preparedFor}. </>}
         {plan.report.preparedBy && <>Prepared by {plan.report.preparedBy}. </>}
-        {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.
+        {today && <>{today}.</>}
       </p>
       {plan.report.notes && <p className="notes">{plan.report.notes}</p>}
 
@@ -31,13 +42,27 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
       <table className="table">
         <tbody>
           <tr><td>Area</td><td>{plan.area?.name ?? "–"}, {km2.toFixed(2)} km²</td></tr>
-          <tr><td>Households (estimate)</td><td>{fmtInt(households(plan.demand, km2))}; {plan.demand.adoptionPct}% get a unit</td></tr>
-          <tr><td>Household units</td><td>{fmtInt(householdUnits(plan.demand, km2))}</td></tr>
+          <tr>
+            <td>Households (estimate)</td>
+            <td>
+              {pending
+                ? "not counted yet (OSM building count pending)"
+                : `${fmtInt(households(plan.demand, km2))} (${plan.demand.mode === "osm" ? "from OSM buildings" : plan.demand.mode === "manual" ? "entered" : `${fmtInt(plan.demand.householdsPerKm2)} per km²`}); ${plan.demand.adoptionPct}% get a unit`}
+            </td>
+          </tr>
+          <tr><td>Household units</td><td>{pending ? "–" : fmtInt(householdUnits(plan.demand, km2))}</td></tr>
           <tr><td>Powered units on terraces</td><td>{powered}</td></tr>
           <tr><td>Responder units</td><td>{responders + plan.extraResponders} ({responders} placed on the map)</td></tr>
           {s && <tr><td>Area hearing at least one / two powered units</td><td>{fmtPct(s.pctCovered1)} / {fmtPct(s.pctCovered2)}</td></tr>}
           {s && s.hasResponders && <tr><td>Area whose SOS reaches a responder within {m.hopLimit} relays</td><td>{fmtPct(s.pctSosReachable)}</td></tr>}
-          {est && <tr><td>Estimated cost</td><td><strong>{formatInr(est.total)}</strong> (incl. {costs!.contingencyPct}% contingency)</td></tr>}
+          {est && (
+            <tr>
+              <td>Estimated cost</td>
+              <td>
+                <strong>{formatInr(est.total)}</strong> (incl. {costs!.contingencyPct}% contingency). {priceSource(costs!)}
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 
@@ -56,6 +81,7 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
         <>
           <h2>Cost estimate</h2>
           <EstimateTable est={est} />
+          <p className="small">{priceSource(costs!)}</p>
         </>
       )}
 

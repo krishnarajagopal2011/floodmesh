@@ -7,7 +7,7 @@ import {
   analyseCoverage,
   airtimeReport,
   makeProjection,
-  pickCellSize,
+  gridCellSize,
   projectArea,
   buildGrid,
   unitProfile,
@@ -94,7 +94,7 @@ export function analyse(plan: PlanState): Analysis {
   let areaKm2 = 0;
   if (plan.area && plan.area.polygons.length) {
     area = projectArea(plan.area.polygons, proj);
-    grid = buildGrid(area, pickCellSize(area.areaM2));
+    grid = buildGrid(area, gridCellSize(area));
     areaKm2 = (grid.inside.length * grid.cellM * grid.cellM) / 1e6;
     coverage = analyseCoverage(area, grid, units, profiles, model, proj, backbone);
   }
@@ -156,9 +156,10 @@ function marginColour(m: number): RGB {
 function relaysColour(r: number, hopLimit: number): RGB {
   if (r < 0) return [200, 30, 30];
   if (r === 0) return [20, 110, 50];
+  // At the limit before "1 relay": with a hop limit of 1, one relay is the limit.
+  if (r >= hopLimit) return [235, 170, 0];
   if (r === 1) return [20, 150, 70];
-  if (r < hopLimit) return [130, 190, 60];
-  return [235, 170, 0];
+  return [130, 190, 60];
 }
 
 export interface CoverageImage {
@@ -214,7 +215,10 @@ export interface ProbeRow {
   relays: number;
 }
 
-/** What a household unit at this point would hear: the best placed units, strongest first. */
+/** Rows shown in the probe popup (and links drawn); its counts use every unit. */
+export const PROBE_ROWS = 6;
+
+/** What a household unit at this point would hear: every placed unit, strongest first. */
 export function probe(plan: PlanState, a: Analysis, lat: number, lng: number): ProbeRow[] {
   const [x, y] = a.proj.toXY(lng, lat);
   const civ = plan.profiles.civilian;
@@ -231,8 +235,7 @@ export function probe(plan: PlanState, a: Analysis, lat: number, lng: number): P
         relays: u.kind === "responder" ? 0 : a.backbone.relaysToResponder[i],
       };
     })
-    .sort((p, q) => q.marginDb - p.marginDb)
-    .slice(0, 6);
+    .sort((p, q) => q.marginDb - p.marginDb);
 }
 
 function esc(s: string): string {
@@ -250,7 +253,8 @@ export function probeHtml(rows: ProbeRow[], plan: PlanState): string {
     : Number.isFinite(relays) && relays <= plan.model.hopLimit
       ? `reaches a responder through ${relays} relay${relays === 1 ? "" : "s"}`
       : "does not reach a responder within the hop limit";
-  const body = rows
+  const shown = rows.slice(0, PROBE_ROWS);
+  const body = shown
     .map(
       (r) =>
         `<tr class="${r.marginDb >= 0 ? "ok" : "bad"}"><td>${esc(r.unit.name)}</td><td>${esc(UNIT_LABELS[r.unit.kind].split(" ")[0])}</td>` +
@@ -263,6 +267,7 @@ export function probeHtml(rows: ProbeRow[], plan: PlanState): string {
     `<p>${ok} powered unit${ok === 1 ? "" : "s"} in range; SOS ${sos}.</p>` +
     (rows.length
       ? `<table><thead><tr><th>Unit</th><th>Type</th><th>Distance</th><th>Signal</th><th>Margin</th></tr></thead><tbody>${body}</tbody></table>` +
+        (rows.length > shown.length ? `<p class="small">Strongest ${shown.length} of ${rows.length} placed units shown.</p>` : "") +
         `<p class="small">Signal: weaker direction of the link. Margin: left over after the ${plan.model.fadeMarginDb} dB fade margin; ≥ 0 means the link is expected to work.</p>`
       : "<p>No units placed yet.</p>") +
     `</div>`

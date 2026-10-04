@@ -100,3 +100,75 @@ test("constituency names match common spellings", () => {
   assert.equal(normName("Thiruvottiyur"), normName("Tiruvottiyur"));
   assert.ok(normName("Alandur").includes(normName("aland")));
 });
+
+test("grid size is capped by the bounding box, not only the area", async () => {
+  const { gridCellSize } = await import("../lib/plan.ts");
+  const sq = (lng: number, lat: number): PolygonRings => [[[lng, lat], [lng + 0.001, lat], [lng + 0.001, lat + 0.001], [lng, lat + 0.001], [lng, lat]]];
+  const a = projectArea([sq(80, 13), sq(85, 18)], proj);
+  const g = buildGrid(a, gridCellSize(a));
+  assert.ok(g.cols * g.rows <= 450_000, `${g.cols * g.rows} cells`);
+  // A normal area keeps the fine grid.
+  const r = projectArea([rect], proj);
+  assert.equal(gridCellSize(r), pickCellSize(r.areaM2));
+});
+
+test("auto-place with units kept adds only what is missing", () => {
+  const a = projectArea([rect], proj);
+  const g = buildGrid(a, 50);
+  const first = autoPlace(a, g, [], DEFAULT_PROFILES, DEFAULT_MODEL, proj, 2, 0.9);
+  const kept: PlacedUnit[] = first.map(([lng, lat], i) => ({ id: `p${i}`, kind: "powered", lat, lng, name: `P${i + 1}` }));
+  const again = autoPlace(a, g, kept, DEFAULT_PROFILES, DEFAULT_MODEL, proj, 2, 0.9);
+  assert.equal(again.length, 0, `added ${again.length} on top of a complete plan`);
+});
+
+test("auto-place respects the unit cap, filling from the centre", () => {
+  const a = projectArea([rect], proj);
+  const g = buildGrid(a, 50);
+  const pts = autoPlace(a, g, [], DEFAULT_PROFILES, DEFAULT_MODEL, proj, 2, 0.9, 3);
+  assert.equal(pts.length, 3);
+  for (const [lng, lat] of pts) {
+    const [x, y] = proj.toXY(lng, lat);
+    assert.ok(Math.hypot(x, y) < 1000, "near the centre");
+  }
+});
+
+test("plan files: bad coordinates dropped, unit ids made unique, names cleaned", async () => {
+  const { fromPlanFile, sanitizePolygons, MAX_AREA_VERTICES } = await import("../lib/planState.ts");
+  const p = fromPlanFile({
+    app: "floodmesh-coverage-planner",
+    area: { name: "x", polygons: [[[[80, 13], [80.01, 13], [80.01, 13.01], [80, 13.01], [80, 13]], [[1, 2]]], [[[999, 13], [80, 13], [80, 1], [80, 13]]]] },
+    units: [
+      { id: "a", kind: "powered", lat: 13, lng: 80, name: "=cmd\u0007" },
+      { id: "a", kind: "powered", lat: 13, lng: 80 },
+      { id: "", kind: "responder", lat: 13, lng: 80 },
+      { id: "u2", kind: "responder", lat: 13, lng: 80 },
+    ],
+  });
+  assert.equal(p.area!.polygons.length, 1, "the polygon with an off-map vertex is dropped");
+  assert.equal(p.area!.polygons[0].length, 1, "the 2-point hole is dropped");
+  const ids = p.units.map((u) => u.id);
+  assert.equal(new Set(ids).size, ids.length, ids.join(","));
+  assert.equal(p.units[0].name, "=cmd ");
+  // Very detailed outlines are thinned.
+  const big: [number, number][] = Array.from({ length: 20_000 }, (_, i) => [80 + Math.cos(i / 3183) * 0.1, 13 + Math.sin(i / 3183) * 0.1]);
+  big.push(big[0]);
+  const thin = sanitizePolygons([[big]]);
+  assert.ok(thin[0][0].length <= MAX_AREA_VERTICES + 2);
+});
+
+test("CSV export neutralises spreadsheet formulas", async () => {
+  const { toCsv } = await import("../lib/exporters.ts");
+  const csv = toCsv(
+    [
+      { id: "1", kind: "powered", lat: 13, lng: 80, name: '=HYPERLINK("http://x","y")' },
+      { id: "2", kind: "powered", lat: -13, lng: -80, name: "@SUM(1)" },
+      { id: "3", kind: "powered", lat: 13, lng: 80, name: "P3" },
+    ],
+    { powered: DEFAULT_PROFILES.powered, responder: DEFAULT_PROFILES.responder },
+  );
+  const lines = csv.trim().split("\n");
+  assert.ok(lines[1].startsWith(`"'=HYPERLINK`), lines[1]);
+  assert.ok(lines[2].startsWith("'@SUM"), lines[2]);
+  assert.ok(lines[2].includes(",-13.000000,-80.000000,"), "negative coordinates stay numbers");
+  assert.ok(lines[3].startsWith("P3,"));
+});

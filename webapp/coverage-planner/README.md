@@ -25,8 +25,13 @@ over OpenStreetMap, for proposals to government bodies and organisations.
 - **Admin** (`/admin`, password protected). Edit the cost sheet: component
   lines per unit type, project lines with their basis (fixed, per km², per
   unit), markup and contingency. The planner only receives the resulting price
-  per unit type and rate per project line; the breakdown and markup stay on
-  the admin page.
+  per unit type and rate per project line; the component breakdown stays on
+  the admin page (the built-in defaults are not shipped to browsers either).
+  The markup is added to unit prices and to the project lines ticked for it.
+  Leave public fees such as WPC approval unticked: anyone who knows a line's
+  real cost could work the markup out from its rate. If two tabs or two admins
+  edit at once, the second save is refused with a choice to load the newer
+  list or overwrite it.
 
 Anyone with the link can use the planner; only the admin can change prices.
 Plans live in the user's browser and in the files they save, not on the
@@ -83,8 +88,8 @@ is marked "Estimate" and should be replaced with quotes on the admin page.
 |---|---|
 | Framework | Next.js 16 (App Router, TypeScript), the same stack as `webapp/field-logger` |
 | Map | Leaflet, Leaflet-Geoman (drawing and editing) |
-| Database | Neon Postgres when `DATABASE_URL` is set (Vercel); otherwise PGlite in `./.pglite`. Tables: `settings` (the cost sheet), `login_limits` |
-| Admin login | One password (`ADMIN_PASSWORD`); HMAC-signed, httpOnly session cookie (8 h); rate-limited (10 wrong passwords per IP per 15 min); same-origin check on every write |
+| Database | Neon Postgres when `DATABASE_URL` is set (Vercel); otherwise PGlite in `./.pglite`. Tables: `settings` (the cost sheet, with a revision number for conflict checks), `login_limits` |
+| Admin login | One password (`ADMIN_PASSWORD`); HMAC-signed, httpOnly session cookie (8 h) keyed to this app and to the password, so changing `ADMIN_PASSWORD` logs every admin out; rate-limited (10 wrong passwords per IP per 15 min); same-origin check on every write |
 
 Pages: `/` (planner), `/admin`. API: `GET /api/costs` (public prices),
 `GET|PUT|DELETE /api/admin/costs` (admin), `/api/login`, `/api/logout`.
@@ -93,8 +98,8 @@ Pages: `/` (planner), `/admin`. API: `GET /api/costs` (public prices),
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `ADMIN_PASSWORD` | yes | Password for `/admin` |
-| `SESSION_SECRET` | yes | Signs the login cookie, at least 32 random characters |
+| `ADMIN_PASSWORD` | yes | Password for `/admin`. Change it and redeploy to log every admin session out |
+| `SESSION_SECRET` | yes | Signs the login cookie, at least 32 random characters. Use a value of its own, not the field logger's |
 | `DATABASE_URL` | on Vercel | Neon connection string; unset locally = PGlite |
 | `TRUST_PROXY` | no | `1` only behind a self-hosted reverse proxy that appends the client address to `X-Forwarded-For` |
 

@@ -57,7 +57,12 @@ ${marks}
 }
 
 export function toCsv(units: PlacedUnit[], defaults: Record<PlacedUnit["kind"], { heightM: number; antennaDbi: number }>): string {
-  const q = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  // A text cell starting with = + - @ (or a tab/CR) is a formula to Excel and
+  // Google Sheets, even inside quotes: prefix it with ' so it stays text.
+  const q = (s: string) => {
+    const t = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
   const rows = ["name,type,lat,lng,height_m,antenna_dbi"];
   for (const u of units) {
     rows.push(

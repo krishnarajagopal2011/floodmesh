@@ -12,8 +12,10 @@ import { countBuildings } from "@/lib/osm";
 import { autoPlace, cellXY, type PlacedUnit } from "@/lib/plan";
 import {
   defaultPlan,
+  demandPending,
   fromPlanFile,
   householdUnits,
+  sanitizePolygons,
   toPlanFile,
   type AreaState,
   type Demand,
@@ -21,7 +23,7 @@ import {
   type ReportInfo,
 } from "@/lib/planState";
 import { DEFAULT_MODEL, DEFAULT_PROFILES, ENVIRONMENTS, type RadioModel, type UnitKind, type UnitProfile } from "@/lib/radio";
-import { analyse, probe, probeHtml, renderCoverage, type Analysis, type CoverageView } from "./analysis";
+import { PROBE_ROWS, analyse, probe, probeHtml, renderCoverage, type Analysis, type CoverageView } from "./analysis";
 import AreaPanel, { type AcCollection } from "./AreaPanel";
 import CostPanel, { planEstimate } from "./CostPanel";
 import CoveragePanel, { Legend } from "./CoveragePanel";
@@ -153,22 +155,60 @@ export default function Planner() {
 
   // ------------------------------------------------------------ analysis
 
+  // The analysis depends on where units are and how they radiate, not on
+  // their names: renaming a unit must not re-run it on every keystroke.
+  const planRef = useRef(plan);
+  planRef.current = plan;
+  const radioUnitsKey = useMemo(
+    () => plan.units.map((u) => `${u.id}|${u.kind}|${u.lat}|${u.lng}|${u.heightM ?? ""}|${u.antennaDbi ?? ""}`).join(";"),
+    [plan.units],
+  );
   useEffect(() => {
-    const t = setTimeout(() => setAnalysis(analyse(plan)), 60);
+    const t = setTimeout(() => setAnalysis(analyse(planRef.current)), 60);
     return () => clearTimeout(t);
-    // Report fields, demand and costs do not change the radio analysis.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan.area, plan.units, plan.model, plan.profiles]);
+  }, [plan.area, radioUnitsKey, plan.model, plan.profiles]);
 
   const image = useMemo(() => (analysis ? renderCoverage(analysis, view, plan.model.hopLimit) : null), [analysis, view, plan.model.hopLimit]);
 
   // ------------------------------------------------------- plan updates
 
-  const setArea = useCallback((area: AreaState | null) => {
-    fitNext.current = true;
-    setEditing(false);
-    setPlan((p) => ({ ...p, area, demand: { ...p.demand, osmBuildings: null } }));
+  // A building count in flight belongs to the area it started on.
+  const countReq = useRef<AbortController | null>(null);
+  const cancelCount = useCallback(() => {
+    countReq.current?.abort();
+    countReq.current = null;
+    setCounting(false);
   }, []);
+
+  /** A count only fits the area it was made for: clear it, and say so if one was in use. */
+  const dropBuildingCount = useCallback(
+    (p: PlanState): PlanState => {
+      if (p.demand.mode === "osm" && p.demand.osmBuildings !== null) {
+        setTimeout(() => notify("The area changed: count the OSM buildings again (Units tab)."), 0);
+      }
+      return { ...p, demand: { ...p.demand, osmBuildings: null } };
+    },
+    [notify],
+  );
+
+  const setArea = useCallback(
+    (area: AreaState | null) => {
+      let next = area;
+      if (area) {
+        const polygons = sanitizePolygons(area.polygons);
+        if (!polygons.length) {
+          notify("That shape has no usable outline (coordinates missing or off the map).");
+          return;
+        }
+        next = { ...area, polygons };
+      }
+      cancelCount();
+      fitNext.current = true;
+      setEditing(false);
+      setPlan((p) => dropBuildingCount({ ...p, area: next }));
+    },
+    [cancelCount, dropBuildingCount, notify],
+  );
 
   const updateUnit = useCallback((id: string, patch: Partial<PlacedUnit>) => {
     setPlan((p) => ({ ...p, units: p.units.map((u) => (u.id === id ? { ...u, ...patch } : u)) }));
@@ -246,23 +286,34 @@ export default function Planner() {
   }, [analysis]);
 
   const doCountBuildings = useCallback(async () => {
-    if (!plan.area) return;
+    const area = plan.area;
+    if (!area) return;
+    countReq.current?.abort();
+    const ctrl = new AbortController();
+    countReq.current = ctrl;
     setCounting(true);
     try {
-      const n = await countBuildings(plan.area.polygons);
-      setDemand({ osmBuildings: n });
-      notify(`${fmtInt(n)} buildings mapped in OpenStreetMap inside ${plan.area.name}.`);
+      const n = await countBuildings(area.polygons, ctrl.signal);
+      // Only for the area it was made for: the area may have changed meanwhile.
+      if (ctrl.signal.aborted) return;
+      setPlan((p) => (p.area === area ? { ...p, demand: { ...p.demand, osmBuildings: n } } : p));
+      notify(`${fmtInt(n)} buildings mapped in OpenStreetMap inside ${area.name}.`);
     } catch (err) {
+      if (ctrl.signal.aborted) return;
       notify(err instanceof Error ? err.message : "Building count failed.");
     } finally {
-      setCounting(false);
+      if (countReq.current === ctrl) {
+        countReq.current = null;
+        setCounting(false);
+      }
     }
-  }, [plan.area, setDemand, notify]);
+  }, [plan.area, notify]);
 
   const openPlan = useCallback(
     async (file: File) => {
       try {
         const next = fromPlanFile(JSON.parse(await file.text()));
+        cancelCount();
         fitNext.current = true;
         setPlan(next);
         setSelectedId(null);
@@ -271,14 +322,15 @@ export default function Planner() {
         notify(`Could not open ${file.name}: ${err instanceof Error ? err.message : "not a plan file"}`);
       }
     },
-    [notify],
+    [notify, cancelCount],
   );
 
   const newPlan = useCallback(() => {
     if (!window.confirm("Start a new plan? The current one is lost unless you saved it.")) return;
+    cancelCount();
     setPlan(defaultPlan());
     setSelectedId(null);
-  }, []);
+  }, [cancelCount]);
 
   const resetRadio = useCallback(() => {
     setPlan((p) => ({ ...p, model: { ...DEFAULT_MODEL }, envId: "urban", profiles: structuredClone(DEFAULT_PROFILES) as Record<UnitKind, UnitProfile> }));
@@ -305,7 +357,10 @@ export default function Planner() {
         lat,
         lng,
         probeHtml(rows, plan),
-        rows.filter((r) => r.marginDb >= 0).map((r) => ({ a: [lat, lng], b: [r.unit.lat, r.unit.lng], marginDb: r.marginDb })),
+        rows
+          .slice(0, PROBE_ROWS)
+          .filter((r) => r.marginDb >= 0)
+          .map((r) => ({ a: [lat, lng], b: [r.unit.lat, r.unit.lng], marginDb: r.marginDb })),
       );
     },
     onDrawn: (polygons) => {
@@ -313,8 +368,17 @@ export default function Planner() {
       setArea({ name: "Drawn area", source: "drawn", polygons });
     },
     onDrawEnd: () => setDrawing(null),
-    onAreaEdited: (polygons) =>
-      setPlan((p) => (p.area ? { ...p, area: { ...p.area, polygons, acNos: undefined, source: p.area.source === "constituency" ? "drawn" : p.area.source } } : p)),
+    onAreaEdited: (polygons) => {
+      cancelCount();
+      setPlan((p) =>
+        p.area
+          ? dropBuildingCount({
+              ...p,
+              area: { ...p.area, polygons, acNos: undefined, source: p.area.source === "constituency" ? "drawn" : p.area.source },
+            })
+          : p,
+      );
+    },
     onPickConstituency: (acNo) => {
       const f = acs?.features.find((x) => x.properties.ac_no === acNo);
       if (!f) return;
@@ -398,19 +462,28 @@ export default function Planner() {
       if (e.key === "Escape") {
         setMode("pan");
         ctl.current?.clearProbe();
+        ctl.current?.cancelDraw();
+        setDrawing(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Ctrl+P without the Print button: at least fit the area into the printed map.
+  // Ctrl+P without the Print button: give the map its printed size (the
+  // "printing" class, set on the DOM at once since a React update would come
+  // too late) and fit the area into it. Tiles may not all load in time.
+  const appEl = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const before = () => {
+      appEl.current?.classList.add("printing");
       ctl.current?.invalidate();
       ctl.current?.fitArea();
     };
-    const after = () => setTimeout(() => ctl.current?.invalidate(), 100);
+    const after = () => {
+      appEl.current?.classList.remove("printing");
+      setTimeout(() => ctl.current?.invalidate(), 100);
+    };
     window.addEventListener("beforeprint", before);
     window.addEventListener("afterprint", after);
     return () => {
@@ -442,7 +515,7 @@ export default function Planner() {
   const est = costs ? planEstimate(plan, analysis, costs) : null;
 
   return (
-    <div className={`app ${printing ? "printing" : ""}`}>
+    <div ref={appEl} className={`app ${printing ? "printing" : ""}`}>
       <header className="topbar">
         <div className="brand">
           <strong>FloodMesh</strong> Coverage Planner
@@ -455,7 +528,9 @@ export default function Planner() {
           </div>
           <div>
             <span>Household units</span>
-            <strong>{fmtInt(householdUnits(plan.demand, km2))}</strong>
+            <strong title={demandPending(plan.demand) ? "Count the OSM buildings in the Units tab first" : undefined}>
+              {demandPending(plan.demand) ? "count buildings" : fmtInt(householdUnits(plan.demand, km2))}
+            </strong>
           </div>
           <div>
             <span>Powered / responders</span>
@@ -526,8 +601,10 @@ export default function Planner() {
                 drawing={drawing}
                 startDraw={(sh) => {
                   setMode("pan");
-                  setDrawing(sh);
+                  // Start the map's draw first: switching shapes ends the
+                  // previous draw, whose "draw ended" must not win over this.
                   ctl.current?.startDraw(sh);
+                  setDrawing(sh);
                 }}
                 cancelDraw={() => {
                   ctl.current?.cancelDraw();

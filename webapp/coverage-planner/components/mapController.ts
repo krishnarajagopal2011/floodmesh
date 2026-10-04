@@ -74,6 +74,8 @@ export class MapController {
   private selectedId: string | null = null;
   private iconScale: IconScale = "full";
   private editing = false;
+  /** Set by Geoman's edit events while the area is being edited. */
+  private areaDirty = false;
 
   constructor(L: LT, el: HTMLElement, cb: MapCallbacks) {
     this.L = L;
@@ -122,7 +124,7 @@ export class MapController {
     this.probeLayer = L.layerGroup().addTo(this.map);
 
     const pm = (this.map as unknown as { pm: PMMap }).pm;
-    pm.setGlobalOptions({ snappable: false, continueDrawing: false, templineStyle: { color: COLORS.area }, hintlineStyle: { color: COLORS.area, dashArray: "5 5" }, pathOptions: { color: COLORS.area } });
+    pm.setGlobalOptions({ snappable: false, continueDrawing: false, exitModeOnEscape: true, templineStyle: { color: COLORS.area }, hintlineStyle: { color: COLORS.area, dashArray: "5 5" }, pathOptions: { color: COLORS.area } });
 
     this.map.on("pm:create", (e: Leaflet.LeafletEvent) => {
       const ev = e as Leaflet.LeafletEvent & { layer: Leaflet.Layer; shape: string };
@@ -174,6 +176,10 @@ export class MapController {
   startDraw(shape: DrawShape): void {
     this.setMode("pan");
     const pm = (this.map as unknown as { pm: PMMap }).pm;
+    // End any draw in progress first: its pm:drawend (which clears the
+    // "drawing" class and the planner's draw state) must come before, not
+    // after, this draw starts.
+    pm.disableDraw();
     // Corners may fall on unit markers; let the clicks through to the map.
     this.map.getContainer().classList.add("drawing");
     pm.enableDraw(shape, { pathOptions: { color: COLORS.area } });
@@ -210,11 +216,22 @@ export class MapController {
   startEditArea(): void {
     if (this.editing) return;
     this.editing = true;
+    this.areaDirty = false;
     this.areaLayer.eachLayer((l) => {
-      const layer = l as Leaflet.Layer & { pm?: { enable(o?: object): void } };
-      layer.pm?.enable({ allowSelfIntersection: false });
+      const layer = l as Leaflet.Polygon & { pm?: { enable(o?: object): void } };
+      // Adjacent constituencies share border vertices, which Geoman's
+      // self-intersection check counts as crossings: with the check on, every
+      // drag on a multi-part area would snap back. Keep it for single shapes.
+      const gj = layer.toGeoJSON?.();
+      const multiPart = gj?.geometry.type === "MultiPolygon" && gj.geometry.coordinates.length > 1;
+      layer.on("pm:edit pm:vertexadded pm:vertexremoved", this.markDirty);
+      layer.pm?.enable({ allowSelfIntersection: multiPart });
     });
   }
+
+  private markDirty = () => {
+    this.areaDirty = true;
+  };
 
   /** Ends editing; with `report`, hands the edited shape back to the planner. */
   stopEditArea(report = true): void {
@@ -224,9 +241,13 @@ export class MapController {
     this.areaLayer.eachLayer((l) => {
       const layer = l as Leaflet.Layer & { pm?: { disable(): void } };
       layer.pm?.disable();
+      layer.off("pm:edit pm:vertexadded pm:vertexremoved", this.markDirty);
       polys.push(...layerToPolygons(this.L, layer));
     });
-    if (report && polys.length) this.cb.onAreaEdited(polys);
+    // "Finish editing" without a change keeps the area as it was (a
+    // constituency stays a constituency).
+    if (report && this.areaDirty && polys.length) this.cb.onAreaEdited(polys);
+    this.areaDirty = false;
   }
 
   /** All constituencies as faint outlines; a click picks one. */
@@ -243,7 +264,10 @@ export class MapController {
         const p = f.properties as { ac_no: number; name: string; district: string };
         layer.bindTooltip(`${esc(p.name)} (AC ${p.ac_no})`, { sticky: true });
         layer.on("click", (e: Leaflet.LeafletMouseEvent) => {
-          if (this.mode !== "pan") return;
+          // While drawing or editing, the click must reach the map (Geoman
+          // builds shapes from map clicks), so don't stop it here.
+          const pm = (this.map as unknown as { pm: PMMap }).pm;
+          if (this.mode !== "pan" || this.editing || pm.globalDrawModeEnabled()) return;
           this.L.DomEvent.stopPropagation(e);
           this.cb.onPickConstituency(p.ac_no);
         });
@@ -288,9 +312,13 @@ export class MapController {
       } else {
         const p = m.getLatLng();
         if (p.lat !== u.lat || p.lng !== u.lng) m.setLatLng([u.lat, u.lng]);
+        m.options.title = u.name;
         const el = m.getElement();
         if (!el || el.textContent !== (this.iconScale === "full" ? u.name : "")) m.setIcon(icon);
-        m.options.title = u.name;
+        // Leaflet copies the title only when it creates the icon element, and
+        // at dot scale the element is not replaced on a rename: set it here.
+        const el2 = m.getElement();
+        if (el2 && el2.title !== u.name) el2.title = u.name;
       }
     }
     for (const [id, m] of this.markers) {

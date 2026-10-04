@@ -74,9 +74,18 @@ export function defaultPlan(): PlanState {
   };
 }
 
+/**
+ * True when the household figure is waiting for an OSM building count (never
+ * counted, or the area changed since). Households are then 0, never a hidden
+ * density figure; the KPI, Cost tab and report say "count buildings first".
+ */
+export function demandPending(d: Demand): boolean {
+  return d.mode === "osm" && d.osmBuildings === null;
+}
+
 export function households(d: Demand, areaKm2: number): number {
   if (d.mode === "manual") return Math.max(0, Math.round(d.manualHouseholds));
-  if (d.mode === "osm" && d.osmBuildings !== null) return Math.round(d.osmBuildings * d.householdsPerBuilding);
+  if (d.mode === "osm") return d.osmBuildings === null ? 0 : Math.round(d.osmBuildings * d.householdsPerBuilding);
   return Math.round(areaKm2 * d.householdsPerKm2);
 }
 
@@ -98,22 +107,60 @@ const num = (v: unknown, lo: number, hi: number, dflt: number) => {
 };
 const str = (v: unknown, max: number, dflt = "") => (typeof v === "string" ? v.slice(0, max) : dflt);
 
-function polygons(v: unknown): PolygonRings[] {
+/** Above this many vertices an outline is thinned: every grid cell is tested against every vertex. */
+export const MAX_AREA_VERTICES = 6000;
+
+/**
+ * Clean polygons from any source (plan files, GeoJSON imports, OSM search):
+ * only numeric [lng, lat] pairs on Earth, rings of at least 4 points, at
+ * most MAX_AREA_VERTICES vertices in all (evenly thinned beyond that).
+ */
+export function sanitizePolygons(v: unknown): PolygonRings[] {
   if (!Array.isArray(v)) return [];
   const out: PolygonRings[] = [];
-  for (const poly of v) {
+  for (const poly of v.slice(0, 1000)) {
     if (!Array.isArray(poly)) continue;
-    const rings = poly
-      .filter(Array.isArray)
-      .map((ring: unknown[]) =>
-        ring
-          .filter((p): p is [number, number] => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
-          .map((p) => [Number(p[0]), Number(p[1])] as [number, number]),
-      )
-      .filter((r) => r.length >= 4);
-    if (rings.length) out.push(rings);
+    const clean = (ring: unknown): [number, number][] =>
+      Array.isArray(ring)
+        ? ring
+            .filter(
+              (p): p is [number, number] =>
+                Array.isArray(p) &&
+                typeof p[0] === "number" &&
+                typeof p[1] === "number" &&
+                Math.abs(p[0]) <= 180 &&
+                Math.abs(p[1]) <= 90,
+            )
+            .map((p) => [p[0], p[1]] as [number, number])
+        : [];
+    const outer = clean(poly[0]);
+    // A polygon whose outer ring is unusable is dropped with its holes.
+    if (outer.length < 4) continue;
+    out.push([outer, ...poly.slice(1, 200).map(clean).filter((r) => r.length >= 4)]);
   }
-  return out;
+  const total = out.reduce((n, rings) => n + rings.reduce((m, r) => m + r.length, 0), 0);
+  if (total <= MAX_AREA_VERTICES) return out;
+  const step = Math.ceil(total / MAX_AREA_VERTICES);
+  const thin = (r: [number, number][]) => {
+    const kept = r.filter((_, i) => i % step === 0);
+    kept.push(r[r.length - 1]); // keep the ring closed
+    return kept;
+  };
+  const thinned: PolygonRings[] = [];
+  for (const rings of out) {
+    const outer = thin(rings[0]);
+    if (outer.length < 4) continue; // too small to matter at this scale
+    thinned.push([outer, ...rings.slice(1).map(thin).filter((r) => r.length >= 4)]);
+  }
+  return thinned;
+}
+
+/** Unit ids must be unique: markers, list rows and edits are keyed by them. */
+function uniqueId(raw: string, i: number, used: Set<string>): string {
+  let id = raw || `u${i}`;
+  for (let k = 1; used.has(id); k++) id = `${raw || `u${i}`}_${k}`;
+  used.add(id);
+  return id;
 }
 
 function profile(v: unknown, d: UnitProfile): UnitProfile {
@@ -138,20 +185,21 @@ export function fromPlanFile(input: unknown): PlanState {
       ? {
           name: str(a.name, 200, "Area"),
           source: str(a.source, 20, "file"),
-          polygons: polygons(a.polygons),
+          polygons: sanitizePolygons(a.polygons),
           acNos: Array.isArray(a.acNos) ? a.acNos.filter((n) => Number.isInteger(n)).slice(0, 300) : undefined,
         }
       : null;
+  const usedIds = new Set<string>();
   const units: PlacedUnit[] = Array.isArray(o.units)
     ? (o.units as Record<string, unknown>[])
         .filter((u) => u && (u.kind === "powered" || u.kind === "responder"))
         .slice(0, 5000)
         .map((u, i) => ({
-          id: str(u.id, 40) || `u${i}`,
+          id: uniqueId(str(u.id, 40), i, usedIds),
           kind: u.kind as PlacedUnit["kind"],
           lat: num(u.lat, -90, 90, 0),
           lng: num(u.lng, -180, 180, 0),
-          name: str(u.name, 40, `U${i + 1}`),
+          name: str(u.name, 40, `U${i + 1}`).replace(/[\u0000-\u001f\u007f]/g, " "),
           heightM: u.heightM === undefined ? undefined : num(u.heightM, 0.5, 200, 10),
           antennaDbi: u.antennaDbi === undefined ? undefined : num(u.antennaDbi, -10, 20, 2.2),
         }))

@@ -1,7 +1,7 @@
 "use client";
 /** Cost estimate from the admin's price list and the plan's quantities. */
 import { COST_BASES, estimate, formatInr, type Estimate, type PublicCosts } from "@/lib/costs";
-import { householdUnits, households, type PlanState } from "@/lib/planState";
+import { demandPending, householdUnits, households, type PlanState } from "@/lib/planState";
 import type { Analysis } from "./analysis";
 import { Section, Stat, fmtInt } from "./ui";
 
@@ -13,6 +13,15 @@ export function planEstimate(plan: PlanState, a: Analysis | null, costs: PublicC
     responder: plan.units.filter((u) => u.kind === "responder").length + plan.extraResponders,
     areaKm2: km2,
   });
+}
+
+/** Where the prices came from, for the Cost tab and the printed report. */
+export function priceSource(costs: PublicCosts): string {
+  if (costs.isDefault) return "Built-in placeholder prices: the project admin has not set a price list yet. Treat these figures as indicative only.";
+  const d = costs.updatedAt
+    ? new Date(costs.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" })
+    : null;
+  return d ? `Prices from the project price list of ${d}.` : "Prices from the project price list.";
 }
 
 export function EstimateTable({ est }: { est: Estimate }) {
@@ -74,6 +83,9 @@ export default function CostPanel({
   const hhu = householdUnits(plan.demand, km2);
   return (
     <div>
+      {demandPending(plan.demand) && (
+        <p className="warnBox">Household units are 0 until the OSM buildings are counted (Units tab → Household units).</p>
+      )}
       <div className="stats">
         <Stat label="Total estimate" value={formatInr(est.total)} sub={`incl. ${costs.contingencyPct}% contingency`} />
         <Stat label="Per household unit" value={hhu ? formatInr(est.total / hhu) : "–"} sub={`${fmtInt(hhu)} units`} />
@@ -101,7 +113,7 @@ export default function CostPanel({
             {costs.project.map((l) => (
               <tr key={l.id}>
                 <td>
-                  {l.name} <span className="muted">({COST_BASES[l.basis].toLowerCase()})</span>
+                  {l.name} <span className="muted">({(COST_BASES[l.basis] ?? String(l.basis)).toLowerCase()})</span>
                 </td>
                 <td className="num">{formatInr(l.rate)}</td>
               </tr>
@@ -109,10 +121,7 @@ export default function CostPanel({
           </tbody>
         </table>
         <p className="hint">
-          {costs.isDefault
-            ? "Built-in placeholder prices: the admin has not set a price list yet."
-            : `Price list set by the project admin, last changed ${new Date(costs.updatedAt!).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`}{" "}
-          Quantities come from the Units tab.
+          {priceSource(costs)} Quantities come from the Units tab.
         </p>
       </Section>
     </div>

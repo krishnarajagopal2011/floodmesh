@@ -342,6 +342,7 @@ details summary { cursor: pointer; font-weight: 600; }
   border-bottom: 1px solid var(--line);
 }
 .saveBar .spacer { flex: 1; }
+fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; }
 .editTable input, .editTable select { padding: 4px 6px; }
 .editTable td.num input { width: 110px; text-align: right; }
 .editTable td:first-child { min-width: 260px; }
@@ -351,6 +352,7 @@ label.inline { display: inline-flex; align-items: center; gap: 6px; font-weight:
 label.inline input { width: 90px; }
 .priceSummary { max-width: 560px; margin-top: 10px; }
 .error { background: var(--bad-bg); color: var(--bad); border: 1px solid #f3b8b2; padding: 8px 12px; border-radius: 6px; font-weight: 600; }
+.warnBox { background: var(--warn-bg); color: var(--warn); border: 1px solid #f0d68f; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.88rem; }
 .okBox { background: var(--ok-bg); color: var(--ok); border: 1px solid #b5dfc1; padding: 8px 12px; border-radius: 6px; font-weight: 600; }
 
 /* ------------------------------------------------------------- print */
@@ -360,7 +362,10 @@ label.inline input { width: 90px; }
 /* "printing": set just before the print dialog so the map can resize and load tiles. */
 .app.printing .main { grid-template-columns: 1fr; }
 .app.printing .panel { display: none; }
-.app.printing .mapPane { width: 1000px; height: 640px; }
+/* The same physical size as the printed map below, so the area fitted
+   before printing is the area that prints. 186 mm = A4 minus 12 mm margins
+   (fits Letter too). */
+.app.printing .mapPane { width: 186mm; height: 135mm; }
 
 @media print {
   @page { margin: 12mm; }
@@ -368,7 +373,7 @@ label.inline input { width: 90px; }
   .app { display: block; height: auto; }
   .topbar, .panel, .mapTools, .toast, .leaflet-control-zoom, .leaflet-control-layers { display: none !important; }
   .main { display: block; }
-  .mapPane { position: relative; width: 100% !important; height: 135mm !important; break-inside: avoid; border: 1px solid #999; }
+  .mapPane { position: relative; width: 186mm !important; height: 135mm !important; break-inside: avoid; border: 1px solid #999; }
   .printReport { display: block; margin-top: 6mm; }
   .printReport h1 { font-size: 18pt; }
   .printReport h2 { font-size: 13pt; margin-top: 6mm; break-after: avoid; }
