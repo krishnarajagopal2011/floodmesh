@@ -87,6 +87,7 @@ allowed domains (levels: https://code.claude.com/docs/en/claude-code-on-the-web)
 | Local firmware and app builds | the PlatformIO registry, `dl.google.com` |
 | Coverage planner maps and search (browser tests) | `tile.openstreetmap.org`, `nominatim.openstreetmap.org`, `overpass-api.de`, `server.arcgisonline.com`, `*.basemaps.cartocdn.com` |
 | Vercel deploys from the sandbox (also needs a `VERCEL_TOKEN` environment variable) | `vercel.com`, `api.vercel.com`, `*.vercel.app` |
+| AI images for the website from Hugging Face (also needs Spaces switched on at huggingface.co/settings/mcp) | `huggingface.co`, `*.hf.space`, `*.hf.co` |
 
 Until they are allowed, ask the owner to download a gazette PDF and commit it
 to `docs/reference/`.
