@@ -55,7 +55,8 @@
 
   function updateCount() {
     var cart = readCart();
-    var n = Object.keys(cart).reduce(function (s, k) { return s + (cart[k] | 0); }, 0);
+    // The number of different products in the cart (a custom pack of 40 units counts once).
+    var n = Object.keys(cart).filter(function (k) { return (cart[k] | 0) > 0; }).length;
     document.querySelectorAll("[data-cart-count]").forEach(function (el) {
       el.textContent = String(n);
       el.hidden = n === 0;
@@ -64,11 +65,18 @@
 
   function showContact() {
     var c = window.FM_CONFIG || {};
-    var parts = [];
-    if (c.contactPhone) parts.push(c.contactPhone);
-    if (c.contactEmail) parts.push(c.contactEmail);
     document.querySelectorAll("[data-contact]").forEach(function (el) {
-      el.textContent = parts.join(" · ");
+      el.textContent = "";
+      var parts = [];
+      if (c.contactPhone) parts.push(["tel:" + c.contactPhone.replace(/[^\d+]/g, ""), c.contactPhone]);
+      if (c.contactEmail) parts.push(["mailto:" + c.contactEmail, c.contactEmail]);
+      parts.forEach(function (part, i) {
+        if (i) el.appendChild(document.createTextNode(" \u00b7 "));
+        var a = document.createElement("a");
+        a.href = part[0];
+        a.textContent = part[1];
+        el.appendChild(a);
+      });
       el.hidden = parts.length === 0;
     });
   }

@@ -9,8 +9,8 @@ which adds a row to a Google Sheet and emails you. No payment is taken.
 2. In the Sheet: **Extensions → Apps Script**. Delete the sample code and
    paste in `Code.gs` from this folder.
 3. At the top of `Code.gs`, set `NOTIFY_EMAIL` to the address that should get
-   an email for every pre-order, and set `PRICES` to the real prices (the same
-   numbers as `website/assets/js/products.js`).
+   an email for every pre-order (for example support@dverselabs.com). If the
+   prices change, change `PRICES` here and in `website/assets/js/products.js`.
 4. **Deploy → New deployment → Web app.**
    - Execute as: **Me**
    - Who has access: **Anyone**
@@ -32,9 +32,8 @@ into `config.js` again.
 
 ## What it checks
 
-Phone (10-digit Indian mobile), PIN code, product IDs and quantities,
-consent, and the organisation name for responder kits. It recalculates the
-total from its own `PRICES`, so the Sheet always shows the real price. It
+Phone (10-digit Indian mobile), PIN code, product IDs and quantities, and
+consent. It recalculates the total from its own `PRICES`, so the Sheet always shows the real price. It
 accepts at most 5 pre-orders per phone number per hour, and it escapes text
 that Sheets would otherwise run as a formula.
 

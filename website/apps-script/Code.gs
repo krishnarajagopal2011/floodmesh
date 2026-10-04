@@ -9,18 +9,23 @@
 
 const SHEET_NAME = 'Pre-orders';
 const NOTIFY_EMAIL = '';          // where order notifications go; empty = no email
-const PRICES = {                  // rupees per unit, incl. GST (PLACEHOLDERS)
-  household: 2999,
-  rooftop: 6999,
-  responder: 4999,
-  community: 64999,
+const PRICES = {                  // rupees, per item (custom: per unit)
+  unit: 6900,
+  street: 62100,          // 10 units at 10% off
+  neighbourhood: 155250,  // 25 units at 10% off
+  area: 621000,           // 100 units at 10% off
+  custom: 6210,           // per unit, 10% off, quantity = units
+  antenna: 6500,
+  cable: 750,
 };
-const MAX_QTY = { household: 50, rooftop: 10, responder: 20, community: 5 };
+const UNITS_PER_ITEM = { unit: 1, street: 10, neighbourhood: 25, area: 100, custom: 1, antenna: 0, cable: 0 };
+const MIN_QTY = { custom: 10 };
+const MAX_QTY = { unit: 9, street: 10, neighbourhood: 10, area: 5, custom: 500, antenna: 20, cable: 20 };
 const MAX_PER_PHONE_PER_HOUR = 5;
 
 const HEADERS = [
   'Received at', 'Order ID', 'Status', 'Name', 'Phone', 'Email', 'Organisation',
-  'Address', 'City', 'PIN', 'State', 'Items', 'Units', 'Total (Rs)', 'Total shown in browser',
+  'Address', 'City', 'PIN', 'State', 'Items', 'FloodMesh units', 'Total (Rs)', 'Total shown in browser',
   'Language', 'Notes', 'Preview', 'Page',
 ];
 
@@ -42,7 +47,7 @@ function doPost(e) {
     let total = 0;
     const items = order.items.map(function (it) {
       const qty = Math.floor(Number(it.qty));
-      units += qty;
+      units += qty * UNITS_PER_ITEM[it.id];
       total += PRICES[it.id] * qty;
       return qty + ' x ' + it.id;
     }).join(', ');
@@ -89,10 +94,9 @@ function check_(o) {
   if (!c.city || !c.state) return 'place';
   if (!Array.isArray(o.items) || !o.items.length || o.items.length > 10) return 'items';
   for (const it of o.items) {
-    if (!(it.id in PRICES)) return 'item';
+    if (!Object.prototype.hasOwnProperty.call(PRICES, String(it.id))) return 'item';
     const q = Number(it.qty);
-    if (!(q >= 1 && q <= MAX_QTY[it.id] && Math.floor(q) === q)) return 'qty';
-    if (it.id === 'responder' && !c.org) return 'org';
+    if (!(q >= (MIN_QTY[it.id] || 1) && q <= MAX_QTY[it.id] && Math.floor(q) === q)) return 'qty';
   }
   return null;
 }

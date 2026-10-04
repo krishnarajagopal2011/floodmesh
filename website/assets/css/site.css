@@ -583,6 +583,7 @@ p { margin: 0; }
 .cta-band .wrap { display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: center; justify-content: space-between; padding-block: clamp(40px, 6vw, 72px); }
 .cta-band h2 { font-size: var(--step-3); max-width: 22ch; }
 .cta-band p { color: color-mix(in srgb, var(--paper) 75%, var(--ink)); margin-top: 10px; max-width: 52ch; }
+.cta-band a:not(.btn) { color: var(--paper); }
 
 /* footer */
 .site-foot { padding-block: 40px 56px; font-size: 0.95rem; color: var(--muted); }
@@ -614,7 +615,16 @@ p { margin: 0; }
 }
 .product .media-slot { border: 0; border-radius: 0; border-bottom: 1px solid var(--line); aspect-ratio: 16 / 10; }
 .product-body { display: grid; gap: 10px; padding: 18px 18px 8px; align-content: start; }
-.product h2 { font-size: var(--step-2); }
+.product h3 { font-size: var(--step-2); }
+.group-title {
+  grid-column: 1 / -1;
+  font-size: var(--step-1);
+  font-stretch: 90%;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--ink);
+}
+.group-title:not(:first-child) { margin-top: 28px; }
+.hint-line { font-size: 0.9rem; color: var(--water); font-weight: 600; }
 .product .tagline { color: var(--muted); }
 .product ul { margin: 4px 0 0; padding-left: 1.1em; font-size: 0.97rem; display: grid; gap: 4px; }
 .badge {

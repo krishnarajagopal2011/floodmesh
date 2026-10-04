@@ -19,7 +19,7 @@
     Object.keys(raw).forEach(function (id) {
       var p = byId[id];
       var q = Math.floor(Number(raw[id]));
-      if (p && q > 0) cart[id] = Math.min(q, p.maxQty);
+      if (p && q >= (p.minQty || 1)) cart[id] = Math.min(q, p.maxQty);
     });
     return cart;
   }
@@ -29,7 +29,8 @@
   }
   function cartLines(cart) {
     return products.filter(function (p) { return cart[p.id]; }).map(function (p) {
-      return { id: p.id, name: T("p." + p.id + ".name"), qty: cart[p.id], unitPrice: p.price, lineTotal: p.price * cart[p.id] };
+      return { id: p.id, name: T("p." + p.id + ".name"), qty: cart[p.id], unitPrice: p.price, lineTotal: p.price * cart[p.id],
+               units: p.perUnit ? cart[p.id] : (p.units || (p.group === "units" ? 1 : 0)) * cart[p.id] };
     });
   }
   function cartTotal(lines) { return lines.reduce(function (s, l) { return s + l.lineTotal; }, 0); }
@@ -42,66 +43,79 @@
     return node;
   }
 
+  function priceNote(p) {
+    if (p.perUnit) return T("store.perunitpack");
+    if (p.units) {
+      var full = window.FM_PRICING.unitPrice * p.units;
+      return T("store.perpack") + " \u00b7 " + T("store.save").replace("{amount}", money.format(full - p.price));
+    }
+    return T("store.each");
+  }
+
+  function productCard(p, keep) {
+    var card = el("article", { class: "product", id: p.id, "aria-labelledby": "t-" + p.id });
+
+    var media = el("figure", { class: "media-slot", "data-asset": p.media });
+    media.appendChild(el("span", { class: "tag" }, T("media.product")));
+    card.appendChild(media);
+
+    var body = el("div", { class: "product-body" });
+    var badge = T("p." + p.id + ".badge");
+    if (badge !== "p." + p.id + ".badge") body.appendChild(el("span", { class: "badge" }, badge));
+    body.appendChild(el("h3", { id: "t-" + p.id }, T("p." + p.id + ".name")));
+    body.appendChild(el("p", { class: "tagline" }, T("p." + p.id + ".tagline")));
+    var ul = el("ul");
+    for (var b = 1; b <= p.bullets; b++) ul.appendChild(el("li", null, T("p." + p.id + ".b" + b)));
+    body.appendChild(ul);
+    var hint = T("p." + p.id + ".hint");
+    if (hint !== "p." + p.id + ".hint") body.appendChild(el("p", { class: "hint-line" }, hint));
+    card.appendChild(body);
+
+    var foot = el("div", { class: "product-foot" });
+    var price = el("p", { class: "price" }, money.format(p.price));
+    price.appendChild(el("small", null, priceNote(p)));
+    foot.appendChild(price);
+
+    var row = el("div", { class: "add-row" });
+    var stepper = el("div", { class: "stepper" });
+    var qid = "q-" + p.id;
+    var min = p.minQty || 1;
+    var clamp = function (v) { return Math.max(min, Math.min(p.maxQty, parseInt(v, 10) || min)); };
+    var minus = el("button", { type: "button", "aria-label": T("store.less") }, "\u2212");
+    var input = el("input", { id: qid, "data-qty": p.id, type: "number", inputmode: "numeric", min: String(min), max: String(p.maxQty), value: keep[qid] || String(min), "aria-label": T(p.perUnit ? "store.qtyunits" : "store.qty") });
+    var plus = el("button", { type: "button", "aria-label": T("store.more") }, "+");
+    minus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || min) - 1)); });
+    plus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || 0) + 1)); });
+    input.addEventListener("change", function () { input.value = String(clamp(input.value)); });
+    stepper.appendChild(minus); stepper.appendChild(input); stepper.appendChild(plus);
+    var add = el("button", { type: "button", class: "btn btn-line btn-small" }, T("store.add"));
+    add.addEventListener("click", function () {
+      var q = clamp(input.value);
+      var cart = readCart();
+      cart[p.id] = Math.min(p.maxQty, (cart[p.id] || 0) + q);
+      writeCart(cart);
+      input.value = String(min);
+      add.textContent = T("store.added");
+      window.setTimeout(function () { add.textContent = T("store.add"); }, 1600);
+      renderOrder();
+    });
+    row.appendChild(stepper); row.appendChild(add);
+    foot.appendChild(row);
+    card.appendChild(foot);
+    return card;
+  }
+
   function renderCatalogue() {
     var root = document.querySelector("[data-catalogue]");
     if (!root) return;
     var keep = {};
     root.querySelectorAll("input[data-qty]").forEach(function (i) { keep[i.id] = i.value; });
     root.textContent = "";
-    products.forEach(function (p) {
-      var card = el("article", { class: "product", id: p.id, "aria-labelledby": "t-" + p.id });
-
-      var media = el("figure", { class: "media-slot", "data-asset": p.media });
-      media.appendChild(el("span", { class: "tag" }, T("media.product")));
-      card.appendChild(media);
-
-      var body = el("div", { class: "product-body" });
-      var badge = T("p." + p.id + ".badge");
-      if (badge && badge !== "p." + p.id + ".badge") body.appendChild(el("span", { class: "badge" }, badge));
-      body.appendChild(el("h2", { id: "t-" + p.id }, T("p." + p.id + ".name")));
-      body.appendChild(el("p", { class: "tagline" }, T("p." + p.id + ".tagline")));
-      var ul = el("ul");
-      for (var b = 1; b <= p.bullets; b++) ul.appendChild(el("li", null, T("p." + p.id + ".b" + b)));
-      body.appendChild(ul);
-      card.appendChild(body);
-
-      var foot = el("div", { class: "product-foot" });
-      var price = el("p", { class: "price" }, money.format(p.price));
-      var small = [];
-      if (p.bundle) {
-        var separate = Object.keys(p.bundle).reduce(function (s, id) { return s + byId[id].price * p.bundle[id]; }, 0);
-        small.push(T("store.separately").replace("{amount}", money.format(separate)));
-      } else {
-        small.push(T("store.perunit"));
-      }
-      if (config.preview) small.push(T("store.placeholder"));
-      price.appendChild(el("small", null, small.join(" · ")));
-      foot.appendChild(price);
-
-      var row = el("div", { class: "add-row" });
-      var stepper = el("div", { class: "stepper" });
-      var qid = "q-" + p.id;
-      var minus = el("button", { type: "button", "aria-label": T("store.less") }, "−");
-      var input = el("input", { id: qid, "data-qty": p.id, type: "number", inputmode: "numeric", min: "1", max: String(p.maxQty), value: keep[qid] || "1", "aria-label": T("store.qty") });
-      var plus = el("button", { type: "button", "aria-label": T("store.more") }, "+");
-      minus.addEventListener("click", function () { input.value = String(Math.max(1, (parseInt(input.value, 10) || 1) - 1)); });
-      plus.addEventListener("click", function () { input.value = String(Math.min(p.maxQty, (parseInt(input.value, 10) || 0) + 1)); });
-      stepper.appendChild(minus); stepper.appendChild(input); stepper.appendChild(plus);
-      var add = el("button", { type: "button", class: "btn btn-line btn-small" }, T("store.add"));
-      add.addEventListener("click", function () {
-        var q = Math.max(1, Math.min(p.maxQty, parseInt(input.value, 10) || 1));
-        var cart = readCart();
-        cart[p.id] = Math.min(p.maxQty, (cart[p.id] || 0) + q);
-        writeCart(cart);
-        input.value = "1";
-        add.textContent = T("store.added");
-        window.setTimeout(function () { add.textContent = T("store.add"); }, 1600);
-        renderOrder();
-      });
-      row.appendChild(stepper); row.appendChild(add);
-      foot.appendChild(row);
-      card.appendChild(foot);
-      root.appendChild(card);
+    ["units", "packs", "accessories"].forEach(function (group) {
+      var items = products.filter(function (p) { return p.group === group; });
+      if (!items.length) return;
+      root.appendChild(el("h2", { class: "group-title", id: "g-" + group }, T("store.group." + group)));
+      items.forEach(function (p) { root.appendChild(productCard(p, keep)); });
     });
   }
 
@@ -115,7 +129,10 @@
       var li = el("li");
       li.appendChild(el("span", { class: "name" }, l.name));
       li.appendChild(el("span", { class: "amt" }, money.format(l.lineTotal)));
-      var sub = el("span", { class: "sub" }, l.qty + " × " + money.format(l.unitPrice) + " ");
+      var p = byId[l.id];
+      var label = p.perUnit ? T("store.units").replace("{n}", l.qty) + " \u00d7 " + money.format(l.unitPrice)
+        : l.qty + " \u00d7 " + money.format(l.unitPrice) + (p.units ? " (" + T("store.units").replace("{n}", p.units) + ")" : "");
+      var sub = el("span", { class: "sub" }, label + " ");
       var rm = el("button", { type: "button", class: "remove" }, T("store.remove"));
       rm.addEventListener("click", function () {
         var c = readCart();
@@ -129,10 +146,6 @@
     });
     document.querySelector("[data-empty]").hidden = lines.length > 0;
     document.querySelector("[data-total]").textContent = money.format(cartTotal(lines));
-    var needsOrg = lines.some(function (l) { return byId[l.id].orgOnly; });
-    var org = document.querySelector("[data-org-field]");
-    org.hidden = !needsOrg;
-    document.getElementById("f-org").required = needsOrg;
   }
 
   // ------------------------------------------------------------- form
@@ -147,7 +160,6 @@
     name: function (v) { return v.trim().length >= 2 ? null : "err.name"; },
     phone: function (v) { return /^[6-9]\d{9}$/.test(normalisePhone(v)) ? null : "err.phone"; },
     email: function (v) { return !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : "err.email"; },
-    org: function (v, form) { return document.getElementById("f-org").required && v.trim().length < 2 ? "err.org" : null; },
     address: function (v) { return v.trim().length >= 8 ? null : "err.address"; },
     city: function (v) { return v.trim().length >= 2 ? null : "err.city"; },
     pin: function (v) { return /^[1-9]\d{5}$/.test(v.trim()) ? null : "err.pin"; },
@@ -194,7 +206,7 @@
   }
 
   function summaryText(order) {
-    var rows = order.items.map(function (l) { return l.qty + " x " + l.name + " = " + money.format(l.lineTotal); });
+    var rows = order.items.map(function (l) { return l.qty + " x " + l.name + (l.units && l.id !== "unit" ? " (" + l.units + " units)" : "") + " = " + money.format(l.lineTotal); });
     return [
       "FloodMesh pre-order " + order.id,
       rows.join("\n"),
@@ -220,7 +232,8 @@
       var pid = el("p"); pid.appendChild(el("code", null, order.id)); status.appendChild(pid);
       status.appendChild(el("p", null, T("result.preview.body")));
     } else {
-      status.appendChild(el("p", null, T(errorKey || "result.failed")));
+      var contact = [config.contactPhone, config.contactEmail].filter(Boolean).join(" / ");
+      status.appendChild(el("p", null, T(errorKey || "result.failed").replace("{contact}", contact)));
     }
     box.appendChild(status);
     if (kind !== "sent") {
