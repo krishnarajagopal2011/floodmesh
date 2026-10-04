@@ -125,14 +125,19 @@
     var screen = document.querySelector("[data-screen]");
     if (!screen) return;
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // The screen shows the unit's own English words. It rests on frame 0, a
+    // neighbour's message, which is also the markup shown without scripts.
     var frames = [
+      { tag: "MSG", head: "FROM B-14", lines: ["WATER AT OUR GATE.", "ALL SAFE UPSTAIRS."] },
+      { lines: ["TO ALL NEARBY:", "ANY BOAT ON", "3RD STREET?"] },
+      { lines: ["TO ALL NEARBY"], big: "SENT" },
       { lines: ["SOS: PICK HELP TYPE", "1 MED 2 EVAC 3 HAZ", "4 FOOD 0 GENERAL"] },
-      { sos: "MEDICAL", lines: ["SENDING..."] },
-      { sos: "MEDICAL", big: "DELIVERED" },
-      { sos: "MEDICAL", lines: ["DELIVERED"], big: "HELP IS COMING" },
+      { tag: "SOS", head: "MEDICAL", lines: ["SENDING..."] },
+      { tag: "SOS", head: "MEDICAL", big: "DELIVERED" },
+      { tag: "SOS", head: "MEDICAL", lines: ["DELIVERED"], big: "HELP IS COMING" },
     ];
-    var holds = [2600, 1800, 2400, 5200];
-    var i = frames.length - 1;
+    var holds = [5200, 2600, 1800, 2600, 1800, 2200, 4000];
+    var i = 0;
 
     function line(text, cls) {
       var el = document.createElement("span");
@@ -143,13 +148,13 @@
 
     function render(frame) {
       screen.textContent = "";
-      if (frame.sos) {
+      if (frame.tag) {
         var first = line(null);
         var inv = document.createElement("span");
         inv.className = "inv";
-        inv.textContent = "SOS";
+        inv.textContent = frame.tag;
         first.appendChild(inv);
-        first.appendChild(document.createTextNode(" " + frame.sos));
+        first.appendChild(document.createTextNode(" " + frame.head));
         screen.appendChild(first);
       }
       (frame.lines || []).forEach(function (text) { screen.appendChild(line(text)); });
@@ -162,7 +167,7 @@
       render(frames[i]);
       window.setTimeout(next, holds[i]);
     }
-    window.setTimeout(next, 4000);
+    window.setTimeout(next, holds[0]);
   }
 
   window.FM = { t: t, store: store, readCart: readCart, updateCount: updateCount, lang: function () { return chosen; } };

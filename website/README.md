@@ -12,12 +12,19 @@ and needs a native speaker's check before launch). No build step and no librarie
 | `assets/js/products.js` | Products and prices: ₹6,900 a unit; volume discount 10% (10–24 units), 15% (25–49), 20% (50–99), 25% (100–249), 30% (250+), for packs of 10, 25, 50, 100 and 250 and custom packs from 10; rooftop antenna ₹6,500, longer antenna cable ₹750 |
 | `assets/js/i18n.js` | Tamil and Hindi text, and English text the scripts create |
 | `assets/js/site.js`, `store.js` | Language switch, cart, order form |
+| `assets/js/mesh.js` | The animated street map in "How it works": a message to neighbours and an SOS to a rescue team |
 | `api/preorder.js` | Vercel function that passes pre-orders to the Sheet script with a secret key |
 | `apps-script/` | Google Sheet script that records pre-orders (setup in its README) |
 | `vercel.json` | Clean URLs, security headers and caching for Vercel |
 | `.vercelignore` | Keeps this README and `apps-script/` off the live site |
 
 ## Rules for the content
+
+- **Name:** the product is FloodMesh, with no "by ..." line. The company,
+  dVerse Technologies, appears only in the footer, plus where the law needs
+  it (privacy page and the consent line on the order form).
+- **Messages first, then SOS.** Neighbour-to-neighbour messages are half of
+  what the unit does; don't let the SOS crowd them out.
 
 - **No technical detail that helps someone copy the product.** No radio
   frequency, chip names, protocols, settings or circuit details, and no link

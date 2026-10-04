@@ -493,65 +493,88 @@ p { margin: 0; }
 .steps p { color: var(--muted); }
 @media (max-width: 860px) { .steps { grid-template-columns: minmax(0, 1fr); } }
 
-/* the street: houses passing a message along */
-.street {
-  position: relative;
+/* the street map: units passing messages (drawn by mesh.js) */
+.mesh {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  align-items: end;
-  gap: 6px;
-  margin-top: clamp(32px, 5vw, 56px);
-  padding-bottom: 18px;
-  border-bottom: 3px solid var(--water);
-  min-height: 140px;
-}
-.house {
-  justify-self: center;
-  width: min(72px, 100%);
+  gap: 12px;
+  padding: clamp(12px, 2vw, 20px);
   background: var(--surface);
-  border: 2px solid var(--ink);
-  border-radius: 2px;
-  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
-.house::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: -12px;
-  width: 8px;
-  height: 8px;
-  margin-left: -4px;
-  border-radius: 50%;
-  background: var(--water);
+.mesh-controls { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.mesh-tabs { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.mesh-tabs button, .mesh-pause {
+  font: inherit;
+  font-size: 0.92rem;
+  padding: 6px 14px;
+  border: 1px solid var(--field-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
 }
-.house.from::after, .house.to::after { background: var(--sos); }
-.street .lbl {
-  position: absolute;
-  bottom: -30px;
-  font-size: 0.8rem;
-  color: var(--muted);
+.mesh-tabs button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.mesh-map { display: block; width: 100%; max-width: 100%; height: auto; }
+.mesh-water { fill: var(--water-soft); }
+.mesh-road { fill: none; stroke: color-mix(in srgb, var(--line) 75%, var(--surface)); stroke-width: 22; stroke-linecap: round; }
+.mesh-road.thin { stroke-width: 12; }
+.mesh-node .house { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
+.mesh-node .roof-shape { fill: var(--ink); }
+.mesh-node .antenna { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.mesh-node .hull { fill: var(--water); }
+.mesh-node .dot { fill: var(--water); transition: fill 0.3s, opacity 0.3s; }
+.mesh-node.asleep .dot { fill: var(--line); }
+.mesh-node.quiet .dot { fill: var(--sos); opacity: 0.55; }
+.mesh-node.sos .dot, .mesh-node.alert .dot { fill: var(--sos); }
+.mesh-node.done .dot { fill: var(--ok); }
+.mesh-node .bubble { opacity: 0; transition: opacity 0.3s; }
+.mesh-node.shown .bubble, .mesh-node.sos .bubble, .mesh-node.alert .bubble { opacity: 1; }
+.mesh-node .bubble rect, .mesh-node .bubble path { fill: var(--water); }
+.mesh-node.sos .bubble rect, .mesh-node.sos .bubble path,
+.mesh-node.alert .bubble rect, .mesh-node.alert .bubble path { fill: var(--sos); }
+.mesh-node.done .bubble rect, .mesh-node.done .bubble path { fill: var(--ok); }
+.mesh-node .bubble text { fill: var(--paper); font: 700 10px var(--body); }
+.ring { stroke-width: 3; }
+.ring.msg { stroke: var(--water); fill: color-mix(in srgb, var(--water) 10%, transparent); }
+.ring.sos { stroke: var(--sos); fill: color-mix(in srgb, var(--sos) 10%, transparent); }
+.ring.ack { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 10%, transparent); }
+.hop { stroke-width: 3.5; stroke-linecap: round; fill: none; }
+.hop.msg { stroke: var(--water); opacity: 0.55; }
+.hop.sos { stroke: var(--sos); stroke-width: 4.5; }
+.hop.ack { stroke: var(--ok); stroke-width: 3; transform: translate(0, 5px); }
+.mesh-label { fill: var(--muted); font: 600 15px var(--body); }
+.mesh-label.screen { fill: var(--ok); font: 400 24px var(--screen); }
+@media (max-width: 560px) {
+  .mesh-label:not(.screen) { display: none; }
+  .mesh-label.screen { font-size: 44px; }
+  .ring { stroke-width: 5; }
+  .hop { stroke-width: 6; }
+  .hop.sos { stroke-width: 7; }
 }
-.street .lbl.l { left: 0; }
-.street .lbl.r { right: 0; text-align: right; }
-.hop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--sos);
-  opacity: 0;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .hop { animation: hop 6s linear infinite; }
-}
-@keyframes hop {
-  0% { left: 7%; top: 30%; opacity: 0; }
-  5% { opacity: 1; }
-  95% { opacity: 1; }
-  100% { left: 92%; top: 20%; opacity: 0; }
-}
+.mesh-caption { min-height: 3.2em; font-weight: 600; }
+.mesh-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0; list-style: none; font-size: 0.85rem; color: var(--muted); }
+.mesh-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.key { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.key.asleep { background: var(--line); }
+.key.awake { background: var(--water); }
+.key.shown { background: var(--water); border-radius: 3px; width: 16px; }
+.key.sos { background: var(--sos); opacity: 0.55; }
+
+/* how it works: messages and SOS side by side */
+.tracks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(28px, 4vw, 56px); margin-top: clamp(36px, 5vw, 56px); }
+.track { display: grid; gap: 18px; align-content: start; }
+.track > h3 { font-size: var(--step-2); }
+.tracks .steps { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.tracks .steps li::before { font-size: 2.2rem; }
+.steps h4 { margin: 0; font-family: var(--display); font-stretch: 90%; font-size: var(--step-1); line-height: 1.2; }
+@media (max-width: 860px) { .tracks { grid-template-columns: minmax(0, 1fr); } }
+.facts-title { margin-top: clamp(40px, 6vw, 64px); font-size: var(--step-2); }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(24px, 4vw, 48px); margin: 14px 0 0; border-top: 2px solid var(--ink); }
+.facts > div { padding-block: 16px; border-bottom: 1px solid var(--line); }
+.facts dt { font-family: var(--display); font-weight: 700; font-stretch: 90%; font-size: var(--step-1); }
+.facts dd { margin: 6px 0 0; color: var(--muted); }
+@media (max-width: 700px) { .facts { grid-template-columns: minmax(0, 1fr); } }
 
 /* features */
 .features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); }

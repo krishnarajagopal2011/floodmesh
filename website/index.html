@@ -24,7 +24,7 @@
   <div class="wrap">
     <a class="brand" href="index.html" aria-label="FloodMesh home">
       <span class="brand-mark" aria-hidden="true"></span>
-      <span>FloodMesh <small data-i18n="brand.by">by DVerse Labs</small></span>
+      <span>FloodMesh</span>
     </a>
     <nav class="nav" aria-label="Main">
       <a href="#how" data-i18n="nav.how">How it works</a>
@@ -66,12 +66,12 @@
         <p class="note" data-i18n="hero.note">No payment now. We call to confirm before anything ships.</p>
       </div>
       <figure class="unit-figure">
-        <span id="unit-label" class="visually-hidden" data-i18n="hero.unitLabel">A FloodMesh unit with its screen showing HELP IS COMING</span>
+        <span id="unit-label" class="visually-hidden" data-i18n="hero.unitLabel">A FloodMesh unit showing a message from a neighbour</span>
         <div class="unit" role="img" aria-labelledby="unit-label">
           <div class="screen" data-screen aria-live="off">
-            <span class="line"><span class="inv">SOS</span> MEDICAL</span>
-            <span class="line">DELIVERED</span>
-            <span class="line big">HELP IS COMING</span>
+            <span class="line"><span class="inv">MSG</span> FROM B-14</span>
+            <span class="line">WATER AT OUR GATE.</span>
+            <span class="line">ALL SAFE UPSTAIRS.</span>
           </div>
           <div class="keys" aria-hidden="true">
             <span>1</span><span>2</span><span>3</span><span>A</span>
@@ -80,7 +80,7 @@
             <span class="hot pulse">*</span><span>0</span><span class="hot pulse">#</span><span>D</span>
           </div>
         </div>
-        <figcaption data-i18n="hero.caption">Illustration. Hold * and # for three seconds to send an SOS.</figcaption>
+        <figcaption data-i18n="hero.caption">Illustration. Type a message on the keypad, or hold * and # for three seconds to send an SOS.</figcaption>
       </figure>
     </div>
   </section>
@@ -109,33 +109,54 @@
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow" data-i18n="how.eyebrow">How it works</p>
-        <h2 id="how-title" data-i18n="how.title">Three steps from trouble to help</h2>
+        <h2 id="how-title" data-i18n="how.title">Every unit talks to the units around it</h2>
+        <p data-i18n="how.lede">There are no towers and no SIM cards. Each FloodMesh unit talks straight to the units nearby and passes messages on, so a message can travel through a whole neighbourhood.</p>
       </div>
-      <ol class="steps">
-        <li>
-          <h3 data-i18n="how.s1.title">Hold for SOS, then pick the help you need</h3>
-          <p data-i18n="how.s1.body">Hold two keys for three seconds. Then press one number: medical, evacuation, hazard, food, or general. If you can't choose, it sends a general SOS by itself.</p>
-        </li>
-        <li>
-          <h3 data-i18n="how.s2.title">Units nearby pass it on</h3>
-          <p data-i18n="how.s2.body">Every FloodMesh unit in your area passes your SOS one step further, house to house, until it reaches a responder unit, the kind we set up for rescue teams. Your neighbours' units pass it on without showing it.</p>
-        </li>
-        <li>
-          <h3 data-i18n="how.s3.title">Rescuers answer</h3>
-          <p data-i18n="how.s3.body">The rescue team sees the help you need and, if your unit is registered, your home's address. Your screen shows DELIVERED, then HELP IS COMING when someone is on the way. If no responder unit can be reached, it shows SOS NOT DELIVERED.</p>
-        </li>
-      </ol>
-      <div class="street" aria-hidden="true">
-        <span class="hop"></span>
-        <div class="house from" style="height: 70px"></div>
-        <div class="house" style="height: 96px"></div>
-        <div class="house" style="height: 58px"></div>
-        <div class="house" style="height: 110px"></div>
-        <div class="house" style="height: 76px"></div>
-        <div class="house to" style="height: 64px"></div>
-        <span class="lbl l" data-i18n="how.street.from">Your home</span>
-        <span class="lbl r" data-i18n="how.street.to">Rescue team</span>
+
+      <figure class="mesh" data-mesh>
+        <div class="mesh-controls">
+          <div class="mesh-tabs" role="group" aria-label="Choose what to show">
+            <button type="button" data-mesh-scene="msg" aria-pressed="true" data-i18n="anim.tab.msg">A message to neighbours</button>
+            <button type="button" data-mesh-scene="sos" aria-pressed="false" data-i18n="anim.tab.sos">An SOS to rescuers</button>
+          </div>
+          <button type="button" class="mesh-pause" data-mesh-pause aria-pressed="false" data-i18n="anim.pause">Pause</button>
+        </div>
+        <svg class="mesh-map" viewBox="0 48 800 352" role="img" aria-labelledby="mesh-alt"><title id="mesh-alt" data-i18n="anim.alt">A street map: FloodMesh units in homes pass a message from house to house; a plugged-in rooftop unit reaches further; a rescue team's unit receives an SOS.</title></svg>
+        <figcaption class="mesh-caption" data-mesh-caption aria-live="polite"></figcaption>
+        <ul class="mesh-legend">
+          <li><span class="key asleep"></span><span data-i18n="anim.key.asleep">Unit asleep, saving battery</span></li>
+          <li><span class="key awake"></span><span data-i18n="anim.key.awake">Unit awake</span></li>
+          <li><span class="key shown"></span><span data-i18n="anim.key.shown">Showing the message</span></li>
+          <li><span class="key sos"></span><span data-i18n="anim.key.sos">SOS passed on quietly</span></li>
+        </ul>
+      </figure>
+
+      <div class="tracks">
+        <div class="track">
+          <h3 data-i18n="how.msg.title">Short messages: talk to your street</h3>
+          <ol class="steps">
+            <li><h4 data-i18n="how.m1.title">Type a short message</h4><p data-i18n="how.m1.body">Up to 60 characters on the keypad, in English or Tanglish.</p></li>
+            <li><h4 data-i18n="how.m2.title">Everyone nearby sees it</h4><p data-i18n="how.m2.body">Every unit in reach shows the message, so neighbours can help each other straight away.</p></li>
+            <li><h4 data-i18n="how.m3.title">Units pass it on</h4><p data-i18n="how.m3.body">Each unit passes the message to the next, so it reaches the next streets too. A unit plugged in on a rooftop carries it further.</p></li>
+          </ol>
+        </div>
+        <div class="track">
+          <h3 data-i18n="how.sos.title">SOS: call a rescue team</h3>
+          <ol class="steps">
+            <li><h4 data-i18n="how.s1.title">Hold for SOS, then pick the help you need</h4><p data-i18n="how.s1.body">Hold two keys for three seconds. Then press one number: medical, evacuation, hazard, food, or general. If you can't choose, it sends a general SOS by itself.</p></li>
+            <li><h4 data-i18n="how.s2.title">Units nearby pass it on</h4><p data-i18n="how.s2.body">Every FloodMesh unit in your area passes your SOS one step further, house to house, until it reaches a responder unit, the kind we set up for rescue teams. Your neighbours' units pass it on without showing it.</p></li>
+            <li><h4 data-i18n="how.s3.title">Rescuers answer</h4><p data-i18n="how.s3.body">The rescue team sees the help you need and, if your unit is registered, your home's address. Your screen shows DELIVERED, then HELP IS COMING when someone is on the way. If no responder unit can be reached, it shows SOS NOT DELIVERED.</p></li>
+          </ol>
+        </div>
       </div>
+
+      <h3 class="facts-title" data-i18n="facts.title">How units talk to each other</h3>
+      <dl class="facts">
+        <div><dt data-i18n="facts.f1.t">Hop by hop</dt><dd data-i18n="facts.f1.d">Every unit passes messages on, so they get around buildings and through several homes. Our street tests reached 350 m between two units, and 550 m with one more unit in between.</dd></div>
+        <div><dt data-i18n="facts.f2.t">Asleep until needed</dt><dd data-i18n="facts.f2.d">A unit on battery sleeps to save power and wakes the moment a message arrives.</dd></div>
+        <div><dt data-i18n="facts.f3.t">Shown to the right people</dt><dd data-i18n="facts.f3.d">Messages show on every unit nearby. An SOS shows only on rescue teams' responder units.</dd></div>
+        <div><dt data-i18n="facts.f4.t">You know it got through</dt><dd data-i18n="facts.f4.d">Your screen shows DELIVERED when your SOS reaches a responder unit, and HELP IS COMING when someone is on the way.</dd></div>
+      </dl>
     </div>
   </section>
 
@@ -146,8 +167,8 @@
         <h2 id="does-title" data-i18n="does.title">Built for the worst week of the year</h2>
       </div>
       <div class="features">
-        <div class="feature"><h3 data-i18n="f1.title">SOS with the help you need</h3><p data-i18n="f1.body">Medical, evacuation, hazard, food or general, so rescue teams can send the right people first.</p></div>
         <div class="feature"><h3 data-i18n="f2.title">Short messages to neighbours</h3><p data-i18n="f2.body">Type up to 60 characters on the keypad, in English or Tanglish. Everyone nearby can read them and help.</p></div>
+        <div class="feature"><h3 data-i18n="f1.title">SOS with the help you need</h3><p data-i18n="f1.body">Medical, evacuation, hazard, food or general, so rescue teams can send the right people first.</p></div>
         <div class="feature"><h3 data-i18n="f3.title">No SIM, no internet, no towers</h3><p data-i18n="f3.body">Units talk directly to each other. Nothing to subscribe to and nothing that fails when the network does.</p></div>
         <div class="feature"><h3 data-i18n="f4.title">Plug in to extend your area's network</h3><p data-i18n="f4.body">A unit on external power, from solar or a UPS, acts as a relay: it stays on and passes messages for every unit around it.</p></div>
         <div class="feature"><h3 data-i18n="f5.title">Rescuers see your home's address</h3><p data-i18n="f5.body">Register your unit to your home's address when you get it, and a rescue team sees which house needs help. An unregistered unit still sends its SOS.</p></div>
@@ -195,6 +216,7 @@
       </div>
       <div class="faq">
         <details><summary data-i18n="faq.q1">Do I need a phone, SIM or internet?</summary><p data-i18n="faq.a1">No. FloodMesh units talk to each other directly. You don't need a phone to send an SOS or a message.</p></details>
+        <details><summary data-i18n="faq.q10">Can I message my neighbours?</summary><p data-i18n="faq.a10">Yes. Type up to 60 characters on the keypad, in English or Tanglish. Every unit nearby shows it, and units pass it on to the next streets. Use messages to check on neighbours, share news or ask for help from people close by; use the SOS to call a rescue team.</p></details>
         <details><summary data-i18n="faq.q2">What happens when the power is out?</summary><p data-i18n="faq.a2">The unit runs on its own rechargeable battery and sleeps until a message arrives or you press a key. Charge it from any USB-C phone charger or power bank.</p></details>
         <details><summary data-i18n="faq.q3">Who can read my messages?</summary><p data-i18n="faq.a3">Short messages are public: anyone nearby with a unit can read them, so neighbours can help. An SOS appears only on responder units, but it is not secret: someone nearby with the right equipment could pick up any SOS or message, including the kind of help asked for. Don't send anything you want to keep private.</p></details>
         <details><summary data-i18n="faq.q9">Who receives my SOS?</summary><p data-i18n="faq.a9">Rescue teams, NGOs and authorities with a FloodMesh responder unit within reach of the units in your area. Your neighbours' units pass your SOS on but don't show it. If no responder unit can be reached, your screen shows SOS NOT DELIVERED; send a short message too, because every unit nearby shows messages. We set up responder units only for organisations we have checked, so ask your residents' association or local rescue team to contact us.</p></details>
@@ -221,7 +243,7 @@
 
 <footer class="site-foot">
   <div class="wrap">
-    <p><span data-i18n="foot.copy">© 2026 DVerse Labs. FloodMesh is in development and has not yet been certified for sale.</span> <span data-contact hidden></span></p>
+    <p><span data-i18n="foot.copy">© 2026 dVerse Technologies. FloodMesh is in development and has not yet been certified for sale.</span> <span data-contact hidden></span></p>
     <nav aria-label="Footer">
       <a href="store.html" data-i18n="foot.store">Store</a>
       <a href="privacy.html" data-i18n="foot.privacy">Privacy and pre-order terms</a>
@@ -233,5 +255,6 @@
 <script src="assets/js/i18n.js"></script>
 <script src="assets/js/products.js"></script>
 <script src="assets/js/site.js"></script>
+<script src="assets/js/mesh.js"></script>
 </body>
 </html>
