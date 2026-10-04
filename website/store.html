@@ -51,8 +51,8 @@
   <div class="wrap store-layout">
     <section class="catalogue" aria-label="Products" data-catalogue>
       <!-- Product cards are rendered by assets/js/store.js from assets/js/products.js.
-           This fallback shows if scripts are off. -->
-      <noscript><p data-i18n="store.noscript">Please turn on JavaScript to use the store, or contact us to pre-order.</p></noscript>
+           This line shows only if the scripts don't run; renderCatalogue() replaces it. -->
+      <p class="store-fallback" data-i18n="store.noscript">The store needs JavaScript. To pre-order without it, call +91 93602 47270 or email support@dverselabs.com.</p>
     </section>
 
     <aside class="order" id="order" aria-labelledby="order-title">
@@ -62,15 +62,15 @@
       <div class="total"><span data-i18n="store.total">Total</span><strong data-total>₹0</strong></div>
       <p class="paynote" data-i18n="store.paynote">No payment now. We confirm every pre-order by phone; online payment comes later.</p>
 
-      <form class="form" data-form novalidate>
+      <form class="form" data-form method="post" novalidate hidden>
         <div class="field">
           <label for="f-name" data-i18n="form.name">Full name</label>
           <input id="f-name" name="name" autocomplete="name" required maxlength="80">
         </div>
         <div class="field">
           <label for="f-phone" data-i18n="form.phone">Mobile number</label>
-          <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="16" placeholder="98765 43210">
-          <span class="hint" data-i18n="form.phone.hint">We call this number to confirm. 10-digit Indian mobile.</span>
+          <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="16" placeholder="98765 43210" aria-describedby="f-phone-hint">
+          <span class="hint" id="f-phone-hint" data-i18n="form.phone.hint">We call this number to confirm. 10-digit Indian mobile.</span>
         </div>
         <div class="field">
           <label for="f-email" data-i18n="form.email">Email (optional)</label>
@@ -78,8 +78,8 @@
         </div>
         <div class="field">
           <label for="f-org" data-i18n="form.org">Organisation (optional)</label>
-          <input id="f-org" name="org" autocomplete="organization" maxlength="120">
-          <span class="hint" data-i18n="form.org.hint">Rescue team, NGO or authority? Tell us here, and say in the notes how many units should be set up as responder units. We check organisations before confirming.</span>
+          <input id="f-org" name="org" autocomplete="organization" maxlength="120" aria-describedby="f-org-hint">
+          <span class="hint" id="f-org-hint" data-i18n="form.org.hint">Rescue team, NGO or authority? Tell us here, and say in the notes how many units should be set up as responder units. We check organisations before confirming.</span>
         </div>
         <div class="field">
           <label for="f-address" data-i18n="form.address">House, street and area</label>
@@ -92,7 +92,7 @@
           </div>
           <div class="field">
             <label for="f-pin" data-i18n="form.pin">PIN code</label>
-            <input id="f-pin" name="pin" inputmode="numeric" autocomplete="postal-code" required maxlength="6" placeholder="600001">
+            <input id="f-pin" name="pin" inputmode="numeric" autocomplete="postal-code" required maxlength="7" placeholder="600001">
           </div>
         </div>
         <div class="field">
@@ -104,8 +104,8 @@
           <textarea id="f-notes" name="notes" maxlength="500"></textarea>
         </div>
         <div class="hp" aria-hidden="true">
-          <label for="f-website">Website</label>
-          <input id="f-website" name="website" tabindex="-1" autocomplete="off">
+          <label for="f-hp">Leave this empty</label>
+          <input id="f-hp" name="fm_hp_x" tabindex="-1" autocomplete="off">
         </div>
         <label class="check" for="f-consent">
           <input id="f-consent" name="consent" type="checkbox" required>
@@ -115,7 +115,7 @@
         <button class="btn btn-sos" type="submit" data-submit data-i18n="form.submit">Send pre-order</button>
       </form>
 
-      <div data-result hidden></div>
+      <div data-result tabindex="-1" hidden></div>
     </aside>
   </div>
 </main>

@@ -1,6 +1,7 @@
 /* FloodMesh store: catalogue, cart (kept in this browser), and the pre-order
-   form. Orders go to FM_CONFIG.orderEndpoint (a Google Apps Script web app
-   that appends a row to the pre-orders Sheet). No payment is taken. */
+   form. Orders go to FM_CONFIG.orderEndpoint: /api/preorder, a small Vercel
+   function that passes them to the Google Apps Script behind the pre-orders
+   Sheet. No payment is taken. */
 (function () {
   "use strict";
 
@@ -13,16 +14,8 @@
   var money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
   // ------------------------------------------------------------- cart
-  function readCart() {
-    var raw = window.FM.readCart();
-    var cart = {};
-    Object.keys(raw).forEach(function (id) {
-      var p = byId[id];
-      var q = Math.floor(Number(raw[id]));
-      if (p && q >= (p.minQty || 1)) cart[id] = Math.min(q, p.maxQty);
-    });
-    return cart;
-  }
+  // site.js's readCart already drops unknown products and clamps quantities.
+  function readCart() { return window.FM.readCart(); }
   function writeCart(cart) {
     window.FM.store("fm-cart", JSON.stringify(cart));
     document.dispatchEvent(new CustomEvent("fm:cart"));
@@ -43,32 +36,40 @@
     return node;
   }
 
+  /** The text for a key, or null if no language has it. */
+  function opt(key) { var v = T(key); return v === key ? null : v; }
+
   function priceNote(p) {
     if (p.perUnit) return T("store.perunitpack");
     if (p.units) {
       var full = window.FM_PRICING.unitPrice * p.units;
-      return T("store.perpack") + " \u00b7 " + T("store.save").replace("{amount}", money.format(full - p.price));
+      return T("store.perpack") + " · " + T("store.save").replace("{amount}", money.format(full - p.price));
     }
     return T("store.each");
   }
 
   function productCard(p, keep) {
-    var card = el("article", { class: "product", id: p.id, "aria-labelledby": "t-" + p.id });
+    var title = "t-" + p.id;
+    var card = el("article", { class: "product", id: p.id, "aria-labelledby": title });
 
     var media = el("figure", { class: "media-slot", "data-asset": p.media });
-    media.appendChild(el("span", { class: "tag" }, T("media.product")));
+    if (p.image) {
+      media.appendChild(el("img", { src: p.image, alt: opt("p." + p.id + ".alt") || T("p." + p.id + ".name"), loading: "lazy", decoding: "async", width: "1600", height: "1000" }));
+    } else {
+      media.appendChild(el("span", { class: "tag" }, T("media.product")));
+    }
     card.appendChild(media);
 
     var body = el("div", { class: "product-body" });
-    var badge = T("p." + p.id + ".badge");
-    if (badge !== "p." + p.id + ".badge") body.appendChild(el("span", { class: "badge" }, badge));
-    body.appendChild(el("h3", { id: "t-" + p.id }, T("p." + p.id + ".name")));
+    var badge = opt("p." + p.id + ".badge");
+    if (badge) body.appendChild(el("span", { class: "badge" }, badge));
+    body.appendChild(el("h3", { id: title }, T("p." + p.id + ".name")));
     body.appendChild(el("p", { class: "tagline" }, T("p." + p.id + ".tagline")));
     var ul = el("ul");
     for (var b = 1; b <= p.bullets; b++) ul.appendChild(el("li", null, T("p." + p.id + ".b" + b)));
     body.appendChild(ul);
-    var hint = T("p." + p.id + ".hint");
-    if (hint !== "p." + p.id + ".hint") body.appendChild(el("p", { class: "hint-line" }, hint));
+    var hint = opt("p." + p.id + ".hint");
+    if (hint) body.appendChild(el("p", { class: "hint-line" }, hint));
     card.appendChild(body);
 
     var foot = el("div", { class: "product-foot" });
@@ -76,30 +77,40 @@
     price.appendChild(el("small", null, priceNote(p)));
     foot.appendChild(price);
 
+    // Each control is described by the product name, so a screen reader's
+    // list of controls says which product it belongs to.
     var row = el("div", { class: "add-row" });
     var stepper = el("div", { class: "stepper" });
     var qid = "q-" + p.id;
     var min = p.minQty || 1;
     var clamp = function (v) { return Math.max(min, Math.min(p.maxQty, parseInt(v, 10) || min)); };
-    var minus = el("button", { type: "button", "aria-label": T("store.less") }, "\u2212");
-    var input = el("input", { id: qid, "data-qty": p.id, type: "number", inputmode: "numeric", min: String(min), max: String(p.maxQty), value: keep[qid] || String(min), "aria-label": T(p.perUnit ? "store.qtyunits" : "store.qty") });
-    var plus = el("button", { type: "button", "aria-label": T("store.more") }, "+");
+    var minus = el("button", { type: "button", "aria-label": T("store.less"), "aria-describedby": title }, "−");
+    var input = el("input", { id: qid, "data-qty": p.id, type: "number", inputmode: "numeric", min: String(min), max: String(p.maxQty), value: keep[qid] || String(min), "aria-label": T(p.perUnit ? "store.qtyunits" : "store.qty"), "aria-describedby": title });
+    var plus = el("button", { type: "button", "aria-label": T("store.more"), "aria-describedby": title }, "+");
     minus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || min) - 1)); });
     plus.addEventListener("click", function () { input.value = String(clamp((parseInt(input.value, 10) || 0) + 1)); });
     input.addEventListener("change", function () { input.value = String(clamp(input.value)); });
     stepper.appendChild(minus); stepper.appendChild(input); stepper.appendChild(plus);
-    var add = el("button", { type: "button", class: "btn btn-line btn-small" }, T("store.add"));
+    var addId = "add-" + p.id;
+    var add = el("button", { type: "button", id: addId, "aria-labelledby": addId + " " + title, class: "btn btn-line btn-small" }, T("store.add"));
+    var note = el("p", { class: "cap-note", "aria-live": "polite" });
     add.addEventListener("click", function () {
       var q = clamp(input.value);
       var cart = readCart();
-      cart[p.id] = Math.min(p.maxQty, (cart[p.id] || 0) + q);
+      var before = cart[p.id] || 0;
+      var after = Math.min(p.maxQty, before + q);
+      cart[p.id] = after;
       writeCart(cart);
       input.value = String(min);
+      // Tell the buyer when the per-order cap kept some of the quantity out.
+      var capKey = p.perUnit ? "store.maxunits" : (p.id === "unit" ? "store.max.unit" : "store.max");
+      note.textContent = after - before < q ? T(capKey).replace("{n}", p.maxQty) : "";
       add.textContent = T("store.added");
-      window.setTimeout(function () { add.textContent = T("store.add"); }, 1600);
+      window.clearTimeout(add._t);
+      add._t = window.setTimeout(function () { add.textContent = T("store.add"); }, 1600);
       renderOrder();
     });
-    row.appendChild(stepper); row.appendChild(add);
+    row.appendChild(stepper); row.appendChild(add); row.appendChild(note);
     foot.appendChild(row);
     card.appendChild(foot);
     return card;
@@ -125,20 +136,27 @@
     var list = document.querySelector("[data-lines]");
     if (!list) return;
     list.textContent = "";
-    lines.forEach(function (l) {
+    lines.forEach(function (l, idx) {
       var li = el("li");
-      li.appendChild(el("span", { class: "name" }, l.name));
+      var nameId = "ln-" + l.id;
+      li.appendChild(el("span", { class: "name", id: nameId }, l.name));
       li.appendChild(el("span", { class: "amt" }, money.format(l.lineTotal)));
       var p = byId[l.id];
-      var label = p.perUnit ? T("store.units").replace("{n}", l.qty) + " \u00d7 " + money.format(l.unitPrice)
-        : l.qty + " \u00d7 " + money.format(l.unitPrice) + (p.units ? " (" + T("store.units").replace("{n}", p.units) + ")" : "");
+      var label = p.perUnit ? T("store.units").replace("{n}", l.qty) + " × " + money.format(l.unitPrice)
+        : l.qty + " × " + money.format(l.unitPrice) + (p.units ? " (" + T("store.units").replace("{n}", p.units) + ")" : "");
       var sub = el("span", { class: "sub" }, label + " ");
-      var rm = el("button", { type: "button", class: "remove" }, T("store.remove"));
+      var rmId = "rm-" + l.id;
+      var rm = el("button", { type: "button", class: "remove", id: rmId, "aria-labelledby": rmId + " " + nameId }, T("store.remove"));
       rm.addEventListener("click", function () {
         var c = readCart();
         delete c[l.id];
         writeCart(c);
         renderOrder();
+        // Keep keyboard focus in the order list instead of losing it to <body>.
+        var btns = list.querySelectorAll("button.remove");
+        var next = btns[idx] || btns[idx - 1];
+        if (next) next.focus();
+        else { var h = document.getElementById("order-title"); h.setAttribute("tabindex", "-1"); h.focus(); }
       });
       sub.appendChild(rm);
       li.appendChild(sub);
@@ -155,6 +173,7 @@
     if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
     return d;
   }
+  function normalisePin(v) { return String(v || "").replace(/\s/g, ""); }
 
   var rules = {
     name: function (v) { return v.trim().length >= 2 ? null : "err.name"; },
@@ -162,24 +181,33 @@
     email: function (v) { return !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : "err.email"; },
     address: function (v) { return v.trim().length >= 8 ? null : "err.address"; },
     city: function (v) { return v.trim().length >= 2 ? null : "err.city"; },
-    pin: function (v) { return /^[1-9]\d{5}$/.test(v.trim()) ? null : "err.pin"; },
+    pin: function (v) { return /^[1-9]\d{5}$/.test(normalisePin(v)) ? null : "err.pin"; },
     state: function (v) { return v.trim().length >= 2 ? null : "err.state"; },
   };
 
+  /** Add or remove one id in aria-describedby, keeping any others (such as a hint). */
+  function setDescribedBy(input, id, on) {
+    var ids = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(function (x) { return x && x !== id; });
+    if (on) ids.push(id);
+    if (ids.length) input.setAttribute("aria-describedby", ids.join(" "));
+    else input.removeAttribute("aria-describedby");
+  }
+
   function setFieldError(input, key) {
     var field = input.closest(".field");
+    var errId = input.id + "-err";
     var msg = field && field.querySelector(".error");
     if (key) {
       input.setAttribute("aria-invalid", "true");
       if (!msg && field) {
-        msg = el("span", { class: "error", id: input.id + "-err" });
+        msg = el("span", { class: "error", id: errId });
         field.appendChild(msg);
       }
-      if (msg) { msg.textContent = T(key); input.setAttribute("aria-describedby", msg.id); }
+      if (msg) { msg.textContent = T(key); setDescribedBy(input, errId, true); }
     } else {
       input.removeAttribute("aria-invalid");
+      setDescribedBy(input, errId, false);
       if (msg) msg.remove();
-      input.removeAttribute("aria-describedby");
     }
   }
 
@@ -205,6 +233,9 @@
     return "FM-" + ymd + "-" + tail;
   }
 
+  // A retry of the same order keeps its ID, so the Sheet doesn't get it twice.
+  var pending = { sig: null, id: null };
+
   function summaryText(order) {
     var rows = order.items.map(function (l) { return l.qty + " x " + l.name + (l.units && l.id !== "unit" ? " (" + l.units + " units)" : "") + " = " + money.format(l.lineTotal); });
     return [
@@ -222,7 +253,7 @@
     var box = document.querySelector("[data-result]");
     var form = document.querySelector("[data-form]");
     box.textContent = "";
-    var status = el("div", { class: "status " + (kind === "bad" ? "bad" : "ok"), role: "status" });
+    var status = el("div", { class: "status " + (kind === "bad" ? "bad" : "ok") });
     if (kind === "sent") {
       status.appendChild(el("p", null, T("result.sent.title")));
       var id = el("p"); id.appendChild(el("code", null, order.id)); status.appendChild(id);
@@ -243,14 +274,26 @@
       var copy = el("button", { type: "button", class: "btn btn-line btn-small" }, T("result.copy"));
       copy.addEventListener("click", function () {
         var done = function () { copy.textContent = T("result.copied"); };
-        try {
-          navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); });
-        } catch (e) { ta.select(); }
+        var fallback = function () {
+          var ok = false;
+          try {
+            ta.focus();
+            ta.select();
+            ta.setSelectionRange(0, ta.value.length);   // iOS needs this on read-only fields
+            ok = document.execCommand("copy");
+          } catch (e) { ok = false; }
+          if (ok) done(); else copy.textContent = T("result.copy.manual");
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, fallback);
+        else fallback();   // still inside the click, so execCommand has the user gesture
       });
       box.appendChild(copy);
     }
-    if (kind === "sent") form.hidden = true;
+    // Show the box, then move focus to it: screen readers read the result, and
+    // focus doesn't fall to <body> when the form is hidden after sending.
     box.hidden = false;
+    box.focus({ preventScroll: true });
+    if (kind === "sent") form.hidden = true;
     box.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
@@ -264,12 +307,11 @@
     var bad = validate(form);
     if (bad) { bad.focus(); return; }
     if (!form.elements.consent.checked) { errBox.textContent = T("err.consent"); errBox.hidden = false; form.elements.consent.focus(); return; }
-    if (form.elements.website.value) return;   // a bot filled the hidden field
 
     var order = {
-      id: orderId(),
+      id: null,
       createdAt: new Date().toISOString(),
-      lang: document.documentElement.lang,
+      lang: window.FM.lang(),
       items: lines,
       total: cartTotal(lines),
       preview: !!config.preview,
@@ -280,47 +322,71 @@
         org: form.elements.org.value.trim(),
         address: form.elements.address.value.trim(),
         city: form.elements.city.value.trim(),
-        pin: form.elements.pin.value.trim(),
+        pin: normalisePin(form.elements.pin.value),
         state: form.elements.state.value.trim(),
         notes: form.elements.notes.value.trim(),
       },
       consent: true,
-      page: window.location.href,
+      page: window.location.pathname,
     };
+    var sig = JSON.stringify([order.items, order.customer]);
+    if (sig !== pending.sig) pending = { sig: sig, id: orderId() };
+    order.id = pending.id;
+
+    // The hidden trap field: people never see it, form-filling bots do.
+    // Send nothing, but show the details so a real person can still reach us.
+    if (form.elements.fm_hp_x && form.elements.fm_hp_x.value) { showResult("bad", order, "result.failed"); return; }
 
     if (!config.orderEndpoint) { showResult("preview", order); return; }
 
     var submit = form.querySelector("[data-submit]");
     submit.disabled = true;
+    submit.setAttribute("aria-busy", "true");
     submit.textContent = T("form.sending");
-    // text/plain keeps this a "simple" request, which Apps Script accepts without a CORS preflight.
+    // text/plain keeps this a "simple" request with no CORS preflight.
     fetch(config.orderEndpoint, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(order) })
       .then(function (r) { return r.json(); })
       .then(function (res) {
         if (res && res.ok) {
+          pending = { sig: null, id: null };
           writeCart({});
           renderOrder();
           showResult("sent", order);
         } else {
-          showResult("bad", order, "result.failed");
+          showResult("bad", order, res && res.error === "rate" ? "result.rate" : "result.failed");
         }
       })
       .catch(function () { showResult("bad", order, "result.failed"); })
-      .then(function () { submit.disabled = false; submit.textContent = T("form.submit"); });
+      .then(function () { submit.disabled = false; submit.removeAttribute("aria-busy"); submit.textContent = T("form.submit"); });
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    // Save the cleaned cart back, so the header count matches the order panel.
+    var raw = {};
+    try { raw = JSON.parse(window.FM.store("fm-cart") || "{}") || {}; } catch (e) {}
+    var clean = readCart();
+    if (JSON.stringify(clean) !== JSON.stringify(raw)) writeCart(clean);
+
     renderCatalogue();
     renderOrder();
     var form = document.querySelector("[data-form]");
     if (form) {
       form.addEventListener("submit", onSubmit);
-      form.addEventListener("focusout", function (e) {
-        var name = e.target && e.target.name;
-        if (rules[name] && e.target.value) setFieldError(e.target, rules[name](e.target.value, form));
+      // Clear an error as soon as the field is corrected. New errors appear
+      // only on Send: adding or removing them on blur shifts the layout under
+      // a pointer on its way to the Send button, and the click is lost.
+      form.addEventListener("input", function (e) {
+        var t = e.target, name = t && t.name;
+        if (rules[name] && t.getAttribute("aria-invalid") === "true") setFieldError(t, rules[name](t.value, form));
       });
+      form.hidden = false;   // shown only once its handler is attached
     }
-    document.addEventListener("fm:lang", function () { renderCatalogue(); renderOrder(); });
+    document.addEventListener("fm:lang", function () {
+      renderCatalogue();
+      renderOrder();
+      var s = document.querySelector("[data-submit]");
+      if (s && s.disabled) s.textContent = T("form.sending");   // applyLang reset it
+    });
     window.addEventListener("storage", function (e) { if (e.key === "fm-cart") renderOrder(); });
   });
 })();

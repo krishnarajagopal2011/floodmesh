@@ -1,6 +1,17 @@
 /**
- * FloodMesh pre-orders: receives the website's order form and appends a row to
- * the "Pre-orders" sheet, then emails a notification. Setup: README.md here.
+ * FloodMesh pre-orders: receives orders from the website (through the Vercel
+ * function website/api/preorder.js) and appends a row to the "Pre-orders"
+ * sheet, then emails a short notice. Setup: README.md here.
+ *
+ * A standalone script (script.google.com), not one bound to the Sheet: the
+ * Sheet is named by the SHEET_ID script property, so it can be swapped for a
+ * fresh copy when someone's details must be deleted (README, "Deleting
+ * someone's details") without changing the web-app URL.
+ *
+ * Script properties (Project Settings -> Script properties):
+ *   SHEET_ID      the pre-orders Sheet's ID (from its URL)
+ *   KEY           a long random string, the same as ORDER_KEY on Vercel
+ *   NOTIFY_EMAIL  where order notices go (optional)
  *
  * Prices are checked here against PRICES below, so a changed price in the
  * browser can't change what the Sheet records. Keep PRICES in step with
@@ -8,7 +19,6 @@
  */
 
 const SHEET_NAME = 'Pre-orders';
-const NOTIFY_EMAIL = '';          // where order notifications go; empty = no email
 const PRICES = {                  // rupees, per item (custom: per unit)
   unit: 6900,
   street: 62100,          // 10 units at 10% off
@@ -22,6 +32,7 @@ const UNITS_PER_ITEM = { unit: 1, street: 10, neighbourhood: 25, area: 100, cust
 const MIN_QTY = { custom: 10 };
 const MAX_QTY = { unit: 9, street: 10, neighbourhood: 10, area: 5, custom: 500, antenna: 20, cable: 20 };
 const MAX_PER_PHONE_PER_HOUR = 5;
+const FLOOD_PER_10_MIN = 30;      // beyond this, rows are marked "Check" and no email is sent
 
 const HEADERS = [
   'Received at', 'Order ID', 'Status', 'Name', 'Phone', 'Email', 'Organisation',
@@ -30,23 +41,35 @@ const HEADERS = [
 ];
 
 function doPost(e) {
+  const props = PropertiesService.getScriptProperties();
+  // Only the Vercel function knows the key; posts straight to this URL are refused.
+  if (!e || !e.parameter || !props.getProperty('KEY') || e.parameter.k !== props.getProperty('KEY')) {
+    return json_({ ok: false, error: 'auth' });
+  }
+  let order;
+  try { order = JSON.parse(e.postData.contents); } catch (err) { return json_({ ok: false, error: 'bad' }); }
+  const problem = check_(order);
+  if (problem) return json_({ ok: false, error: problem });
+
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
-    const order = JSON.parse(e.postData.contents);
-    const problem = check_(order);
-    if (problem) return json_({ ok: false, error: problem });
+    const cache = CacheService.getScriptCache();
+    const idKey = 'id:' + order.id;
+    if (cache.get(idKey)) return json_({ ok: true, id: order.id });   // a retry of a saved order
 
     const phone = String(order.customer.phone);
-    const cache = CacheService.getScriptCache();
     const seen = Number(cache.get('ph:' + phone) || 0);
     if (seen >= MAX_PER_PHONE_PER_HOUR) return json_({ ok: false, error: 'rate' });
     cache.put('ph:' + phone, String(seen + 1), 3600);
+    const recent = Number(cache.get('all10m') || 0);
+    cache.put('all10m', String(recent + 1), 600);
+    const flood = recent >= FLOOD_PER_10_MIN;
 
     let units = 0;
     let total = 0;
     const items = order.items.map(function (it) {
-      const qty = Math.floor(Number(it.qty));
+      const qty = Number(it.qty);
       units += qty * UNITS_PER_ITEM[it.id];
       total += PRICES[it.id] * qty;
       return qty + ' x ' + it.id;
@@ -54,24 +77,30 @@ function doPost(e) {
 
     const c = order.customer;
     sheet_().appendRow([
-      new Date(), String(order.id), 'New', text_(c.name), "'" + phone, text_(c.email), text_(c.org),
+      new Date(), String(order.id), flood ? 'Check' : 'New', text_(c.name), "'" + phone, text_(c.email), text_(c.org),
       text_(c.address), text_(c.city), "'" + c.pin, text_(c.state), items, units, total, Number(order.total) || '',
       text_(order.lang), text_(c.notes), order.preview ? 'yes' : '', text_(order.page),
     ]);
+    cache.put(idKey, '1', 21600);
 
-    if (NOTIFY_EMAIL) {
-      MailApp.sendEmail(NOTIFY_EMAIL, 'FloodMesh pre-order ' + order.id + ' (' + items + ')',
-        [
-          'Order: ' + order.id,
-          'Items: ' + items + '  Total: Rs ' + total,
-          'Name: ' + c.name + '  Phone: ' + phone + (c.email ? '  Email: ' + c.email : ''),
-          c.org ? 'Organisation: ' + c.org : '',
-          'Address: ' + c.address + ', ' + c.city + ' ' + c.pin + ', ' + c.state,
-          c.notes ? 'Notes: ' + c.notes : '',
-        ].filter(String).join('\n'));
+    // The row is the record. The email is a best-effort notice with no
+    // personal details, so a failed or over-quota email never loses an order
+    // and no copies of names or addresses sit in a mailbox.
+    const notify = props.getProperty('NOTIFY_EMAIL');
+    if (notify && !flood) {
+      try {
+        if (MailApp.getRemainingDailyQuota() > 0) {
+          MailApp.sendEmail(notify, 'FloodMesh pre-order ' + order.id,
+            'Order: ' + order.id + '\nItems: ' + items + '  Total: Rs ' + total +
+            '\nDetails are in the Sheet: ' + SpreadsheetApp.openById(props.getProperty('SHEET_ID')).getUrl());
+        }
+      } catch (mailErr) {
+        console.error('notice email failed for ' + order.id + ': ' + mailErr);
+      }
     }
     return json_({ ok: true, id: order.id });
   } catch (err) {
+    console.error(err);
     return json_({ ok: false, error: 'server' });
   } finally {
     lock.releaseLock();
@@ -93,8 +122,11 @@ function check_(o) {
   if (!c.address || String(c.address).length > 300) return 'address';
   if (!c.city || !c.state) return 'place';
   if (!Array.isArray(o.items) || !o.items.length || o.items.length > 10) return 'items';
+  const seenIds = {};
   for (const it of o.items) {
-    if (!Object.prototype.hasOwnProperty.call(PRICES, String(it.id))) return 'item';
+    if (!it || typeof it.id !== 'string' || !Object.prototype.hasOwnProperty.call(PRICES, it.id)) return 'item';
+    if (seenIds[it.id]) return 'item';   // one line per product; the store never sends duplicates
+    seenIds[it.id] = true;
     const q = Number(it.qty);
     if (!(q >= (MIN_QTY[it.id] || 1) && q <= MAX_QTY[it.id] && Math.floor(q) === q)) return 'qty';
   }
@@ -102,7 +134,7 @@ function check_(o) {
 }
 
 function sheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('SHEET_ID'));
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) sh = ss.insertSheet(SHEET_NAME);
   if (sh.getLastRow() === 0) {
@@ -112,10 +144,15 @@ function sheet_() {
   return sh;
 }
 
-/** Text for a cell. A leading = + - or @ would make Sheets run it as a formula. */
+/**
+ * Text for a cell. A leading = + - @ (or tab or CR) would run as a formula in
+ * Sheets, or in a spreadsheet program opening a CSV export. The first ' is the
+ * Sheets text marker and isn't stored; the second stays in the value, so the
+ * protection survives a CSV export.
+ */
 function text_(v) {
   const s = String(v == null ? '' : v).slice(0, 500);
-  return /^[=+\-@]/.test(s) ? "'" + s : s;
+  return /^[=+\-@\t\r]/.test(s) ? "''" + s : s;
 }
 
 function json_(obj) {

@@ -1,11 +1,12 @@
 /* FloodMesh website settings. Edit these, nothing else, to go live. */
 window.FM_CONFIG = {
-  // true: shows the "Preview" ribbon (photos are placeholders, orders are not
-  // sent yet). Set false at launch.
+  // true: shows the "Preview" ribbon (photos are placeholders). Set false at
+  // launch. Whether orders are sent depends only on orderEndpoint below.
   preview: true,
 
-  // Google Apps Script web-app URL that writes pre-orders to the Google Sheet
-  // (see apps-script/README.md). Empty: orders are not sent anywhere.
+  // "/api/preorder" once the Vercel function and the Google Sheet script are
+  // set up (apps-script/README.md). Empty: orders are not sent anywhere, and
+  // the form only shows what it would send.
   orderEndpoint: "",
 
   // Shown on the site when filled in. Leave empty to hide.

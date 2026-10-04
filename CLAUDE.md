@@ -54,6 +54,13 @@ Two boards exist. Check which one a change targets.
   constituency, locality or drawn area; `/admin` (password) edits the cost
   sheet. The radio model in `lib/radio.ts` is fitted to `docs/field-tests.md`;
   refit it when new field results come in. Read its `README.md`.
+- **Public website** (`website/`, static, deployed on Vercel with Root
+  Directory `website`): home page, pre-order store (no payment yet; orders go
+  through `api/preorder.js` to a Google Sheet via `apps-script/`), privacy and
+  pre-order terms, in English with Tamil and Hindi. Read its `README.md`
+  first: it has the content rules (no technical detail that helps copying,
+  claim only measured results, real photos for the product) and the go-live
+  checklist. Prices live in `assets/js/products.js` and `apps-script/Code.gs`.
 - BLE role registration: protocol `docs/ble-provisioning-protocol.md`, unit side
   `src/fm_prov.cpp` + `src/fm_role.cpp`, admin app `app/floodmesh_admin/`
   (Flutter). Change the protocol doc first, then both sides.

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FloodMesh</title>
-<meta name="description" content="FloodMesh is a rugged messenger for floods. It sends an SOS and short messages house to house when the mobile network, internet and power are down. Pre-orders open.">
+<meta name="description" content="FloodMesh is a small, battery-powered messenger for floods. It sends an SOS and short messages house to house when the mobile network, internet and power are down. Pre-orders open.">
 <meta property="og:title" content="FloodMesh: your street still talks when the towers go dark">
-<meta property="og:description" content="A rugged messenger for floods. SOS and short messages house to house, with no mobile network, internet or power grid.">
+<meta property="og:description" content="A small, battery-powered messenger for floods. SOS and short messages house to house, with no mobile network, internet or power grid.">
 <meta property="og:image" content="/assets/img/og.png">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#102530">
@@ -58,7 +58,7 @@
       <div>
         <p class="eyebrow" data-i18n="hero.eyebrow">Pre-orders open · Ships after certification</p>
         <h1 id="hero-title" data-i18n="hero.title">When the towers go dark, your street still talks.</h1>
-        <p class="lede" data-i18n="hero.lede">FloodMesh is a small, rugged messenger for floods. It sends an SOS and short messages from house to house, with no mobile network, no internet and no power grid.</p>
+        <p class="lede" data-i18n="hero.lede">FloodMesh is a small, battery-powered messenger for floods. It sends an SOS and short messages from house to house, with no mobile network, no internet and no power grid.</p>
         <div class="ctas">
           <a class="btn btn-sos" href="store.html" data-i18n="hero.cta">Pre-order for your home</a>
           <a class="btn btn-line" href="#how" data-i18n="hero.cta2">See how it works</a>
@@ -66,7 +66,8 @@
         <p class="note" data-i18n="hero.note">No payment now. We call to confirm before anything ships.</p>
       </div>
       <figure class="unit-figure">
-        <div class="unit" aria-label="A FloodMesh unit with its screen showing HELP IS COMING">
+        <span id="unit-label" class="visually-hidden" data-i18n="hero.unitLabel">A FloodMesh unit with its screen showing HELP IS COMING</span>
+        <div class="unit" role="img" aria-labelledby="unit-label">
           <div class="screen" data-screen aria-live="off">
             <span class="line"><span class="inv">SOS</span> MEDICAL</span>
             <span class="line">DELIVERED</span>
@@ -99,7 +100,7 @@
           <span class="tag" data-i18n="media.story">Illustration: a flooded street at dusk (to come)</span>
         </figure>
         <p style="margin-top: 20px;" data-i18n="story.body1">Phones need a tower. Towers need power and a link back to the network, and in a flood all three fail at once.</p>
-        <p style="margin-top: 14px;" data-i18n="story.body2">FloodMesh needs none of them. Each unit passes messages to the next, so a call for help can travel down a street and around buildings until it reaches a rescue team.</p>
+        <p style="margin-top: 14px;" data-i18n="story.body2">FloodMesh needs none of them. Each unit passes messages to the next, so a call for help can travel down a street and around buildings to a rescue team that has a FloodMesh responder unit.</p>
       </div>
     </div>
   </section>
@@ -112,16 +113,16 @@
       </div>
       <ol class="steps">
         <li>
-          <h3 data-i18n="how.s1.title">Hold SOS and pick the help you need</h3>
+          <h3 data-i18n="how.s1.title">Hold for SOS, then pick the help you need</h3>
           <p data-i18n="how.s1.body">Hold two keys for three seconds. Then press one number: medical, evacuation, hazard, food, or general. If you can't choose, it sends a general SOS by itself.</p>
         </li>
         <li>
           <h3 data-i18n="how.s2.title">Units nearby pass it on</h3>
-          <p data-i18n="how.s2.body">Every FloodMesh unit in your area carries your SOS one step further, house to house, until it reaches a rescue team's unit.</p>
+          <p data-i18n="how.s2.body">Every FloodMesh unit in your area passes your SOS one step further, house to house, until it reaches a responder unit, the kind we set up for rescue teams. Your neighbours' units pass it on without showing it.</p>
         </li>
         <li>
           <h3 data-i18n="how.s3.title">Rescuers answer</h3>
-          <p data-i18n="how.s3.body">The rescue team sees your address and the help you need. Your screen shows DELIVERED, then HELP IS COMING when someone is on the way.</p>
+          <p data-i18n="how.s3.body">The rescue team sees the help you need and, if your unit is registered, your home's address. Your screen shows DELIVERED, then HELP IS COMING when someone is on the way. If no responder unit can be reached, it shows SOS NOT DELIVERED.</p>
         </li>
       </ol>
       <div class="street" aria-hidden="true">
@@ -149,8 +150,8 @@
         <div class="feature"><h3 data-i18n="f2.title">Short messages to neighbours</h3><p data-i18n="f2.body">Type up to 60 characters on the keypad, in English or Tanglish. Everyone nearby can read them and help.</p></div>
         <div class="feature"><h3 data-i18n="f3.title">No SIM, no internet, no towers</h3><p data-i18n="f3.body">Units talk directly to each other. Nothing to subscribe to and nothing that fails when the network does.</p></div>
         <div class="feature"><h3 data-i18n="f4.title">Plug in to keep your street connected</h3><p data-i18n="f4.body">A unit on solar or a power bank stays awake and carries messages for everyone around it.</p></div>
-        <div class="feature"><h3 data-i18n="f5.title">Rescuers know where you are</h3><p data-i18n="f5.body">Each unit is linked to its home's address, so a rescue team sees the house, not a code.</p></div>
-        <div class="feature"><h3 data-i18n="f6.title">Ready out of the box</h3><p data-i18n="f6.body">Charge it with any phone charger and keep it somewhere you can reach. Designed to last for days on one charge.</p></div>
+        <div class="feature"><h3 data-i18n="f5.title">Rescuers see your home's address</h3><p data-i18n="f5.body">Register your unit to your home's address when you get it, and a rescue team sees which house needs help. An unregistered unit still sends its SOS.</p></div>
+        <div class="feature"><h3 data-i18n="f6.title">Ready out of the box</h3><p data-i18n="f6.body">Charge it from any USB-C phone charger or power bank, and keep it near a window, upstairs if you can. Designed to last for days on one charge.</p></div>
       </div>
     </div>
   </section>
@@ -160,12 +161,12 @@
       <div class="section-head" style="margin-bottom: 0;">
         <p class="eyebrow" data-i18n="tests.eyebrow">Field tests</p>
         <h2 id="tests-title" data-i18n="tests.title">Tested on real streets, results in public</h2>
-        <p data-i18n="tests.body">We test outdoors, at street level, and share every result, good or bad. These are early numbers from September 2026; rooftop units are next and should reach much further.</p>
+        <p data-i18n="tests.body">We test outdoors and share every result, good or bad. These are early numbers from September 2026, between units at street level. Our first rooftop unit was left on battery by mistake, so we are testing it again on proper power; we expect it to reach further.</p>
       </div>
       <div class="readings">
         <div class="reading"><strong>350 m</strong><span data-i18n="tests.r1">Between two units held at street level, with buildings around.</span></div>
         <div class="reading"><strong>550 m</strong><span data-i18n="tests.r2">The same street, with a third unit passing the message along.</span></div>
-        <div class="reading"><strong>4</strong><span data-i18n="tests.r3">Units in our first full test. The SOS reached the rescue unit; text messages showed a weakness we are now working on.</span></div>
+        <div class="reading"><strong>4</strong><span data-i18n="tests.r3">Units in our first full test. The SOS reached the responder unit; short messages showed a weakness we are now working on.</span></div>
       </div>
     </div>
   </section>
@@ -178,9 +179,9 @@
         <p data-i18n="who.body">FloodMesh gets stronger with every unit nearby. The best start is a whole lane, apartment block or colony.</p>
       </div>
       <div class="audiences">
-        <article class="aud"><h3 data-i18n="who.home.title">Homes</h3><p data-i18n="who.home.body">One unit per household, kept by the door with the torch and the documents.</p><a href="store.html#unit" data-i18n="who.home.link">FloodMesh unit</a></article>
+        <article class="aud"><h3 data-i18n="who.home.title">Homes</h3><p data-i18n="who.home.body">One unit per household, kept near a window or upstairs, ready to grab with the torch and the documents.</p><a href="store.html#unit" data-i18n="who.home.link">FloodMesh unit</a></article>
         <article class="aud"><h3 data-i18n="who.rwa.title">Apartments and residents' associations</h3><p data-i18n="who.rwa.body">Street, neighbourhood and area packs at 10% off, and rooftop antennas so a few units reach further.</p><a href="store.html#g-packs" data-i18n="who.rwa.link">See the packs</a></article>
-        <article class="aud"><h3 data-i18n="who.ngo.title">Rescue teams and NGOs</h3><p data-i18n="who.ngo.body">We set up units as responder units for your team: they receive SOS calls, show the address and send "Help is coming".</p><a href="#contact" data-i18n="who.ngo.link">Ask about responder units</a></article>
+        <article class="aud"><h3 data-i18n="who.ngo.title">Rescue teams and NGOs</h3><p data-i18n="who.ngo.body">We set up units as responder units for your team: they receive every SOS, show the type of help and the registered address, and send "Help is coming".</p><a href="#contact" data-i18n="who.ngo.link">Ask about responder units</a></article>
         <article class="aud"><h3 data-i18n="who.csr.title">CSR and government partners</h3><p data-i18n="who.csr.body">Equip a flood-prone ward or village. We'll plan it with you.</p><a href="#contact" data-i18n="who.csr.link">Talk to us</a></article>
       </div>
     </div>
@@ -195,10 +196,11 @@
       <div class="faq">
         <details><summary data-i18n="faq.q1">Do I need a phone, SIM or internet?</summary><p data-i18n="faq.a1">No. FloodMesh units talk to each other directly. You don't need a phone to send an SOS or a message.</p></details>
         <details><summary data-i18n="faq.q2">What happens when the power is out?</summary><p data-i18n="faq.a2">The unit runs on its own rechargeable battery and sleeps until a message arrives or you press a key. Charge it from any USB-C phone charger or power bank.</p></details>
-        <details><summary data-i18n="faq.q3">Who can read my messages?</summary><p data-i18n="faq.a3">Short messages are public: anyone nearby with a unit can read them, so neighbours can help. An SOS is shown only on rescue team units. Don't send anything you want to keep private.</p></details>
+        <details><summary data-i18n="faq.q3">Who can read my messages?</summary><p data-i18n="faq.a3">Short messages are public: anyone nearby with a unit can read them, so neighbours can help. An SOS appears only on responder units, but it is not secret: someone nearby with the right equipment could pick up any SOS or message, including the kind of help asked for. Don't send anything you want to keep private.</p></details>
+        <details><summary data-i18n="faq.q9">Who receives my SOS?</summary><p data-i18n="faq.a9">Rescue teams, NGOs and authorities with a FloodMesh responder unit within reach of the units in your area. Your neighbours' units pass your SOS on but don't show it. If no responder unit can be reached, your screen shows SOS NOT DELIVERED; send a short message too, because every unit nearby shows messages. We set up responder units only for organisations we have checked, so ask your residents' association or local rescue team to contact us.</p></details>
         <details><summary data-i18n="faq.q4">How far does it reach?</summary><p data-i18n="faq.a4">It depends on buildings, height and how many units are nearby. Each unit passes messages on, so the more homes in your area have one, the further a message travels. See our field tests for measured numbers.</p></details>
-        <details><summary data-i18n="faq.q5">When will it ship?</summary><p data-i18n="faq.a5">After the radio equipment approval and battery safety registration required in India are complete. We will tell everyone who pre-ordered as soon as we have a date.</p></details>
-        <details><summary data-i18n="faq.q6">Do I pay now? Can I cancel?</summary><p data-i18n="faq.a6">You pay nothing now. We call you to confirm before anything ships, and you can cancel a pre-order at any time before that.</p></details>
+        <details><summary data-i18n="faq.q5">When will it ship?</summary><p data-i18n="faq.a5">After the approvals and registrations required in India to sell radio equipment with a built-in battery are complete. We will tell everyone who pre-ordered as soon as we have a date.</p></details>
+        <details><summary data-i18n="faq.q6">Do I pay now? Can I cancel?</summary><p data-i18n="faq.a6">You pay nothing now. We call you to confirm before anything ships, and you can cancel your pre-order at any time before it ships, at no cost.</p></details>
         <details><summary data-i18n="faq.q8">How much does it cost?</summary><p data-i18n="faq.a8">One unit is ₹6,900. Packs of 10, 25 or 100 units, or any number from 10, are 10% off. A rooftop antenna is ₹6,500 and a longer antenna cable is ₹750. Each unit comes with its antenna and a quick-start guide.</p></details>
         <details><summary data-i18n="faq.q7">Which languages does the unit use?</summary><p data-i18n="faq.a7">The screen is in English. You can type messages in English or in Tanglish (Tamil in English letters).</p></details>
       </div>
@@ -208,8 +210,8 @@
   <section class="cta-band" id="contact" aria-labelledby="cta-title">
     <div class="wrap">
       <div>
-        <h2 id="cta-title" data-i18n="cta.title">Get your street ready before the next monsoon</h2>
-        <p data-i18n="cta.body">One unit is ₹6,900, and packs of 10 or more are 10% off. Pre-order for your home, or talk to us about your colony, NGO or ward.</p>
+        <h2 id="cta-title" data-i18n="cta.title">Get your street ready for the next flood</h2>
+        <p data-i18n="cta.body">One unit is ₹6,900, and packs of 10 or more are 10% off. Pre-order for your home, or talk to us about your colony, NGO or ward. Units ship once certification is complete.</p>
         <p data-contact hidden></p>
       </div>
       <a class="btn btn-sos" href="store.html" data-i18n="cta.button">Go to the store</a>
@@ -229,6 +231,7 @@
 
 <script src="assets/js/config.js"></script>
 <script src="assets/js/i18n.js"></script>
+<script src="assets/js/products.js"></script>
 <script src="assets/js/site.js"></script>
 </body>
 </html>

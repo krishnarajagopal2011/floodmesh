@@ -11,8 +11,10 @@ terms, in English, Tamil and Hindi. No build step and no libraries.
 | `assets/js/products.js` | Products and prices: ₹6,900 a unit, packs of 10, 25, 100 or any number from 10 at 10% off, rooftop antenna ₹6,500, longer antenna cable ₹750 |
 | `assets/js/i18n.js` | Tamil and Hindi text, and English text the scripts create |
 | `assets/js/site.js`, `store.js` | Language switch, cart, order form |
-| `apps-script/` | Google Sheet that receives pre-orders (setup in its README) |
-| `vercel.json` | Clean URLs and security headers for Vercel |
+| `api/preorder.js` | Vercel function that passes pre-orders to the Sheet script with a secret key |
+| `apps-script/` | Google Sheet script that records pre-orders (setup in its README) |
+| `vercel.json` | Clean URLs, security headers and caching for Vercel |
+| `.vercelignore` | Keeps this README and `apps-script/` off the live site |
 
 ## Rules for the content
 
@@ -29,19 +31,28 @@ terms, in English, Tamil and Hindi. No build step and no libraries.
 
 ## Go-live checklist
 
-1. Set up the Sheet (`apps-script/README.md`) and put its URL in
-   `orderEndpoint` in `config.js`.
+1. Set up the Sheet script, the Vercel environment variables and the
+   firewall rule (`apps-script/README.md` and "Deploy on Vercel" below).
 2. Replace the photo placeholders with real photos (list below).
 3. A native speaker checks the Tamil and Hindi text in `i18n.js`.
-4. A lawyer checks `privacy.html`.
+4. A lawyer checks `privacy.html`, including the Data Protection Board
+   sentence, and whether the DPDP Act requires the notice in Tamil and Hindi
+   once the site is in those languages. If it does, add translations with
+   English as the authoritative text.
 5. Confirm with the owner: whether prices include GST (the site doesn't say),
    the length of the longer antenna cable, and "cancel any time before it
    ships" (FAQ and terms).
-6. Set `preview: false` in `config.js`.
+6. In the same commit: `preview: false` and `orderEndpoint: "/api/preorder"`
+   in `config.js` (or test the endpoint first on a Vercel preview deployment
+   of a branch).
 7. Once the domain is known, make the `og:image` URLs in the three pages
    absolute (`https://<domain>/assets/img/og.png`); WhatsApp and LinkedIn
    previews need that.
-8. Deploy (below) and send one test pre-order.
+8. Deploy (below), open `/store` in a private window and send one test
+   pre-order. Check that `/README.md` and `/apps-script/Code.gs` return 404.
+9. Confirm with the owner which SOS gesture the shipping unit uses (the side
+   button or * + #) and match `hero.caption`, `how.s1.body` and the unit
+   illustration to it.
 
 ## Deploy on Vercel
 
@@ -49,16 +60,36 @@ New project → import the repository → **Root Directory: `website`** →
 Framework preset: **Other** → no build command, no output directory. For now
 the site uses Vercel's free `<project>.vercel.app` address; a custom domain
 can be added later under Settings → Domains. `vercel.json` already sets clean URLs
-(`/store` instead of `/store.html`) and the security headers.
+(`/store` instead of `/store.html`; the pages link to `store.html`, which
+costs one redirect but keeps local previews working), the security headers,
+and caching (images for an hour; scripts and styles revalidated on every
+load, so a price or setting change reaches everyone at once).
 
-The content security policy allows Google Fonts and the Google Apps Script
-order endpoint only. A new outside service (Razorpay checkout, analytics)
-needs its domain added to `vercel.json` first.
+- **Environment variables:** `ORDER_ENDPOINT` and `ORDER_KEY`
+  (`apps-script/README.md`, step 5).
+- **Firewall (Pro):** Firewall → add a rule: Request Path equals
+  `/api/preorder` → Rate limit, fixed window 600 s, 5 requests, keyed by IP,
+  action Deny.
+- The content security policy allows Google Fonts and the site's own
+  function only. A new outside service (Razorpay checkout, Vercel Web
+  Analytics or Speed Insights) needs its domain in `vercel.json` and a line on
+  the privacy page first.
+- HSTS deliberately leaves out `includeSubDomains`. If the site moves to the
+  company's root domain, every subdomain would then have to serve HTTPS
+  (Google Workspace custom URLs such as mail.<domain> don't). Add it only
+  once the site has a domain of its own or every subdomain has been checked.
+
+Preview locally with `npx serve website` or `vercel dev`; opening the files
+directly also works, apart from the order endpoint.
 
 ## Media needed
 
-Each slot is a `data-asset` element in the HTML (or `media` in
-`products.js`). Put files in `assets/img/` and add an `<img>` inside the slot.
+Put files in `assets/img/`.
+- Slots in the HTML (`story-scene`): add an `<img>` inside the `data-asset`
+  figure.
+- Store slots (`product-*`): set `image: "assets/img/<file>"` on that product
+  in `products.js`; the card shows it. Optional alt text goes in `i18n.js` as
+  `p.<id>.alt`.
 
 | Slot | What | Source |
 |---|---|---|
@@ -78,5 +109,7 @@ screen on. Don't show the inside of the unit or any circuit board.
 The HTML carries the English. Each translatable element has `data-i18n="key"`;
 `site.js` swaps its text for `FM_I18N.ta[key]` or `FM_I18N.hi[key]`, and
 falls back to English for any missing key. The choice is remembered in the
-browser and can be forced with `?lang=ta` or `?lang=hi`. The privacy page
-stays in English on purpose.
+browser and can be forced with `?lang=ta` or `?lang=hi`. A language's
+button appears only once its dictionary has text, and text that falls back to
+English is marked `lang="en"` for screen readers. The privacy page stays in
+English for now (see the go-live checklist).

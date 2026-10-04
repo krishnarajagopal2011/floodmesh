@@ -5,6 +5,7 @@
    included. A key missing from ta or hi falls back to English. */
 window.FM_I18N = {
   en: {
+    "preview.ribbon.live": "Preview: product photos are placeholders. Pre-orders are recorded and we will call you.",
     "media.product": "Product photo to come",
 
     "store.group.units": "Units",
@@ -67,6 +68,9 @@ window.FM_I18N = {
     "store.added": "Added",
     "store.remove": "Remove",
     "store.units": "{n} units",
+    "store.max": "Up to {n} per order.",
+    "store.max.unit": "Up to {n} single units per order. Packs are 10% off for 10 or more.",
+    "store.maxunits": "Up to {n} units per order.",
 
     "form.sending": "Sending...",
     "err.name": "Enter your name.",
@@ -87,6 +91,8 @@ window.FM_I18N = {
     "result.summary": "Pre-order details",
     "result.copy": "Copy details",
     "result.copied": "Copied",
+    "result.copy.manual": "Select the text above and copy it",
+    "result.rate": "We have already received several pre-orders from this number in the last hour, so this one was not sent. Please don't send it again: copy the details below and send them to us at {contact}, or call us.",
   },
   ta: {},
   hi: {},
