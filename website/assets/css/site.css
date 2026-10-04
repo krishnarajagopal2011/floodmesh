@@ -417,6 +417,7 @@ p { margin: 0; }
 /* ---------------------------------------------------------------- the unit (illustration) */
 .unit-figure { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 10px; }
 .unit-figure figcaption { font-size: 0.78rem; color: var(--muted); }
+.unit-photo { width: min(240px, 60vw); height: auto; filter: drop-shadow(0 22px 28px rgba(5, 20, 28, 0.45)); }   /* the unit render, cut out (assets/img/unit-hero.webp) */
 .hero.has-photo .unit-figure figcaption { position: relative; z-index: 1; padding: 4px 10px; border-radius: 4px; background: color-mix(in srgb, var(--surface) 88%, transparent); max-width: 34ch; text-align: center; }
 .unit {
   position: relative;
