@@ -69,6 +69,9 @@ export class MapController {
   private linkLayer: Leaflet.LayerGroup;
   private overlay: Leaflet.ImageOverlay | null = null;
   private probeLayer: Leaflet.LayerGroup;
+  private householdLayer: Leaflet.LayerGroup;
+  private householdRenderer: Leaflet.Canvas;
+  private householdData: { points: LngLat[]; colours: string[] } | null = null;
   private markers = new Map<string, Leaflet.Marker>();
   private units: PlacedUnit[] = [];
   private selectedId: string | null = null;
@@ -122,6 +125,12 @@ export class MapController {
     this.linkLayer = L.layerGroup().addTo(this.map);
     this.unitLayer = L.layerGroup().addTo(this.map);
     this.probeLayer = L.layerGroup().addTo(this.map);
+    // Thousands of household dots: one canvas, not thousands of SVG elements.
+    this.map.createPane("households");
+    this.map.getPane("households")!.style.zIndex = "430";
+    this.map.getPane("households")!.style.pointerEvents = "none";
+    this.householdRenderer = L.canvas({ pane: "households", padding: 0.3 });
+    this.householdLayer = L.layerGroup().addTo(this.map);
 
     const pm = (this.map as unknown as { pm: PMMap }).pm;
     pm.setGlobalOptions({ snappable: false, continueDrawing: false, exitModeOnEscape: true, templineStyle: { color: COLORS.area }, hintlineStyle: { color: COLORS.area, dashArray: "5 5" }, pathOptions: { color: COLORS.area } });
@@ -146,6 +155,7 @@ export class MapController {
       this.iconScale = sc;
       for (const u of this.units) this.markers.get(u.id)?.setIcon(this.icon(u));
       this.highlightUnit(this.selectedId);
+      this.drawHouseholds();
     });
 
     this.map.on("click", (e: Leaflet.LeafletMouseEvent) => {
@@ -355,6 +365,38 @@ export class MapController {
 
   panToUnit(u: PlacedUnit): void {
     this.map.panTo([u.lat, u.lng]);
+  }
+
+  // --------------------------------------------------------- households
+
+  /** Placed household units as small dots, coloured per unit; null hides them. */
+  setHouseholds(points: LngLat[] | null, colours: string[]): void {
+    this.householdData = points && points.length ? { points, colours } : null;
+    this.drawHouseholds();
+  }
+
+  private drawHouseholds(): void {
+    this.householdLayer.clearLayers();
+    const d = this.householdData;
+    if (!d) return;
+    const z = this.map.getZoom();
+    const radius = z >= 16 ? 4 : z >= 14 ? 3 : 2;
+    for (let i = 0; i < d.points.length; i++) {
+      const [lng, lat] = d.points[i];
+      this.L.circleMarker([lat, lng], {
+        renderer: this.householdRenderer,
+        pane: "households",
+        radius,
+        // A dark rim keeps each dot readable on top of the same-coloured coverage layer.
+        stroke: true,
+        color: "rgba(17,24,39,0.75)",
+        weight: z >= 15 ? 1.2 : 0.6,
+        fillColor: d.colours[i] ?? "#374151",
+        fillOpacity: 0.9,
+        interactive: false,
+        pmIgnore: true,
+      } as Leaflet.CircleMarkerOptions).addTo(this.householdLayer);
+    }
   }
 
   // ------------------------------------------------------ links/coverage

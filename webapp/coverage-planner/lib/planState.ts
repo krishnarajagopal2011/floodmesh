@@ -2,7 +2,8 @@
  * Everything a plan consists of, its defaults, and loading a saved plan file
  * (which may come from anywhere, so it is checked field by field).
  */
-import type { PlacedUnit, PolygonRings } from "./plan.ts";
+import { MAX_PLACED, type HouseholdPoints } from "./households.ts";
+import type { LngLat, PlacedUnit, PolygonRings } from "./plan.ts";
 import { DEFAULT_MODEL, DEFAULT_PROFILES, ENVIRONMENTS, SENSITIVITY_DBM, type RadioModel, type UnitKind, type UnitProfile } from "./radio.ts";
 
 export interface AreaState {
@@ -36,6 +37,8 @@ export interface PlanState {
   redundancy: 1 | 2;
   /** Responder handsets beyond the placed responder units (for the cost). */
   extraResponders: number;
+  /** Household units placed as points (a sample for large areas), or null. */
+  householdPoints: HouseholdPoints | null;
   report: ReportInfo;
 }
 
@@ -70,8 +73,25 @@ export function defaultPlan(): PlanState {
     },
     redundancy: 2,
     extraResponders: 0,
+    householdPoints: null,
     report: { title: "", preparedFor: "", preparedBy: "", notes: "" },
   };
+}
+
+function householdPointsFrom(v: unknown): HouseholdPoints | null {
+  if (!v || typeof v !== "object") return null;
+  const o = v as Record<string, unknown>;
+  if (!Array.isArray(o.points)) return null;
+  const points: LngLat[] = [];
+  for (const p of o.points) {
+    if (points.length >= MAX_PLACED) break;
+    if (Array.isArray(p) && typeof p[0] === "number" && typeof p[1] === "number" && Math.abs(p[0]) <= 180 && Math.abs(p[1]) <= 90) {
+      points.push([p[0], p[1]]);
+    }
+  }
+  if (!points.length) return null;
+  const total = typeof o.total === "number" && Number.isFinite(o.total) ? Math.max(points.length, Math.round(o.total)) : points.length;
+  return { source: o.source === "osm" ? "osm" : "random", points, total: Math.min(total, 100_000_000) };
 }
 
 /**
@@ -244,6 +264,7 @@ export function fromPlanFile(input: unknown): PlanState {
     },
     redundancy: o.redundancy === 1 ? 1 : 2,
     extraResponders: Math.round(num(o.extraResponders, 0, 100_000, 0)),
+    householdPoints: householdPointsFrom(o.householdPoints),
     report: {
       title: str(rep.title, 200),
       preparedFor: str(rep.preparedFor, 200),

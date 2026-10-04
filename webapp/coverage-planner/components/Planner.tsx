@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 import { formatInr, type PublicCosts } from "@/lib/costs";
-import { countBuildings } from "@/lib/osm";
+import { MAX_PLACED, placeOnBuildings, placeRandom, seedOf } from "@/lib/households";
+import { buildingCentres, countBuildings } from "@/lib/osm";
 import { autoPlace, cellXY, type PlacedUnit } from "@/lib/plan";
 import {
   defaultPlan,
@@ -23,7 +24,7 @@ import {
   type ReportInfo,
 } from "@/lib/planState";
 import { DEFAULT_MODEL, DEFAULT_PROFILES, ENVIRONMENTS, type RadioModel, type UnitKind, type UnitProfile } from "@/lib/radio";
-import { PROBE_ROWS, analyse, probe, probeHtml, renderCoverage, type Analysis, type CoverageView } from "./analysis";
+import { PROBE_ROWS, analyse, householdColours, probe, probeHtml, renderCoverage, type Analysis, type CoverageView } from "./analysis";
 import AreaPanel, { type AcCollection } from "./AreaPanel";
 import CostPanel, { planEstimate } from "./CostPanel";
 import CoveragePanel, { Legend } from "./CoveragePanel";
@@ -76,6 +77,8 @@ export default function Planner() {
   const [opacity, setOpacity] = useState(0.5);
   const [showLinks, setShowLinks] = useState(true);
   const [showRanges, setShowRanges] = useState(false);
+  const [showHouseholds, setShowHouseholds] = useState(true);
+  const [placing, setPlacing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [costs, setCosts] = useState<PublicCosts | null>(null);
   const [costsError, setCostsError] = useState<string | null>(null);
@@ -166,7 +169,7 @@ export default function Planner() {
   useEffect(() => {
     const t = setTimeout(() => setAnalysis(analyse(planRef.current)), 60);
     return () => clearTimeout(t);
-  }, [plan.area, radioUnitsKey, plan.model, plan.profiles]);
+  }, [plan.area, radioUnitsKey, plan.model, plan.profiles, plan.householdPoints]);
 
   const image = useMemo(() => (analysis ? renderCoverage(analysis, view, plan.model.hopLimit) : null), [analysis, view, plan.model.hopLimit]);
 
@@ -178,15 +181,20 @@ export default function Planner() {
     countReq.current?.abort();
     countReq.current = null;
     setCounting(false);
+    setPlacing(false);
   }, []);
 
-  /** A count only fits the area it was made for: clear it, and say so if one was in use. */
+  /**
+   * A building count and placed household units only fit the area they were
+   * made for: clear them, and say so if they were in use.
+   */
   const dropBuildingCount = useCallback(
     (p: PlanState): PlanState => {
-      if (p.demand.mode === "osm" && p.demand.osmBuildings !== null) {
-        setTimeout(() => notify("The area changed: count the OSM buildings again (Units tab)."), 0);
-      }
-      return { ...p, demand: { ...p.demand, osmBuildings: null } };
+      const said: string[] = [];
+      if (p.demand.mode === "osm" && p.demand.osmBuildings !== null) said.push("count the OSM buildings again");
+      if (p.householdPoints) said.push("place the household units again");
+      if (said.length) setTimeout(() => notify(`The area changed: ${said.join(" and ")} (Units tab).`), 0);
+      return { ...p, demand: { ...p.demand, osmBuildings: null }, householdPoints: null };
     },
     [notify],
   );
@@ -308,6 +316,62 @@ export default function Planner() {
       }
     }
   }, [plan.area, notify]);
+
+  /**
+   * Place the plan's household units as points: on OSM building positions or
+   * spread evenly. Large plans get a sample of MAX_PLACED; the cost still uses
+   * the full count. On buildings, the fetched positions also give the
+   * building count when households are counted from OSM.
+   */
+  const placeHouseholds = useCallback(
+    async (source: "osm" | "random") => {
+      const area = plan.area;
+      const a = analysis;
+      if (!area || !a?.area) return;
+      countReq.current?.abort();
+      const ctrl = new AbortController();
+      countReq.current = ctrl;
+      setPlacing(true);
+      try {
+        let demand = plan.demand;
+        let buildings: [number, number][] = [];
+        if (source === "osm") {
+          buildings = await buildingCentres(area.polygons, ctrl.signal);
+          if (ctrl.signal.aborted) return;
+          if (!buildings.length) {
+            notify("OpenStreetMap has no buildings mapped in this area. Use “Randomly in the area” instead.");
+            return;
+          }
+          if (demand.mode === "osm") demand = { ...demand, osmBuildings: buildings.length };
+        }
+        const total = householdUnits(demand, a.areaKm2);
+        if (total <= 0) {
+          notify("The plan has no household units to place: set the households and the share that get a unit first.");
+          return;
+        }
+        const n = Math.min(total, MAX_PLACED);
+        const seed = seedOf(`${area.name}|${n}|${source}`);
+        const points =
+          source === "osm" ? placeOnBuildings(buildings, a.area, a.proj, n, seed) : placeRandom(a.area, a.proj, n, seed);
+        setPlan((p) => (p.area === area ? { ...p, demand, householdPoints: { source, points, total } } : p));
+        setShowHouseholds(true);
+        notify(
+          `Placed ${fmtInt(points.length)} household units${source === "osm" ? ` on ${fmtInt(buildings.length)} OSM buildings` : ""}` +
+            (points.length < total ? ` (a sample of ${fmtInt(total)}; the cost uses all of them).` : "."),
+        );
+      } catch (err) {
+        if (!ctrl.signal.aborted) notify(err instanceof Error ? err.message : "Placing household units failed.");
+      } finally {
+        if (countReq.current === ctrl) {
+          countReq.current = null;
+          setPlacing(false);
+        }
+      }
+    },
+    [plan.area, plan.demand, analysis, notify],
+  );
+
+  const clearHouseholds = useCallback(() => setPlan((p) => ({ ...p, householdPoints: null })), []);
 
   const openPlan = useCallback(
     async (file: File) => {
@@ -448,6 +512,18 @@ export default function Planner() {
   useEffect(() => {
     if (mapReady) ctl.current?.setLinks(analysis?.links ?? [], showLinks);
   }, [analysis, showLinks, mapReady]);
+
+  const hhColours = useMemo(
+    () => (analysis ? householdColours(analysis, view, plan.model.hopLimit) : []),
+    [analysis, view, plan.model.hopLimit],
+  );
+  useEffect(() => {
+    if (!mapReady) return;
+    // Points and colours come from the same analysis, so they always match.
+    const pts = analysis?.households ? (plan.householdPoints?.points ?? null) : null;
+    ctl.current?.setHouseholds(showHouseholds && pts && pts.length === hhColours.length ? pts : null, hhColours);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hhColours, showHouseholds, mapReady]);
 
   useEffect(() => {
     if (mapReady) ctl.current?.setMode(mode);
@@ -636,6 +712,9 @@ export default function Planner() {
                 setPlanField={setPlanField}
                 countBuildings={() => void doCountBuildings()}
                 countingBuildings={counting}
+                placeHouseholds={(src) => void placeHouseholds(src)}
+                placingHouseholds={placing}
+                clearHouseholds={clearHouseholds}
                 panToUnit={(u) => ctl.current?.panToUnit(u)}
               />
             )}
@@ -651,6 +730,8 @@ export default function Planner() {
                 setShowLinks={setShowLinks}
                 showRanges={showRanges}
                 setShowRanges={setShowRanges}
+                showHouseholds={showHouseholds}
+                setShowHouseholds={setShowHouseholds}
               />
             )}
             {tab === "cost" && <CostPanel plan={plan} analysis={analysis} costs={costs} costsError={costsError} />}

@@ -55,6 +55,37 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
           <tr><td>Responder units</td><td>{responders + plan.extraResponders} ({responders} placed on the map)</td></tr>
           {s && <tr><td>Area hearing at least one / two powered units</td><td>{fmtPct(s.pctCovered1)} / {fmtPct(s.pctCovered2)}</td></tr>}
           {s && s.hasResponders && <tr><td>Area whose SOS reaches a responder within {m.hopLimit} relays</td><td>{fmtPct(s.pctSosReachable)}</td></tr>}
+          {a?.households && (
+            <>
+              <tr>
+                <td>Household units placed on the map</td>
+                <td>
+                  {fmtInt(a.households.stats.placed)} {plan.householdPoints?.source === "osm" ? "on OpenStreetMap buildings" : "spread evenly"}
+                  {plan.householdPoints && plan.householdPoints.points.length < plan.householdPoints.total
+                    ? ` (a sample of ${fmtInt(plan.householdPoints.total)})`
+                    : ""}
+                </td>
+              </tr>
+              <tr>
+                <td>Placed units hearing at least one / two powered units</td>
+                <td>{fmtPct(a.households.stats.pctHeard1)} / {fmtPct(a.households.stats.pctHeard2)}</td>
+              </tr>
+              {a.households.stats.hasResponders && (
+                <tr>
+                  <td>Placed units whose SOS reaches a responder (neighbours relaying too; via powered units alone)</td>
+                  <td>
+                    {fmtPct(a.households.stats.pctSosWithNeighbours)}; {fmtPct(a.households.stats.pctSosPoweredOnly)}
+                  </td>
+                </tr>
+              )}
+              {a.households.stats.hasResponders && (
+                <tr>
+                  <td>…if every powered unit failed</td>
+                  <td>{fmtPct(a.households.stats.pctSosNoPowered)}</td>
+                </tr>
+              )}
+            </>
+          )}
           {est && (
             <tr>
               <td>Estimated cost</td>

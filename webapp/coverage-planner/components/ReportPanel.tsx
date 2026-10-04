@@ -84,7 +84,7 @@ export default function ReportPanel({ plan, setReport, openPlan, newPlan, print 
           <button
             type="button"
             className="secondary"
-            onClick={() => download(`${base}.geojson`, toGeoJson(name, plan.area?.polygons ?? [], plan.units), "application/geo+json")}
+            onClick={() => download(`${base}.geojson`, toGeoJson(name, plan.area?.polygons ?? [], plan.units, plan.householdPoints?.points ?? []), "application/geo+json")}
           >
             GeoJSON (QGIS)
           </button>

@@ -1,13 +1,20 @@
 /** Plan exports for other tools: GeoJSON (QGIS), KML (Google Earth) and CSV (spreadsheets). */
-import type { PlacedUnit, PolygonRings } from "./plan.ts";
+import type { LngLat, PlacedUnit, PolygonRings } from "./plan.ts";
 import { UNIT_LABELS } from "./radio.ts";
 
 function xml(s: string): string {
   return s.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]!);
 }
 
-export function toGeoJson(areaName: string, polygons: PolygonRings[], units: PlacedUnit[]): string {
+export function toGeoJson(areaName: string, polygons: PolygonRings[], units: PlacedUnit[], households: LngLat[] = []): string {
   const features: object[] = [];
+  if (households.length) {
+    features.push({
+      type: "Feature",
+      properties: { role: "household-units", count: households.length },
+      geometry: { type: "MultiPoint", coordinates: households },
+    });
+  }
   if (polygons.length) {
     features.push({
       type: "Feature",

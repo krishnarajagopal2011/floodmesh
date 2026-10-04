@@ -16,6 +16,8 @@ interface Props {
   setShowLinks: (v: boolean) => void;
   showRanges: boolean;
   setShowRanges: (v: boolean) => void;
+  showHouseholds: boolean;
+  setShowHouseholds: (v: boolean) => void;
 }
 
 export interface Finding {
@@ -47,6 +49,12 @@ export function findings(plan: PlanState, a: Analysis | null): Finding[] {
       });
     else out.push({ tone: "ok", text: `SOS reaches a responder from ${fmtPct(s.pctSosReachable)} of the area within ${plan.model.hopLimit} relays.` });
   }
+  const hs = a.households?.stats;
+  if (hs && hs.hasResponders && hs.pctSosNoPowered < 50 && powered > 0)
+    out.push({
+      tone: "warn",
+      text: `If every powered unit failed, only ${fmtPct(hs.pctSosNoPowered)} of household units could still reach a responder within ${plan.model.hopLimit} relays. More responders spread over the area, or a higher hop limit, would raise it.`,
+    });
   if (a.poweredIslands > 1)
     out.push({ tone: "warn", text: `Powered units form ${a.poweredIslands} separate islands that can't hear each other.` });
   if (a.airtime.heartbeatChannelSPerHour > USABLE_CHANNEL_S_PER_HOUR / 2)
@@ -132,6 +140,13 @@ export default function CoveragePanel(p: Props) {
         </div>
         <Check label="Show links between units (shortest-link tree)" checked={p.showLinks} onChange={p.setShowLinks} />
         <Check label="Show each unit's reach to household units" checked={p.showRanges} onChange={p.setShowRanges} />
+        {plan.householdPoints && (
+          <Check
+            label={`Show placed household units (${fmtInt(plan.householdPoints.points.length)} dots, coloured like the layer)`}
+            checked={p.showHouseholds}
+            onChange={p.setShowHouseholds}
+          />
+        )}
       </Section>
 
       {fs.length > 0 && (
@@ -163,6 +178,50 @@ export default function CoveragePanel(p: Props) {
           <p className="muted">Choose an area to see coverage.</p>
         )}
       </Section>
+
+      {a?.households && (
+        <Section title="Placed household units">
+          <div className="stats">
+            <Stat label="Hear ≥ 1 powered" value={fmtPct(a.households.stats.pctHeard1)} tone={a.households.stats.pctHeard1 >= 95 ? "ok" : "bad"} />
+            <Stat label="Hear ≥ 2 powered" value={fmtPct(a.households.stats.pctHeard2)} tone={a.households.stats.pctHeard2 >= 90 ? "ok" : "warn"} />
+            <Stat
+              label="SOS reaches responder"
+              value={a.households.stats.hasResponders ? fmtPct(a.households.stats.pctSosWithNeighbours) : "–"}
+              tone={!a.households.stats.hasResponders ? undefined : a.households.stats.pctSosWithNeighbours >= 95 ? "ok" : "bad"}
+              sub={
+                a.households.stats.hasResponders
+                  ? `${fmtPct(a.households.stats.pctSosPoweredOnly)} via powered units alone`
+                  : "place a responder"
+              }
+            />
+            <Stat
+              label="If every powered unit fails"
+              value={a.households.stats.hasResponders ? fmtPct(a.households.stats.pctSosNoPowered) : "–"}
+              tone={!a.households.stats.hasResponders ? undefined : a.households.stats.pctSosNoPowered >= 50 ? "ok" : "warn"}
+              sub="SOS still reaches a responder"
+            />
+          </div>
+          <table className="table compact">
+            <tbody>
+              <tr>
+                <td>Household units each one hears directly (average)</td>
+                <td className="num">{a.households.stats.meanNeighbours.toFixed(1)}</td>
+              </tr>
+              <tr>
+                <td>Largest group still linked with every powered unit down</td>
+                <td className="num">{fmtPct(a.households.stats.pctLargestGroup)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="hint">
+            SOS counts relays through other household units too (every unit forwards SOS, §13.3), up to the hop limit of {plan.model.hopLimit}.
+            {plan.householdPoints && plan.householdPoints.points.length < plan.householdPoints.total
+              ? " These dots are a sample, sparser than the real units, so the through-neighbours figures are on the low side."
+              : ""}{" "}
+            Computed in {a.households.ms.toFixed(0)} ms.
+          </p>
+        </Section>
+      )}
 
       {a && (
         <Section title="Network">

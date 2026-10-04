@@ -2,7 +2,8 @@
 /** Place powered and responder units, auto-place, and set how many household units the area needs. */
 import { useState } from "react";
 import type { PlacedUnit } from "@/lib/plan";
-import { DENSITY_PRESETS, households, householdUnits, type Demand, type PlanState } from "@/lib/planState";
+import { MAX_PLACED } from "@/lib/households";
+import { DENSITY_PRESETS, demandPending, households, householdUnits, type Demand, type PlanState } from "@/lib/planState";
 import { UNIT_LABELS } from "@/lib/radio";
 import type { Analysis } from "./analysis";
 import type { MapMode } from "./mapController";
@@ -24,6 +25,9 @@ interface Props {
   setPlanField: <K extends keyof PlanState>(k: K, v: PlanState[K]) => void;
   countBuildings: () => void;
   countingBuildings: boolean;
+  placeHouseholds: (source: "osm" | "random") => void;
+  placingHouseholds: boolean;
+  clearHouseholds: () => void;
   panToUnit: (u: PlacedUnit) => void;
 }
 
@@ -160,10 +164,45 @@ export default function UnitsPanel(p: Props) {
         />
         <div className="kv">
           <span>Households</span>
-          <strong>{fmtInt(hh)}</strong>
+          <strong>{demandPending(d) ? "count buildings first" : fmtInt(hh)}</strong>
           <span>Household units</span>
-          <strong>{fmtInt(hhu)}</strong>
+          <strong>{demandPending(d) ? "–" : fmtInt(hhu)}</strong>
         </div>
+      </Section>
+
+      <Section title="Place household units on the map">
+        <div className="row wrap">
+          <button type="button" disabled={!plan.area || p.placingHouseholds} onClick={() => p.placeHouseholds("osm")}>
+            {p.placingHouseholds ? "Placing…" : "On OSM buildings"}
+          </button>
+          <button type="button" className="secondary" disabled={!plan.area || p.placingHouseholds} onClick={() => p.placeHouseholds("random")}>
+            Randomly in the area
+          </button>
+          {plan.householdPoints && (
+            <button type="button" className="secondary" onClick={p.clearHouseholds}>
+              Remove
+            </button>
+          )}
+        </div>
+        {plan.householdPoints ? (
+          <p className="hint">
+            <strong>{fmtInt(plan.householdPoints.points.length)}</strong> placed{" "}
+            {plan.householdPoints.source === "osm" ? "on OpenStreetMap buildings" : "evenly over the area"}
+            {plan.householdPoints.points.length < plan.householdPoints.total
+              ? `, a sample of the plan's ${fmtInt(plan.householdPoints.total)}`
+              : ""}
+            .
+            {!demandPending(d) && hhu !== plan.householdPoints.total && (
+              <span className="warnText"> The plan now has {fmtInt(hhu)} household units: place them again to match.</span>
+            )}
+          </p>
+        ) : (
+          <p className="hint">
+            One dot per household unit (up to {fmtInt(MAX_PLACED)}; larger plans get an even sample, and the cost still uses the full count).
+            Each dot shows what that unit hears, and whether its SOS gets out through neighbours&apos; units too. “On OSM buildings” also counts
+            the buildings when households are counted from OSM.
+          </p>
+        )}
       </Section>
 
       <Section title="Responders">

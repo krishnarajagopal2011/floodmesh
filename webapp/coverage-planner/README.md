@@ -10,8 +10,11 @@ over OpenStreetMap, for proposals to government bodies and organisations.
 - **Units.** Place powered terrace units and responders by clicking, drag them
   onto real terraces, or **auto-place** powered units so that every house hears
   one or two of them (§4.2 of `docs/architecture.md` asks for two). Household
-  units are counted, not placed: by density, from OpenStreetMap building
-  counts, or entered directly, times the share of households that get one.
+  units are counted by density, from OpenStreetMap building counts, or
+  entered directly, times the share of households that get one, and can be
+  **placed as dots**: on OSM building positions or spread evenly, up to
+  20,000 (a larger plan gets an even sample; the cost still uses the full
+  count).
 - **Coverage.** A heat map of how many powered units a household unit indoors
   would hear, the signal margin, or how many relays its SOS needs to reach a
   responder. **Probe** any spot for the link budget to the nearest units.
@@ -51,7 +54,8 @@ Everything is in `lib/radio.ts` and `lib/plan.ts`, with tests in `test/`.
 | Coverage grid | About 40,000 cells over the area (10–500 m each). Each cell is a household unit indoors. |
 | SOS reach | Breadth-first search from responders through powered units; a cell is reached if one of its powered units is within the hop limit (`FM_HOP_DEFAULT` = 3). Battery units also forward SOS (§13.3), so real reach is better. |
 | Airtime | Semtech AN1200.13 time on air (125 kHz, CR 4/5, 16-symbol preamble) plus the 0.5 s radio-wake preamble (§13.1). Heartbeat load around the busiest powered unit, against the ~1,200 s/h usable channel (§1.3) and the 2.5% duty cycle (§1.1). |
-| Auto-place | Triangular lattice (spacing = range for two-unit coverage, range·√3 for one), clipped to the area, then gaps filled greedily. |
+| Auto-place | Triangular lattice (spacing = range for two-unit coverage, range·√3 for one), clipped to the area, laid from the centre out, skipping spots where a unit already stands, then gaps filled greedily. |
+| Placed household units | Each dot hears the powered units in range. Its SOS is traced from the responders outward through powered units **and other household units** (every unit forwards SOS, §13.3) within the hop limit, and again with every powered unit down. A sample is sparser than the real units, so these figures are on the low side. |
 
 With the defaults (SF7, urban): household ↔ powered unit about 650 m,
 powered ↔ powered about 3.7 km, household ↔ household about 110 m.

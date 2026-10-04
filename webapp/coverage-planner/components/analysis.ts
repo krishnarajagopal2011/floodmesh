@@ -21,6 +21,7 @@ import {
   type Projection,
 } from "@/lib/plan";
 import { marginDb, rangeM, rssiDbm, UNIT_LABELS, type RadioModel, type UnitKind, type UnitProfile } from "@/lib/radio";
+import { analyseHouseholds, type HouseholdAnalysis } from "@/lib/households";
 import type { PlanState } from "@/lib/planState";
 import type { LinkLine, UnitLabel } from "./mapController";
 
@@ -50,6 +51,8 @@ export interface Analysis {
   /** Most relays any powered unit needs to reach a responder (−1 = none reachable). */
   maxRelays: number;
   poweredUnreachable: number;
+  /** Placed household units and what each can reach, when any are placed. */
+  households: HouseholdAnalysis | null;
   ms: number;
 }
 
@@ -118,11 +121,16 @@ export function analyse(plan: PlanState): Analysis {
     if (r > maxRelays) maxRelays = r;
   });
 
+  const households = plan.householdPoints?.points.length
+    ? analyseHouseholds(plan.householdPoints.points, units, profiles, model, proj, backbone)
+    : null;
+
   return {
     proj,
     area,
     grid,
     coverage,
+    households,
     backbone,
     airtime: airtimeReport(units, backbone, model),
     ranges: computeRanges(profiles, model),
@@ -160,6 +168,21 @@ function relaysColour(r: number, hopLimit: number): RGB {
   if (r >= hopLimit) return [235, 170, 0];
   if (r === 1) return [20, 150, 70];
   return [130, 190, 60];
+}
+
+const css = ([r, g, b]: RGB) => `rgb(${r},${g},${b})`;
+
+/** Colour of each placed household unit for the current map layer (same keys as the coverage image). */
+export function householdColours(a: Analysis, view: CoverageView, hopLimit: number): string[] {
+  const h = a.households;
+  if (!h) return [];
+  const out = new Array<string>(h.heard.length);
+  for (let i = 0; i < h.heard.length; i++) {
+    if (view === "sos") out[i] = css(relaysColour(h.relays[i], hopLimit));
+    else if (view === "none") out[i] = "rgb(55,65,81)";
+    else out[i] = css(h.heard[i] >= 2 ? PALETTE.two : h.heard[i] === 1 ? PALETTE.one : PALETTE.none);
+  }
+  return out;
 }
 
 export interface CoverageImage {

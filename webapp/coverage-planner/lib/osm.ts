@@ -106,3 +106,33 @@ export async function countBuildings(polygons: PolygonRings[], signal?: AbortSig
   if (!Number.isFinite(total)) throw new Error("Building count: unexpected reply from Overpass.");
   return total;
 }
+
+/**
+ * Positions (centres) of the buildings mapped in OSM inside the area, for
+ * placing household units on real buildings. Outer rings only. A large
+ * constituency can return tens of thousands of points (a few MB).
+ */
+export async function buildingCentres(polygons: PolygonRings[], signal?: AbortSignal): Promise<LngLat[]> {
+  const parts = polygons
+    .filter((p) => p[0] && p[0].length >= 4)
+    .map((p) => {
+      const s = polyString(p[0]);
+      return `way["building"](poly:"${s}");relation["building"](poly:"${s}");`;
+    })
+    .join("");
+  if (!parts) return [];
+  const q = `[out:json][timeout:180];(${parts});out ids center qt;`;
+  const res = await fetch(OVERPASS, {
+    method: "POST",
+    body: new URLSearchParams({ data: q }),
+    signal,
+    referrerPolicy: "strict-origin-when-cross-origin",
+  });
+  if (!res.ok) throw new Error(`Building positions failed (HTTP ${res.status}). Overpass may be busy; try again in a minute.`);
+  const j = (await res.json()) as { elements?: Array<{ center?: { lat: number; lon: number } }> };
+  const out: LngLat[] = [];
+  for (const e of j.elements ?? []) {
+    if (e.center && Number.isFinite(e.center.lat) && Number.isFinite(e.center.lon)) out.push([e.center.lon, e.center.lat]);
+  }
+  return out;
+}
