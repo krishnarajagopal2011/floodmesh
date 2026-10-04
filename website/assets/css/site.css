@@ -408,10 +408,11 @@ p { margin: 0; }
 .cta-band.has-photo { position: relative; overflow: hidden; }
 .band-photo::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--ink) 82%, transparent); }
 .cta-band.has-photo .wrap { position: relative; z-index: 1; }
-.who-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: clamp(24px, 4vw, 48px); align-items: center; margin-bottom: clamp(28px, 4vw, 48px); }
-.who-head .section-head { margin-bottom: 0; }
+.who-head, .how-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: clamp(24px, 4vw, 48px); align-items: center; margin-bottom: clamp(28px, 4vw, 48px); }
+.who-head .section-head, .how-head .section-head { margin-bottom: 0; }
+.media-slot.how-photo { aspect-ratio: 1672 / 941; }   /* whole picture: the message bubbles sit near its edges */
 .who-head:not(:has(figure)) { grid-template-columns: minmax(0, 1fr); }
-@media (max-width: 860px) { .who-head { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 860px) { .who-head, .how-head { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------------------------------------------------------------- the unit (illustration) */
 .unit-figure { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 10px; }

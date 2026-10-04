@@ -119,6 +119,7 @@ Put files in `assets/img/`.
 |---|---|---|
 | Hero background (`assets/img/hero.jpg`) | Flooded Chennai street at dusk, houses on the right, calm water on the left behind the headline | AI scene (in place), no caption |
 | `story-scene` | A flooded city street at dusk, ground floors under water, one lit window | AI scene (in place), no caption |
+| How it works (`assets/img/rooftops.webp`) | Flooded town in the rain at night; a message ("Need Medicines") hops from roof to roof to a neighbour | AI scene from the owner, 4 Oct, no caption |
 | `product-unit` (also on the pack cards) | The unit on a plain light background | Render, `assets/img/unit.webp` (owner, 4 Oct) |
 | `product-street`, `product-neighbourhood`, `product-area`, `product-custom` | Boxed units stacked: 10, 25, 100 (or one photo of a stack for all four) | **Real photo** |
 | `product-antenna` | The 1 m rooftop antenna mounted on a terrace railing, unit beside it | **Real photo** |
