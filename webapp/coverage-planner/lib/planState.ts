@@ -91,7 +91,11 @@ function householdPointsFrom(v: unknown): HouseholdPoints | null {
   }
   if (!points.length) return null;
   const total = typeof o.total === "number" && Number.isFinite(o.total) ? Math.max(points.length, Math.round(o.total)) : points.length;
-  return { source: o.source === "osm" ? "osm" : "random", points, total: Math.min(total, 100_000_000) };
+  const onBuildings =
+    o.source === "osm" && typeof o.onBuildings === "number" && Number.isFinite(o.onBuildings)
+      ? Math.max(0, Math.min(points.length, Math.round(o.onBuildings)))
+      : undefined;
+  return { source: o.source === "osm" ? "osm" : "random", points, total: Math.min(total, 100_000_000), onBuildings };
 }
 
 /**
@@ -107,6 +111,15 @@ export function households(d: Demand, areaKm2: number): number {
   if (d.mode === "manual") return Math.max(0, Math.round(d.manualHouseholds));
   if (d.mode === "osm") return d.osmBuildings === null ? 0 : Math.round(d.osmBuildings * d.householdsPerBuilding);
   return Math.round(areaKm2 * d.householdsPerKm2);
+}
+
+/**
+ * True when placed household units no longer match the plan's count (the
+ * density, adoption or count changed after placing): their figures describe
+ * an older plan.
+ */
+export function householdPointsStale(plan: Pick<PlanState, "demand" | "householdPoints">, areaKm2: number): boolean {
+  return !!plan.householdPoints && !demandPending(plan.demand) && householdUnits(plan.demand, areaKm2) !== plan.householdPoints.total;
 }
 
 export function householdUnits(d: Demand, areaKm2: number): number {
@@ -160,19 +173,20 @@ export function sanitizePolygons(v: unknown): PolygonRings[] {
   }
   const total = out.reduce((n, rings) => n + rings.reduce((m, r) => m + r.length, 0), 0);
   if (total <= MAX_AREA_VERTICES) return out;
-  const step = Math.ceil(total / MAX_AREA_VERTICES);
+  // Each ring gets a share of the vertex budget in proportion to its own
+  // detail, so a simple ring (a rectangle, a coarse ward) is never thinned
+  // and no ring is ever dropped: vertex count says nothing about size.
   const thin = (r: [number, number][]) => {
+    const budget = Math.max(8, Math.floor((r.length * MAX_AREA_VERTICES) / total));
+    if (r.length <= budget) return r;
+    const step = Math.ceil(r.length / budget);
     const kept = r.filter((_, i) => i % step === 0);
-    kept.push(r[r.length - 1]); // keep the ring closed
+    const last = r[r.length - 1];
+    const tail = kept[kept.length - 1];
+    if (tail[0] !== last[0] || tail[1] !== last[1]) kept.push(last); // keep the ring closed
     return kept;
   };
-  const thinned: PolygonRings[] = [];
-  for (const rings of out) {
-    const outer = thin(rings[0]);
-    if (outer.length < 4) continue; // too small to matter at this scale
-    thinned.push([outer, ...rings.slice(1).map(thin).filter((r) => r.length >= 4)]);
-  }
-  return thinned;
+  return out.map((rings) => rings.map(thin).filter((r, k) => k === 0 || r.length >= 4));
 }
 
 /** Unit ids must be unique: markers, list rows and edits are keyed by them. */

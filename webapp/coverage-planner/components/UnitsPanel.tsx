@@ -25,6 +25,8 @@ interface Props {
   setPlanField: <K extends keyof PlanState>(k: K, v: PlanState[K]) => void;
   countBuildings: () => void;
   countingBuildings: boolean;
+  /** A building count or a placement is talking to OSM: one at a time. */
+  osmBusy: boolean;
   placeHouseholds: (source: "osm" | "random") => void;
   placingHouseholds: boolean;
   clearHouseholds: () => void;
@@ -133,7 +135,7 @@ export default function UnitsPanel(p: Props) {
         {d.mode === "osm" && (
           <>
             <div className="row">
-              <button type="button" onClick={p.countBuildings} disabled={!plan.area || p.countingBuildings}>
+              <button type="button" onClick={p.countBuildings} disabled={!plan.area || p.osmBusy}>
                 {p.countingBuildings ? "Counting…" : "Count buildings in OSM"}
               </button>
               <span>{d.osmBuildings === null ? "not counted yet" : `${fmtInt(d.osmBuildings)} buildings`}</span>
@@ -172,10 +174,16 @@ export default function UnitsPanel(p: Props) {
 
       <Section title="Place household units on the map">
         <div className="row wrap">
-          <button type="button" disabled={!plan.area || p.placingHouseholds} onClick={() => p.placeHouseholds("osm")}>
+          <button type="button" disabled={!plan.area || p.osmBusy} onClick={() => p.placeHouseholds("osm")}>
             {p.placingHouseholds ? "Placing…" : "On OSM buildings"}
           </button>
-          <button type="button" className="secondary" disabled={!plan.area || p.placingHouseholds} onClick={() => p.placeHouseholds("random")}>
+          <button
+            type="button"
+            className="secondary"
+            disabled={!plan.area || p.osmBusy || demandPending(d)}
+            title={demandPending(d) ? "Count the OSM buildings first" : undefined}
+            onClick={() => p.placeHouseholds("random")}
+          >
             Randomly in the area
           </button>
           {plan.householdPoints && (
@@ -187,7 +195,11 @@ export default function UnitsPanel(p: Props) {
         {plan.householdPoints ? (
           <p className="hint">
             <strong>{fmtInt(plan.householdPoints.points.length)}</strong> placed{" "}
-            {plan.householdPoints.source === "osm" ? "on OpenStreetMap buildings" : "evenly over the area"}
+            {plan.householdPoints.source !== "osm"
+              ? "evenly over the area"
+              : plan.householdPoints.onBuildings === undefined || plan.householdPoints.onBuildings >= plan.householdPoints.points.length
+                ? "on OpenStreetMap buildings"
+                : `: ${fmtInt(plan.householdPoints.onBuildings)} on OpenStreetMap buildings, the rest spread evenly`}
             {plan.householdPoints.points.length < plan.householdPoints.total
               ? `, a sample of the plan's ${fmtInt(plan.householdPoints.total)}`
               : ""}

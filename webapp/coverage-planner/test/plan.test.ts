@@ -172,3 +172,17 @@ test("CSV export neutralises spreadsheet formulas", async () => {
   assert.ok(lines[2].includes(",-13.000000,-80.000000,"), "negative coordinates stay numbers");
   assert.ok(lines[3].startsWith("P3,"));
 });
+
+test("thinning never drops a simple ring next to a detailed one", async () => {
+  const { sanitizePolygons, MAX_AREA_VERTICES } = await import("../lib/planState.ts");
+  const box: [number, number][] = [[81, 13], [81.5, 13], [81.5, 13.5], [81, 13.5], [81, 13]];
+  const wiggly: [number, number][] = Array.from({ length: 30_000 }, (_, i) => [80 + Math.cos(i / 4775) * 0.1, 13 + Math.sin(i / 4775) * 0.1]);
+  wiggly.push(wiggly[0]);
+  const out = sanitizePolygons([[wiggly], [box]]);
+  assert.equal(out.length, 2, "both polygons kept");
+  assert.deepEqual(out[1][0], box, "the rectangle is untouched");
+  const total = out.reduce((n, p) => n + p.reduce((m, r) => m + r.length, 0), 0);
+  assert.ok(total <= MAX_AREA_VERTICES + 16, `${total} vertices`);
+  const ring = out[0][0];
+  assert.deepEqual(ring[0], ring[ring.length - 1], "still closed");
+});

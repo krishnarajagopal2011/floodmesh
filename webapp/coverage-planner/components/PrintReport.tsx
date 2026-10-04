@@ -2,7 +2,7 @@
 /** The printed report: hidden on screen, laid out under the map when printing. */
 import { useEffect, useState } from "react";
 import { formatInr, type PublicCosts } from "@/lib/costs";
-import { demandPending, householdUnits, households, type PlanState } from "@/lib/planState";
+import { demandPending, householdPointsStale, householdUnits, households, type PlanState } from "@/lib/planState";
 import { ENVIRONMENTS, SENSITIVITY_DBM, UNIT_LABELS, legalTxDbm, type UnitKind } from "@/lib/radio";
 import type { Analysis } from "./analysis";
 import { findings } from "./CoveragePanel";
@@ -28,6 +28,9 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
     return () => window.removeEventListener("beforeprint", stamp);
   }, []);
   const pending = demandPending(plan.demand);
+  const stale = householdPointsStale(plan, km2);
+  const hsx = a?.households?.stats;
+  const atLeastFor = (v: number) => (hsx?.sampled && v < 99.95 ? "at least " : "");
   return (
     <div className="printReport">
       <h1>{title}</h1>
@@ -55,7 +58,13 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
           <tr><td>Responder units</td><td>{responders + plan.extraResponders} ({responders} placed on the map)</td></tr>
           {s && <tr><td>Area hearing at least one / two powered units</td><td>{fmtPct(s.pctCovered1)} / {fmtPct(s.pctCovered2)}</td></tr>}
           {s && s.hasResponders && <tr><td>Area whose SOS reaches a responder within {m.hopLimit} relays</td><td>{fmtPct(s.pctSosReachable)}</td></tr>}
-          {a?.households && (
+          {a?.households && stale && (
+            <tr>
+              <td>Household units placed on the map</td>
+              <td>placed for an earlier household count; their figures are left out (place them again)</td>
+            </tr>
+          )}
+          {a?.households && !stale && (
             <>
               <tr>
                 <td>Household units placed on the map</td>
@@ -74,6 +83,7 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
                 <tr>
                   <td>Placed units whose SOS reaches a responder (neighbours relaying too; via powered units alone)</td>
                   <td>
+                    {atLeastFor(a.households.stats.pctSosWithNeighbours)}
                     {fmtPct(a.households.stats.pctSosWithNeighbours)}; {fmtPct(a.households.stats.pctSosPoweredOnly)}
                   </td>
                 </tr>
@@ -81,7 +91,11 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
               {a.households.stats.hasResponders && (
                 <tr>
                   <td>…if every powered unit failed</td>
-                  <td>{fmtPct(a.households.stats.pctSosNoPowered)}</td>
+                  <td>
+                    {atLeastFor(a.households.stats.pctSosNoPowered)}
+                    {fmtPct(a.households.stats.pctSosNoPowered)}
+                    {hsx?.sampled ? " (from a sample: lower bounds)" : ""}
+                  </td>
                 </tr>
               )}
             </>
@@ -90,7 +104,9 @@ export default function PrintReport({ plan, analysis: a, costs }: { plan: PlanSt
             <tr>
               <td>Estimated cost</td>
               <td>
-                <strong>{formatInr(est.total)}</strong> (incl. {costs!.contingencyPct}% contingency). {priceSource(costs!)}
+                <strong>{formatInr(est.total)}</strong> (incl. {costs!.contingencyPct}% contingency).{" "}
+                {pending ? "Excludes household units: the OSM building count is pending. " : ""}
+                {priceSource(costs!)}
               </td>
             </tr>
           )}

@@ -1,7 +1,7 @@
 "use client";
 /** Coverage results: map layer, headline numbers, network checks and warnings. */
 import { PERCOLATION_MEAN_DEGREE, USABLE_CHANNEL_S_PER_HOUR, meanNeighbours } from "@/lib/plan";
-import { householdUnits, type PlanState } from "@/lib/planState";
+import { demandPending, householdPointsStale, householdUnits, type PlanState } from "@/lib/planState";
 import type { Analysis, CoverageView } from "./analysis";
 import { Check, Section, Stat, fmtInt, fmtM, fmtPct } from "./ui";
 
@@ -49,11 +49,16 @@ export function findings(plan: PlanState, a: Analysis | null): Finding[] {
       });
     else out.push({ tone: "ok", text: `SOS reaches a responder from ${fmtPct(s.pctSosReachable)} of the area within ${plan.model.hopLimit} relays.` });
   }
+  if (demandPending(plan.demand))
+    out.push({ tone: "warn", text: "Household units are not counted yet (OSM building count pending): the estimate leaves them out." });
   const hs = a.households?.stats;
-  if (hs && hs.hasResponders && hs.pctSosNoPowered < 50 && powered > 0)
+  const stale = householdPointsStale(plan, a.areaKm2);
+  if (stale)
+    out.push({ tone: "warn", text: "The placed household units are from an earlier household count: place them again for current figures." });
+  if (hs && !stale && hs.hasResponders && hs.pctSosNoPowered < 50 && powered > 0)
     out.push({
       tone: "warn",
-      text: `If every powered unit failed, only ${fmtPct(hs.pctSosNoPowered)} of household units could still reach a responder within ${plan.model.hopLimit} relays. More responders spread over the area, or a higher hop limit, would raise it.`,
+      text: `If every powered unit failed, ${hs.sampled ? "at least " : "only "}${fmtPct(hs.pctSosNoPowered)} of household units could still reach a responder within ${plan.model.hopLimit} relays${hs.sampled ? " (from a sample, so a lower bound)" : ""}. More responders spread over the area, or a higher hop limit, would raise it.`,
     });
   if (a.poweredIslands > 1)
     out.push({ tone: "warn", text: `Powered units form ${a.poweredIslands} separate islands that can't hear each other.` });
@@ -115,6 +120,10 @@ export default function CoveragePanel(p: Props) {
   const density = km2 > 0 ? hhu / km2 : 0;
   const nbrs = a ? meanNeighbours(density, a.ranges.householdHousehold) : 0;
   const fs = findings(plan, a);
+  const pending = demandPending(plan.demand);
+  const stale = householdPointsStale(plan, km2);
+  // "≥" for lower bounds from a sample; pointless on 100%.
+  const atLeastFor = (v: number) => (a?.households?.stats.sampled && v < 99.95 ? "≥ " : "");
 
   return (
     <div>
@@ -181,22 +190,28 @@ export default function CoveragePanel(p: Props) {
 
       {a?.households && (
         <Section title="Placed household units">
+          {stale && (
+            <p className="warnBox">
+              Placed for {fmtInt(plan.householdPoints!.total)} household units; the plan now has {fmtInt(householdUnits(plan.demand, km2))}. Place
+              them again (Units tab) for current figures.
+            </p>
+          )}
           <div className="stats">
             <Stat label="Hear ≥ 1 powered" value={fmtPct(a.households.stats.pctHeard1)} tone={a.households.stats.pctHeard1 >= 95 ? "ok" : "bad"} />
             <Stat label="Hear ≥ 2 powered" value={fmtPct(a.households.stats.pctHeard2)} tone={a.households.stats.pctHeard2 >= 90 ? "ok" : "warn"} />
             <Stat
               label="SOS reaches responder"
-              value={a.households.stats.hasResponders ? fmtPct(a.households.stats.pctSosWithNeighbours) : "–"}
+              value={a.households.stats.hasResponders ? atLeastFor(a.households.stats.pctSosWithNeighbours) + fmtPct(a.households.stats.pctSosWithNeighbours) : "–"}
               tone={!a.households.stats.hasResponders ? undefined : a.households.stats.pctSosWithNeighbours >= 95 ? "ok" : "bad"}
               sub={
                 a.households.stats.hasResponders
-                  ? `${fmtPct(a.households.stats.pctSosPoweredOnly)} via powered units alone`
+                  ? `${fmtPct(a.households.stats.pctSosPoweredOnly)} via powered units alone, ${fmtPct(a.households.stats.pctSosWithNeighbours)} with neighbours relaying`
                   : "place a responder"
               }
             />
             <Stat
               label="If every powered unit fails"
-              value={a.households.stats.hasResponders ? fmtPct(a.households.stats.pctSosNoPowered) : "–"}
+              value={a.households.stats.hasResponders ? atLeastFor(a.households.stats.pctSosNoPowered) + fmtPct(a.households.stats.pctSosNoPowered) : "–"}
               tone={!a.households.stats.hasResponders ? undefined : a.households.stats.pctSosNoPowered >= 50 ? "ok" : "warn"}
               sub="SOS still reaches a responder"
             />
@@ -215,8 +230,8 @@ export default function CoveragePanel(p: Props) {
           </table>
           <p className="hint">
             SOS counts relays through other household units too (every unit forwards SOS, §13.3), up to the hop limit of {plan.model.hopLimit}.
-            {plan.householdPoints && plan.householdPoints.points.length < plan.householdPoints.total
-              ? " These dots are a sample, sparser than the real units, so the through-neighbours figures are on the low side."
+            {a.households.stats.sampled
+              ? " The dots are a sample, sparser than the real units: the neighbour count and the largest group are corrected to the full density, but the SOS figures through neighbours (marked ≥) are lower bounds."
               : ""}{" "}
             Computed in {a.households.ms.toFixed(0)} ms.
           </p>
@@ -269,8 +284,11 @@ export default function CoveragePanel(p: Props) {
                 <td className="num">{fmtInt(a.airtime.budgetSPerHour / a.airtime.sosS)}</td>
               </tr>
               <tr>
-                <td>Battery-only fallback: household units each hears ({fmtM(a.ranges.householdHousehold)} reach, {fmtInt(density)} units/km²)</td>
-                <td className={`num ${nbrs < PERCOLATION_MEAN_DEGREE ? "warnText" : ""}`}>{nbrs.toFixed(1)}</td>
+                <td>
+                  Battery-only fallback: household units each hears ({fmtM(a.ranges.householdHousehold)} reach,{" "}
+                  {pending ? "count buildings first" : `${fmtInt(density)} units/km²`})
+                </td>
+                <td className={`num ${!pending && nbrs < PERCOLATION_MEAN_DEGREE ? "warnText" : ""}`}>{pending ? "–" : nbrs.toFixed(1)}</td>
               </tr>
             </tbody>
           </table>

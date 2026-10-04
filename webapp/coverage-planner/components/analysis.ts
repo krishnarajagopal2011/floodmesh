@@ -22,7 +22,7 @@ import {
 } from "@/lib/plan";
 import { marginDb, rangeM, rssiDbm, UNIT_LABELS, type RadioModel, type UnitKind, type UnitProfile } from "@/lib/radio";
 import { analyseHouseholds, type HouseholdAnalysis } from "@/lib/households";
-import type { PlanState } from "@/lib/planState";
+import type { AreaState, PlanState } from "@/lib/planState";
 import type { LinkLine, UnitLabel } from "./mapController";
 
 export type CoverageView = "redundancy" | "signal" | "sos" | "none";
@@ -66,7 +66,7 @@ export function computeRanges(p: Record<UnitKind, UnitProfile>, m: RadioModel): 
   };
 }
 
-function centre(plan: PlanState): [number, number] {
+function centre(plan: Pick<PlanState, "area" | "units">): [number, number] {
   let sx = 0;
   let sy = 0;
   let n = 0;
@@ -83,6 +83,19 @@ function centre(plan: PlanState): [number, number] {
     n++;
   }
   return n ? [sy / n, sx / n] : [13.05, 80.21];
+}
+
+/**
+ * The projection, projected outline and grid area for one area, exactly as
+ * analyse() makes them. For actions that must work on the area the user just
+ * chose, not on an analysis that may still belong to the previous one.
+ */
+export function projectPlanArea(area: AreaState): { proj: Projection; area: ProjectedArea; areaKm2: number } {
+  const [lat0, lng0] = centre({ area, units: [] });
+  const proj = makeProjection(lat0, lng0);
+  const pa = projectArea(area.polygons, proj);
+  const grid = buildGrid(pa, gridCellSize(pa));
+  return { proj, area: pa, areaKm2: (grid.inside.length * grid.cellM * grid.cellM) / 1e6 };
 }
 
 export function analyse(plan: PlanState): Analysis {
@@ -122,7 +135,7 @@ export function analyse(plan: PlanState): Analysis {
   });
 
   const households = plan.householdPoints?.points.length
-    ? analyseHouseholds(plan.householdPoints.points, units, profiles, model, proj, backbone)
+    ? analyseHouseholds(plan.householdPoints.points, units, profiles, model, proj, backbone, plan.householdPoints.total)
     : null;
 
   return {
@@ -179,6 +192,7 @@ export function householdColours(a: Analysis, view: CoverageView, hopLimit: numb
   const out = new Array<string>(h.heard.length);
   for (let i = 0; i < h.heard.length; i++) {
     if (view === "sos") out[i] = css(relaysColour(h.relays[i], hopLimit));
+    else if (view === "signal") out[i] = css(marginColour(h.bestMarginDb[i]));
     else if (view === "none") out[i] = "rgb(55,65,81)";
     else out[i] = css(h.heard[i] >= 2 ? PALETTE.two : h.heard[i] === 1 ? PALETTE.one : PALETTE.none);
   }

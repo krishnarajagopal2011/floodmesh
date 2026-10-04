@@ -12,13 +12,25 @@
  *
  * A constituency can have tens of thousands of household units, so at most
  * MAX_PLACED are placed: a random sample spread like the real ones. A sample
- * is sparser than reality, which makes the through-neighbours figures
- * conservative (fewer neighbours, fewer paths).
+ * is sparser than reality. The neighbour count and the largest-group figure
+ * are corrected for that (density scaling, below); the hop-limited SOS
+ * figures cannot be, so for a sample they are lower bounds.
  *
  * Pure functions, shared by the browser and the tests.
  */
 import {
+  FSPL_1M_DB,
+  heightGainDb,
+  maxPathLossDb,
+  rangeM,
+  type RadioModel,
+  type UnitKind,
+  type UnitProfile,
+} from "./radio.ts";
+import {
+  inRing,
   insideArea,
+  ringArea,
   unitProfile,
   type Backbone,
   type LngLat,
@@ -26,7 +38,6 @@ import {
   type ProjectedArea,
   type Projection,
 } from "./plan.ts";
-import { rangeM, type RadioModel, type UnitKind, type UnitProfile } from "./radio.ts";
 
 export const MAX_PLACED = 20_000;
 
@@ -37,6 +48,12 @@ export interface HouseholdPoints {
   points: LngLat[];
   /** Household units the plan called for when these were placed (more than points.length for a sample). */
   total: number;
+  /**
+   * For "osm": how many of the points sit on mapped buildings. The rest are
+   * spread evenly, because OSM rarely maps every building and piling all
+   * units onto the mapped few would misplace them.
+   */
+  onBuildings?: number;
 }
 
 // ------------------------------------------------------------- placement
@@ -61,16 +78,50 @@ export function seedOf(text: string): number {
 
 const round7 = (v: number) => Math.round(v * 1e7) / 1e7;
 
-/** `n` points spread uniformly over the area (rejection sampling in its bounding box). */
+/**
+ * `n` points spread uniformly over the area. Each point picks a polygon in
+ * proportion to its area, then is sampled in that polygon's own bounding
+ * box: far-apart polygons (two constituencies that don't touch) do not make
+ * most tries miss, and each test walks only one polygon's outline.
+ */
 export function placeRandom(area: ProjectedArea, proj: Projection, n: number, seed: number): LngLat[] {
   const rand = rng(seed);
+  const polys = area.polygons
+    .map((rings) => {
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      const outer = rings[0];
+      for (let i = 0; i < outer.length; i += 2) {
+        if (outer[i] < minX) minX = outer[i];
+        if (outer[i] > maxX) maxX = outer[i];
+        if (outer[i + 1] < minY) minY = outer[i + 1];
+        if (outer[i + 1] > maxY) maxY = outer[i + 1];
+      }
+      const a = Math.abs(ringArea(outer)) - rings.slice(1).reduce((s, r) => s + Math.abs(ringArea(r)), 0);
+      return { rings, minX, minY, maxX, maxY, area: Math.max(a, 0) };
+    })
+    .filter((p) => p.area > 0);
+  const totalArea = polys.reduce((s, p) => s + p.area, 0);
+  if (!polys.length || totalArea <= 0) return [];
+  const cum: number[] = [];
+  let acc = 0;
+  for (const p of polys) cum.push((acc += p.area / totalArea));
+  const inside = (p: (typeof polys)[number], x: number, y: number) => {
+    if (!inRing(p.rings[0], x, y)) return false;
+    for (let k = 1; k < p.rings.length; k++) if (inRing(p.rings[k], x, y)) return false;
+    return true;
+  };
   const out: LngLat[] = [];
-  const w = area.maxX - area.minX;
-  const h = area.maxY - area.minY;
-  for (let tries = 0; out.length < n && tries < n * 200 + 1000; tries++) {
-    const x = area.minX + rand() * w;
-    const y = area.minY + rand() * h;
-    if (!insideArea(area, x, y)) continue;
+  for (let tries = 0; out.length < n && tries < n * 100 + 1000; tries++) {
+    const u = rand();
+    let j = 0;
+    while (j < cum.length - 1 && u > cum[j]) j++;
+    const p = polys[j];
+    const x = p.minX + rand() * (p.maxX - p.minX);
+    const y = p.minY + rand() * (p.maxY - p.minY);
+    if (!inside(p, x, y)) continue;
     const [lng, lat] = proj.toLngLat(x, y);
     out.push([round7(lng), round7(lat)]);
   }
@@ -78,10 +129,12 @@ export function placeRandom(area: ProjectedArea, proj: Projection, n: number, se
 }
 
 /**
- * `n` points on building positions inside the area. Fewer units than
+ * Up to `n` points on building positions inside the area. Fewer units than
  * buildings: a random choice of buildings. More: every building gets its
- * share (apartment blocks hold several households), spread a few metres
- * around its centre so the dots stay visible.
+ * share (apartment blocks hold several households), but at most
+ * `maxPerBuilding`, spread a few metres around its centre so the dots stay
+ * visible. Returns fewer than `n` when the cap binds: the caller spreads the
+ * rest evenly.
  */
 export function placeOnBuildings(
   buildings: LngLat[],
@@ -90,6 +143,7 @@ export function placeOnBuildings(
   n: number,
   seed: number,
   spreadM = 8,
+  maxPerBuilding = Infinity,
 ): LngLat[] {
   const rand = rng(seed);
   const inside = buildings
@@ -98,6 +152,7 @@ export function placeOnBuildings(
   const B = inside.length;
   if (!B || n <= 0) return [];
   const perBuilding = new Uint32Array(B);
+  n = Math.min(n, Math.floor(B * Math.max(maxPerBuilding, 1)));
   if (n <= B) {
     // Partial Fisher-Yates: n distinct buildings.
     const order = Uint32Array.from({ length: B }, (_, i) => i);
@@ -109,7 +164,14 @@ export function placeOnBuildings(
   } else {
     const each = Math.floor(n / B);
     perBuilding.fill(each);
-    for (let left = n - each * B; left > 0; left--) perBuilding[Math.floor(rand() * B)]++;
+    // The remainder goes to distinct buildings (never past the cap).
+    const order = Uint32Array.from({ length: B }, (_, i) => i);
+    const left = n - each * B;
+    for (let i = 0; i < left; i++) {
+      const j = i + Math.floor(rand() * (B - i));
+      [order[i], order[j]] = [order[j], order[i]];
+      perBuilding[order[i]]++;
+    }
   }
   const out: LngLat[] = [];
   for (let b = 0; b < B; b++) {
@@ -186,19 +248,25 @@ export interface HouseholdStats {
   pctSosNoPowered: number;
   /** With every powered unit down: share of household units in the largest connected group. */
   pctLargestGroup: number;
-  /** Household units each one hears directly, on average. */
+  /** Household units each one hears directly, on average (at the plan's full density). */
   meanNeighbours: number;
   hasResponders: boolean;
+  /** True when the points are a thinned sample: the SOS-through-neighbours figures are then lower bounds. */
+  sampled: boolean;
 }
 
 export interface HouseholdAnalysis {
   /** Per placed household unit: powered units it hears. */
   heard: Uint16Array;
+  /** Per placed household unit: best link margin to a powered unit, dB (−Infinity when none). */
+  bestMarginDb: Float32Array;
   /** Per placed household unit: relays its SOS needs with neighbours relaying (−1 = not within the hop limit). */
   relays: Int16Array;
   stats: HouseholdStats;
   ms: number;
 }
+
+const groupCache = new WeakMap<LngLat[], { key: string; largest: number; links: number }>();
 
 /**
  * What every placed household unit can reach. Graph nodes are the household
@@ -213,9 +281,12 @@ export function analyseHouseholds(
   m: RadioModel,
   proj: Projection,
   backbone: Backbone,
+  /** Household units the plan has; more than points.length when the points are a sample. */
+  total: number = points.length,
 ): HouseholdAnalysis {
   const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
   const H = points.length;
+  const densityScale = H ? Math.max(1, total / H) : 1;
   const U = units.length;
   const hx = new Float64Array(H);
   const hy = new Float64Array(H);
@@ -223,13 +294,19 @@ export function analyseHouseholds(
   const ux = new Float64Array(U);
   const uy = new Float64Array(U);
   const ur = new Float64Array(U); // each unit's reach to a household unit
+  const uMaxPl = new Float64Array(U);
+  const uHg = new Float64Array(U);
   const civ = profiles.civilian;
   let maxUnitR = 0;
   units.forEach((u, i) => {
     [ux[i], uy[i]] = proj.toXY(u.lng, u.lat);
-    ur[i] = rangeM(civ, unitProfile(u, profiles), m);
+    const prof = unitProfile(u, profiles);
+    ur[i] = rangeM(civ, prof, m);
+    uMaxPl[i] = maxPathLossDb(civ, prof, m);
+    uHg[i] = heightGainDb(prof.heightM, m.heightGainCapDb);
     if (ur[i] > maxUnitR) maxUnitR = ur[i];
   });
+  const hgCiv = heightGainDb(civ.heightM, m.heightGainCapDb);
   const rHH = rangeM(civ, civ, m);
   const hIndex = new SpatialIndex(hx, hy, Math.max(rHH, 25));
   const uIndex = new SpatialIndex(ux, uy, Math.max(maxUnitR, 25));
@@ -240,15 +317,26 @@ export function analyseHouseholds(
   }
   const isPowered = units.map((u) => u.kind === "powered");
 
-  // Powered units each household unit hears.
+  // Powered units each household unit hears, and the best margin (same
+  // path-loss formula as the coverage grid).
   const heard = new Uint16Array(H);
+  const bestMarginDb = new Float32Array(H).fill(-Infinity);
   let heard1 = 0;
   let heard2 = 0;
   for (let h = 0; h < H; h++) {
     let n = 0;
+    let best = -Infinity;
     uIndex.within(hx[h], hy[h], maxUnitR, (u, d2) => {
-      if (isPowered[u] && d2 <= ur[u] * ur[u]) n++;
+      if (!isPowered[u] || d2 > ur[u] * ur[u]) return;
+      n++;
+      const d = Math.max(Math.sqrt(d2), 1);
+      const pl = Math.max(
+        FSPL_1M_DB + 10 * m.pathLossExponent * Math.log10(d) - hgCiv - uHg[u] + m.clutterDb,
+        FSPL_1M_DB + 20 * Math.log10(d),
+      );
+      if (uMaxPl[u] - pl > best) best = uMaxPl[u] - pl;
     });
+    bestMarginDb[h] = best;
     heard[h] = Math.min(n, 65535);
     if (n >= 1) heard1++;
     if (n >= 2) heard2++;
@@ -316,35 +404,53 @@ export function analyseHouseholds(
   }
   const noPowered = share(bfs(true, false));
 
-  // Largest group of household units linked to each other (every powered unit down).
-  const group = new Int32Array(H).fill(-1);
-  let largest = 0;
-  let links = 0;
-  const stack: number[] = [];
-  for (let s = 0; s < H; s++) {
-    if (group[s] >= 0) continue;
-    group[s] = s;
-    stack.push(s);
-    let size = 0;
-    while (stack.length) {
-      const v = stack.pop()!;
-      size++;
-      hIndex.within(hx[v], hy[v], rHH, (w) => {
-        if (w === v) return;
-        links++;
-        if (group[w] < 0) {
-          group[w] = s;
-          stack.push(w);
-        }
-      });
+  // Largest group of household units linked to each other (every powered
+  // unit down), and the mean neighbour count. Neither depends on the placed
+  // units, so the result is cached per set of points while units move.
+  // For a sample, both are taken at the plan's full density: the neighbour
+  // count is scaled up, and groups are found with the range scaled by
+  // √(total / placed), which for evenly spread points gives the same
+  // connectivity as the full set.
+  const rGroup = rHH * Math.sqrt(densityScale);
+  const groupKey = `${rHH}|${rGroup}|${H}`;
+  let cached = groupCache.get(points);
+  if (!cached || cached.key !== groupKey) {
+    const gIndex = densityScale > 1 ? new SpatialIndex(hx, hy, Math.max(rGroup, 25)) : hIndex;
+    const group = new Int32Array(H).fill(-1);
+    let largest = 0;
+    let links = 0;
+    const rHH2 = rHH * rHH;
+    const stack: number[] = [];
+    for (let s0 = 0; s0 < H; s0++) {
+      if (group[s0] >= 0) continue;
+      group[s0] = s0;
+      stack.push(s0);
+      let size = 0;
+      while (stack.length) {
+        const v = stack.pop()!;
+        size++;
+        gIndex.within(hx[v], hy[v], rGroup, (w, d2) => {
+          if (w === v) return;
+          if (d2 <= rHH2) links++;
+          if (group[w] < 0) {
+            group[w] = s0;
+            stack.push(w);
+          }
+        });
+      }
+      if (size > largest) largest = size;
     }
-    if (size > largest) largest = size;
+    cached = { key: groupKey, largest, links };
+    groupCache.set(points, cached);
   }
+  const largest = cached.largest;
+  const links = cached.links;
 
   const pct = (v: number) => (H ? (100 * v) / H : 0);
   const t1 = typeof performance !== "undefined" ? performance.now() : Date.now();
   return {
     heard,
+    bestMarginDb,
     relays,
     stats: {
       placed: H,
@@ -354,8 +460,9 @@ export function analyseHouseholds(
       pctSosWithNeighbours: pct(withN),
       pctSosNoPowered: pct(noPowered),
       pctLargestGroup: pct(largest),
-      meanNeighbours: H ? links / H : 0,
+      meanNeighbours: H ? (links / H) * densityScale : 0,
       hasResponders: units.some((u) => u.kind === "responder"),
+      sampled: densityScale > 1,
     },
     ms: t1 - t0,
   };

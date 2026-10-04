@@ -172,8 +172,8 @@ export default function CostEditor({
   const [rev, setRev] = useState<number | null>(initialRev);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
-  /** The newer sheet from the server after a 409, until the admin chooses what to do. */
-  const [conflict, setConflict] = useState<ServerReply | null>(null);
+  /** The newer sheet from the server after a 409, and what was refused, until the admin chooses. */
+  const [conflict, setConflict] = useState<(ServerReply & { action: "PUT" | "DELETE" }) | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(sheet) !== JSON.stringify(saved);
 
@@ -223,7 +223,7 @@ export default function CostEditor({
         return;
       }
       if (res.status === 409 && j.sheet) {
-        setConflict(j);
+        setConflict({ ...j, action: method });
         return;
       }
       if (!j.ok || !j.sheet) {
@@ -341,15 +341,27 @@ export default function CostEditor({
             >
               Load the newer list
             </button>
-            <button
-              type="button"
-              className="danger"
-              onClick={() => {
-                if (window.confirm("Replace the newer list with the one on this page?")) save(true);
-              }}
-            >
-              Overwrite it with mine
-            </button>
+            {conflict.action === "DELETE" ? (
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  if (window.confirm("Replace the newer list with the built-in defaults?")) void send("DELETE", undefined, true);
+                }}
+              >
+                Reset it anyway
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  if (window.confirm("Replace the newer list with the one on this page?")) save(true);
+                }}
+              >
+                Overwrite it with mine
+              </button>
+            )}
           </div>
         </div>
       )}

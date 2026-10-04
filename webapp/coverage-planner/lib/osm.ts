@@ -71,6 +71,25 @@ export async function searchPlaces(q: string, nearChennai: boolean, signal?: Abo
   }));
 }
 
+/**
+ * Overpass reply as JSON, or a readable error. Overpass reports timeouts and
+ * memory limits with HTTP 200 and a `remark`, and the `elements` it sends
+ * with it are cut short: never use them as a full answer.
+ */
+async function overpassJson<T>(res: Response, what: string): Promise<T & { remark?: string }> {
+  if (!res.ok) throw new Error(`${what} failed (HTTP ${res.status}). Overpass may be busy; try again in a minute.`);
+  let j: T & { remark?: string };
+  try {
+    j = (await res.json()) as T & { remark?: string };
+  } catch {
+    throw new Error(`${what}: Overpass sent an unexpected reply. Try again in a minute.`);
+  }
+  if (typeof j.remark === "string" && /error|timed out|out of memory|too busy/i.test(j.remark)) {
+    throw new Error(`${what}: Overpass stopped early (${j.remark.trim().slice(0, 160)}). Try a smaller area, or again in a few minutes.`);
+  }
+  return j;
+}
+
 /** Outer ring as Overpass "lat lon lat lon ..." with at most `max` vertices. */
 function polyString(ring: LngLat[], max = 250): string {
   const step = Math.max(1, Math.ceil(ring.length / max));
@@ -100,8 +119,7 @@ export async function countBuildings(polygons: PolygonRings[], signal?: AbortSig
     signal,
     referrerPolicy: "strict-origin-when-cross-origin",
   });
-  if (!res.ok) throw new Error(`Building count failed (HTTP ${res.status}). Overpass may be busy; try again in a minute.`);
-  const j = (await res.json()) as { elements?: Array<{ tags?: Record<string, string> }> };
+  const j = await overpassJson<{ elements?: Array<{ tags?: Record<string, string> }> }>(res, "Building count");
   const total = Number(j.elements?.[0]?.tags?.total ?? NaN);
   if (!Number.isFinite(total)) throw new Error("Building count: unexpected reply from Overpass.");
   return total;
@@ -128,8 +146,7 @@ export async function buildingCentres(polygons: PolygonRings[], signal?: AbortSi
     signal,
     referrerPolicy: "strict-origin-when-cross-origin",
   });
-  if (!res.ok) throw new Error(`Building positions failed (HTTP ${res.status}). Overpass may be busy; try again in a minute.`);
-  const j = (await res.json()) as { elements?: Array<{ center?: { lat: number; lon: number } }> };
+  const j = await overpassJson<{ elements?: Array<{ center?: { lat: number; lon: number } }> }>(res, "Building positions");
   const out: LngLat[] = [];
   for (const e of j.elements ?? []) {
     if (e.center && Number.isFinite(e.center.lat) && Number.isFinite(e.center.lon)) out.push([e.center.lon, e.center.lat]);

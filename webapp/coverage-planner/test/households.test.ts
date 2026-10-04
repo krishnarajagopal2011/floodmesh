@@ -76,3 +76,66 @@ test("SOS through neighbours: a household out of powered range gets out via anot
 function ll([lng, lat]: [number, number]) {
   return { lat, lng };
 }
+
+test("building placement respects the per-building cap", () => {
+  const blds = Array.from({ length: 5 }, (_, i) => at(-500 + i * 200, 0));
+  const pts = placeOnBuildings(blds, area, proj, 100, 3, 8, 2);
+  assert.equal(pts.length, 10, "5 buildings × 2 at most; the caller spreads the other 90");
+});
+
+test("random placement over two far-apart polygons is fast and proportional", () => {
+  const sq = (cx: number, cy: number, h: number): PolygonRings => {
+    const [a0, b0] = at(cx - h, cy - h);
+    const [a1, b1] = at(cx + h, cy + h);
+    return [[[a0, b0], [a1, b0], [a1, b1], [a0, b1], [a0, b0]]];
+  };
+  const two = projectArea([sq(-40_000, 0, 1000), sq(40_000, 0, 2000)], proj);
+  const t = Date.now();
+  const pts = placeRandom(two, proj, 5000, 9);
+  assert.ok(Date.now() - t < 2000, "well under 2 s");
+  assert.equal(pts.length, 5000);
+  const right = pts.filter(([lng]) => proj.toXY(lng, 0)[0] > 0).length;
+  // The right square is 4× the area of the left one: about 80% of the points.
+  assert.ok(right > 3800 && right < 4200, `${right} of 5000 on the larger square`);
+});
+
+test("a sample is corrected to the plan's density for neighbours and groups", () => {
+  const full = placeRandom(area, proj, 6000, 5);
+  const sample = full.slice(0, 2000);
+  const units: PlacedUnit[] = [{ id: "r", kind: "responder", name: "R1", ...ll(at(0)) }];
+  const bb = analyseBackbone(units, DEFAULT_PROFILES, DEFAULT_MODEL, proj);
+  const F = analyseHouseholds(full, units, DEFAULT_PROFILES, DEFAULT_MODEL, proj, bb).stats;
+  const S = analyseHouseholds(sample, units, DEFAULT_PROFILES, DEFAULT_MODEL, proj, bb, 6000).stats;
+  assert.equal(S.sampled, true);
+  assert.equal(F.sampled, false);
+  assert.ok(Math.abs(S.meanNeighbours - F.meanNeighbours) / F.meanNeighbours < 0.1, `${S.meanNeighbours} vs ${F.meanNeighbours}`);
+  assert.ok(Math.abs(S.pctLargestGroup - F.pctLargestGroup) < 10, `${S.pctLargestGroup} vs ${F.pctLargestGroup}`);
+  // Hop-limited reach from a sample is a lower bound.
+  assert.ok(S.pctSosNoPowered <= F.pctSosNoPowered + 1);
+});
+
+test("each placed household unit gets its best margin to a powered unit", () => {
+  const units: PlacedUnit[] = [{ id: "p", kind: "powered", name: "P1", ...ll(at(0)) }];
+  const bb = analyseBackbone(units, DEFAULT_PROFILES, DEFAULT_MODEL, proj);
+  const h = analyseHouseholds([at(100), at(50_000)], units, DEFAULT_PROFILES, DEFAULT_MODEL, proj, bb);
+  assert.ok(Number.isFinite(h.bestMarginDb[0]) && h.bestMarginDb[0] > 0);
+  assert.equal(h.bestMarginDb[1], -Infinity);
+});
+
+test("Overpass errors reported with HTTP 200 are not read as an answer", async () => {
+  const { buildingCentres, countBuildings } = await import("../lib/osm.ts");
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ elements: [{ type: "way", id: 1, center: { lat: 13, lon: 80 } }], remark: "runtime error: Query timed out in \"query\" at line 1 after 181 seconds." }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })) as typeof fetch;
+  try {
+    await assert.rejects(buildingCentres([rect]), /stopped early/);
+    await assert.rejects(countBuildings([rect]), /stopped early/);
+    globalThis.fetch = (async () => new Response("<html>busy</html>", { status: 200 })) as typeof fetch;
+    await assert.rejects(buildingCentres([rect]), /unexpected reply/);
+  } finally {
+    globalThis.fetch = real;
+  }
+});

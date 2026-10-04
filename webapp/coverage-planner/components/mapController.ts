@@ -72,6 +72,8 @@ export class MapController {
   private householdLayer: Leaflet.LayerGroup;
   private householdRenderer: Leaflet.Canvas;
   private householdData: { points: LngLat[]; colours: string[] } | null = null;
+  /** Dot size and outline last drawn, so a zoom redraws the dots only when they change. */
+  private householdStyle = "";
   private markers = new Map<string, Leaflet.Marker>();
   private units: PlacedUnit[] = [];
   private selectedId: string | null = null;
@@ -150,12 +152,12 @@ export class MapController {
     // A constituency can hold hundreds of units: draw them as dots until zoomed in.
     this.iconScale = scaleFor(this.map.getZoom());
     this.map.on("zoomend", () => {
+      if (householdStyleFor(this.map.getZoom()).key !== this.householdStyle) this.drawHouseholds();
       const sc = scaleFor(this.map.getZoom());
       if (sc === this.iconScale) return;
       this.iconScale = sc;
       for (const u of this.units) this.markers.get(u.id)?.setIcon(this.icon(u));
       this.highlightUnit(this.selectedId);
-      this.drawHouseholds();
     });
 
     this.map.on("click", (e: Leaflet.LeafletMouseEvent) => {
@@ -378,9 +380,10 @@ export class MapController {
   private drawHouseholds(): void {
     this.householdLayer.clearLayers();
     const d = this.householdData;
+    const st = householdStyleFor(this.map.getZoom());
+    this.householdStyle = st.key;
     if (!d) return;
-    const z = this.map.getZoom();
-    const radius = z >= 16 ? 4 : z >= 14 ? 3 : 2;
+    const { radius, weight } = st;
     for (let i = 0; i < d.points.length; i++) {
       const [lng, lat] = d.points[i];
       this.L.circleMarker([lat, lng], {
@@ -390,7 +393,7 @@ export class MapController {
         // A dark rim keeps each dot readable on top of the same-coloured coverage layer.
         stroke: true,
         color: "rgba(17,24,39,0.75)",
-        weight: z >= 15 ? 1.2 : 0.6,
+        weight,
         fillColor: d.colours[i] ?? "#374151",
         fillOpacity: 0.9,
         interactive: false,
@@ -457,6 +460,12 @@ export class MapController {
 // ---------------------------------------------------------------- helpers
 
 type IconScale = "full" | "small" | "dot";
+
+function householdStyleFor(zoom: number) {
+  const radius = zoom >= 16 ? 4 : zoom >= 14 ? 3 : 2;
+  const weight = zoom >= 15 ? 1.2 : 0.6;
+  return { radius, weight, key: `${radius}/${weight}` };
+}
 
 function scaleFor(zoom: number): IconScale {
   return zoom >= 15 ? "full" : zoom >= 13 ? "small" : "dot";

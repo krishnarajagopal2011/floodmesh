@@ -62,7 +62,7 @@ export function unitProfile(u: PlacedUnit, profiles: Record<UnitKind, UnitProfil
 
 // ------------------------------------------------------------------ polygons
 
-type XYRing = Float64Array; // x0,y0,x1,y1,...
+export type XYRing = Float64Array; // x0,y0,x1,y1,...
 
 export interface ProjectedArea {
   /** Each polygon is a list of rings (outer first). */
@@ -74,7 +74,7 @@ export interface ProjectedArea {
   areaM2: number;
 }
 
-function ringArea(r: XYRing): number {
+export function ringArea(r: XYRing): number {
   let a = 0;
   const n = r.length / 2;
   for (let i = 0, j = n - 1; i < n; j = i++) a += r[2 * j] * r[2 * i + 1] - r[2 * i] * r[2 * j + 1];
@@ -106,7 +106,7 @@ export function projectArea(polys: PolygonRings[], proj: Projection): ProjectedA
   return { polygons, minX, minY, maxX, maxY, areaM2 };
 }
 
-function inRing(r: XYRing, x: number, y: number): boolean {
+export function inRing(r: XYRing, x: number, y: number): boolean {
   let inside = false;
   const n = r.length / 2;
   for (let i = 0, j = n - 1; i < n; j = i++) {
@@ -611,28 +611,33 @@ export function autoPlace(
   };
   for (const [x, y] of standing) occupy(x, y);
 
-  // Lattice, nearest the centre first.
+  // Lattice, nearest the centre first, built ring by ring (Chebyshev rings
+  // of lattice indices) so a capped run never builds more of the lattice
+  // than it can use: a short range over a big area would otherwise mean
+  // millions of points before the cap applies.
   const cx = (area.minX + area.maxX) / 2;
   const cy = (area.minY + area.maxY) / 2;
   const rowH = (spacing * Math.sqrt(3)) / 2;
   const nx = Math.ceil((area.maxX - area.minX) / spacing / 2) + 1;
   const ny = Math.ceil((area.maxY - area.minY) / rowH / 2) + 1;
-  const lattice: [number, number][] = [];
-  for (let j = -ny; j <= ny; j++) {
-    const y = cy + j * rowH;
-    const off = (Math.abs(j) % 2) * (spacing / 2);
-    for (let i = -nx; i <= nx; i++) {
-      const x = cx + i * spacing + off;
-      if (insideArea(area, x, y)) lattice.push([x, y]);
+  const point = (i: number, j: number): [number, number] => [cx + i * spacing + (Math.abs(j) % 2) * (spacing / 2), cy + j * rowH];
+  lattice: for (let b = 0; b <= Math.max(nx, ny); b++) {
+    const ring: [number, number][] = [];
+    for (let j = -Math.min(b, ny); j <= Math.min(b, ny); j++) {
+      if (Math.abs(j) === b) {
+        for (let i = -Math.min(b, nx); i <= Math.min(b, nx); i++) ring.push(point(i, j));
+      } else {
+        if (b <= nx) ring.push(point(-b, j), point(b, j));
+      }
     }
-  }
-  lattice.sort((a, b) => (a[0] - cx) ** 2 + (a[1] - cy) ** 2 - ((b[0] - cx) ** 2 + (b[1] - cy) ** 2));
-  for (const [x, y] of lattice) {
-    if (placed.length >= maxUnits) break;
-    if (nearOccupied(x, y)) continue;
-    placed.push([x, y]);
-    occupy(x, y);
-    add(x, y, R);
+    ring.sort((p, q) => (p[0] - cx) ** 2 + (p[1] - cy) ** 2 - ((q[0] - cx) ** 2 + (q[1] - cy) ** 2));
+    for (const [x, y] of ring) {
+      if (placed.length >= maxUnits) break lattice;
+      if (!insideArea(area, x, y) || nearOccupied(x, y)) continue;
+      placed.push([x, y]);
+      occupy(x, y);
+      add(x, y, R);
+    }
   }
 
   // Greedy fill: centre a new unit on the uncovered cells near each gap. One

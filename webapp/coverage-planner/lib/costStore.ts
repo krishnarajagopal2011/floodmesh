@@ -5,6 +5,10 @@
  * the editor started from. If someone else saved in between (another tab, a
  * second admin), the write is refused as a conflict instead of silently
  * overwriting their newer sheet. `force` overwrites anyway.
+ *
+ * A reset keeps the row, with a JSON null as its value and the revision
+ * bumped, rather than deleting it: revision numbers are never reused, so a
+ * tab still holding a revision from before the reset is always refused.
  */
 import { query } from "./db.ts";
 import { validateCosts, type CostSheet } from "./costs.ts";
@@ -27,11 +31,15 @@ export async function loadCosts(): Promise<StoredCosts> {
   );
   const row = rows[0];
   if (row) {
+    const value = typeof row.value === "string" ? (JSON.parse(row.value) as unknown) : row.value;
+    const rev = Number(row.rev);
+    if (value === null) {
+      // Reset to the defaults (see resetCosts).
+      return { sheet: structuredClone(DEFAULT_COSTS), updatedAt: null, isDefault: true, rev: Number.isFinite(rev) ? rev : 0 };
+    }
     // Stored by an older build or edited by hand: fall back to the defaults
     // rather than serving a sheet that no longer validates.
-    const value = typeof row.value === "string" ? (JSON.parse(row.value) as unknown) : row.value;
     const v = validateCosts(value);
-    const rev = Number(row.rev);
     if (v.ok) {
       const d = row.updated_at instanceof Date ? row.updated_at : new Date(String(row.updated_at));
       return {
@@ -77,14 +85,18 @@ export async function saveCosts(sheet: CostSheet, expectedRev: number | null, fo
 /** Back to the built-in defaults. False on a revision conflict. */
 export async function resetCosts(expectedRev: number | null, force = false): Promise<boolean> {
   if (force) {
-    await query(`DELETE FROM settings WHERE key = $1`, [KEY]);
+    await query(`UPDATE settings SET value = 'null'::jsonb, updated_at = now(), rev = rev + 1 WHERE key = $1`, [KEY]);
     return true;
   }
   if (expectedRev === null) {
-    // The editor saw the defaults: fine only if nothing has been saved since.
+    // The editor saw the defaults with no row at all: fine only if there still is none.
     const rows = await query(`SELECT 1 FROM settings WHERE key = $1`, [KEY]);
     return rows.length === 0;
   }
-  const rows = await query(`DELETE FROM settings WHERE key = $1 AND rev = $2 RETURNING key`, [KEY, expectedRev]);
+  const rows = await query(
+    `UPDATE settings SET value = 'null'::jsonb, updated_at = now(), rev = rev + 1
+     WHERE key = $1 AND rev = $2 RETURNING rev`,
+    [KEY, expectedRev],
+  );
   return rows.length > 0;
 }

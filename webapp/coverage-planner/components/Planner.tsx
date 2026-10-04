@@ -24,7 +24,17 @@ import {
   type ReportInfo,
 } from "@/lib/planState";
 import { DEFAULT_MODEL, DEFAULT_PROFILES, ENVIRONMENTS, type RadioModel, type UnitKind, type UnitProfile } from "@/lib/radio";
-import { PROBE_ROWS, analyse, householdColours, probe, probeHtml, renderCoverage, type Analysis, type CoverageView } from "./analysis";
+import {
+  PROBE_ROWS,
+  analyse,
+  householdColours,
+  probe,
+  probeHtml,
+  projectPlanArea,
+  renderCoverage,
+  type Analysis,
+  type CoverageView,
+} from "./analysis";
 import AreaPanel, { type AcCollection } from "./AreaPanel";
 import CostPanel, { planEstimate } from "./CostPanel";
 import CoveragePanel, { Legend } from "./CoveragePanel";
@@ -176,10 +186,15 @@ export default function Planner() {
   // ------------------------------------------------------- plan updates
 
   // A building count in flight belongs to the area it started on.
+  // OSM requests in flight: a building count and a household placement each
+  // have their own, and the buttons allow only one at a time.
   const countReq = useRef<AbortController | null>(null);
+  const placeReq = useRef<AbortController | null>(null);
   const cancelCount = useCallback(() => {
     countReq.current?.abort();
     countReq.current = null;
+    placeReq.current?.abort();
+    placeReq.current = null;
     setCounting(false);
     setPlacing(false);
   }, []);
@@ -295,8 +310,7 @@ export default function Planner() {
 
   const doCountBuildings = useCallback(async () => {
     const area = plan.area;
-    if (!area) return;
-    countReq.current?.abort();
+    if (!area || countReq.current || placeReq.current) return;
     const ctrl = new AbortController();
     countReq.current = ctrl;
     setCounting(true);
@@ -321,19 +335,25 @@ export default function Planner() {
    * Place the plan's household units as points: on OSM building positions or
    * spread evenly. Large plans get a sample of MAX_PLACED; the cost still uses
    * the full count. On buildings, the fetched positions also give the
-   * building count when households are counted from OSM.
+   * building count when households are counted from OSM, and no building gets
+   * more units than households live in it: the rest are spread evenly, since
+   * OSM rarely maps every building.
    */
   const placeHouseholds = useCallback(
     async (source: "osm" | "random") => {
       const area = plan.area;
-      const a = analysis;
-      if (!area || !a?.area) return;
-      countReq.current?.abort();
+      if (!area || countReq.current || placeReq.current) return;
+      if (source === "random" && demandPending(plan.demand)) {
+        notify("Count the OSM buildings first (or use “On OSM buildings”, which counts them too).");
+        return;
+      }
       const ctrl = new AbortController();
-      countReq.current = ctrl;
+      placeReq.current = ctrl;
       setPlacing(true);
       try {
-        let demand = plan.demand;
+        // Geometry of the area being placed into, not of an analysis that
+        // may still belong to the previous area.
+        const geo = projectPlanArea(area);
         let buildings: [number, number][] = [];
         if (source === "osm") {
           buildings = await buildingCentres(area.polygons, ctrl.signal);
@@ -342,33 +362,63 @@ export default function Planner() {
             notify("OpenStreetMap has no buildings mapped in this area. Use “Randomly in the area” instead.");
             return;
           }
-          if (demand.mode === "osm") demand = { ...demand, osmBuildings: buildings.length };
         }
-        const total = householdUnits(demand, a.areaKm2);
+        // The demand as it is now: the user may have changed it while OSM answered.
+        const now = planRef.current.demand;
+        const demand = source === "osm" && now.mode === "osm" ? { ...now, osmBuildings: buildings.length } : now;
+        const total = householdUnits(demand, geo.areaKm2);
         if (total <= 0) {
           notify("The plan has no household units to place: set the households and the share that get a unit first.");
           return;
         }
         const n = Math.min(total, MAX_PLACED);
         const seed = seedOf(`${area.name}|${n}|${source}`);
-        const points =
-          source === "osm" ? placeOnBuildings(buildings, a.area, a.proj, n, seed) : placeRandom(a.area, a.proj, n, seed);
-        setPlan((p) => (p.area === area ? { ...p, demand, householdPoints: { source, points, total } } : p));
+        let points: [number, number][];
+        let onBuildings: number | undefined;
+        if (source === "osm") {
+          // Units per building: as many as households live in one (the
+          // plan's households per building, or the OSM-derived share), scaled
+          // down for a sample.
+          const perBuildingFull =
+            demand.mode === "osm" ? Math.ceil(total / buildings.length) : Math.max(1, Math.ceil(demand.householdsPerBuilding));
+          const cap = Math.max(1, Math.ceil((perBuildingFull * n) / total));
+          const on = placeOnBuildings(buildings, geo.area, geo.proj, n, seed, 8, cap);
+          const rest = n - on.length > 0 ? placeRandom(geo.area, geo.proj, n - on.length, seed + 1) : [];
+          points = on.concat(rest);
+          onBuildings = on.length;
+        } else {
+          points = placeRandom(geo.area, geo.proj, n, seed);
+        }
+        setPlan((p) =>
+          p.area === area
+            ? {
+                ...p,
+                demand: source === "osm" && p.demand.mode === "osm" ? { ...p.demand, osmBuildings: buildings.length } : p.demand,
+                householdPoints: { source, points, total, onBuildings },
+              }
+            : p,
+        );
         setShowHouseholds(true);
+        const where =
+          source === "osm"
+            ? onBuildings === points.length
+              ? ` on ${fmtInt(buildings.length)} OSM buildings`
+              : `: ${fmtInt(onBuildings ?? 0)} on ${fmtInt(buildings.length)} OSM buildings, ${fmtInt(points.length - (onBuildings ?? 0))} spread evenly (more units than the mapped buildings in the area hold)`
+            : "";
         notify(
-          `Placed ${fmtInt(points.length)} household units${source === "osm" ? ` on ${fmtInt(buildings.length)} OSM buildings` : ""}` +
-            (points.length < total ? ` (a sample of ${fmtInt(total)}; the cost uses all of them).` : "."),
+          `Placed ${fmtInt(points.length)} household units${where}` +
+            (points.length < total ? `. A sample of ${fmtInt(total)}; the cost uses all of them.` : "."),
         );
       } catch (err) {
         if (!ctrl.signal.aborted) notify(err instanceof Error ? err.message : "Placing household units failed.");
       } finally {
-        if (countReq.current === ctrl) {
-          countReq.current = null;
+        if (placeReq.current === ctrl) {
+          placeReq.current = null;
           setPlacing(false);
         }
       }
     },
-    [plan.area, plan.demand, analysis, notify],
+    [plan.area, plan.demand, notify],
   );
 
   const clearHouseholds = useCallback(() => setPlan((p) => ({ ...p, householdPoints: null })), []);
@@ -624,7 +674,10 @@ export default function Planner() {
           </div>
           <div>
             <span>Estimate</span>
-            <strong>{est ? formatInr(est.total) : "–"}</strong>
+            <strong title={demandPending(plan.demand) ? "Excludes household units until the OSM buildings are counted" : undefined}>
+              {est ? formatInr(est.total) : "–"}
+              {est && demandPending(plan.demand) ? "*" : ""}
+            </strong>
           </div>
         </div>
         <a className="adminLink" href="/admin">
@@ -712,6 +765,7 @@ export default function Planner() {
                 setPlanField={setPlanField}
                 countBuildings={() => void doCountBuildings()}
                 countingBuildings={counting}
+                osmBusy={counting || placing}
                 placeHouseholds={(src) => void placeHouseholds(src)}
                 placingHouseholds={placing}
                 clearHouseholds={clearHouseholds}
