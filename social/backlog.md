@@ -16,7 +16,7 @@ row with an empty Draft column unless given a topic.
 | 6 | Alarm delivery confirmation: DELIVERED / NOT CONFIRMED | #announcement #feedback | X, IG | alarm policy decisions | drafts/2026-09-sos-delivery-confirmation.md |
 | 7 | Anyone lending 3D printing time? | #resources #collaboration | X, Reddit | docs/enclosure-ip67-notes.md, CAD/ | |
 | 8 | Anyone in a flood-prone colony willing to pilot? | #pilot #collaboration | X, LinkedIn, Reddit | pilot scope | |
-| 9 | What interfaces do you need? | #discussion #feedback | X, IG | keypad, PTT, OLED photos | |
+| 9 | What interfaces do you need? | #discussion #feedback | X, IG | keypad, PTT, OLED photos | drafts/2026-10-what-interfaces.md |
 | 10 | What pathways do you need? mesh, direct-to-help | #discussion #feedback | X | roadmap | |
 | 11 | Multi-hop test | #trials #feedback | X, IG reel | docs/field-tests.md (2026-09-26 relay test) | drafts/2026-09-multihop-relay-test.md |
 | 12 | Direct-to-help feature added | #announcement #feedback | X, IG, LinkedIn | when built | |
@@ -28,6 +28,7 @@ row with an empty Draft column unless given a topic.
 | 18 | Our own circuit board designed | #announcement | X, IG, LinkedIn | docs/hardware/pcb-v1/README.md (features only) | drafts/2026-09-custom-pcb-v1.md |
 | 19 | Setting up who can act on an alarm (roles app) | #announcement #feedback | X, IG, LinkedIn | app/floodmesh_admin/README.md, CLAUDE.md (features only, not yet tested on hardware) | drafts/2026-09-responder-roles-app.md |
 | 20 | First field test of the new firmware: four words sent, zero arrived | #trials #feedback | X, IG reel | docs/field-tests.md (2026-09-28 first V4 test) | drafts/2026-10-first-v4-field-test.md |
+| 21 | Two problems found checking units before a test: a wrong battery reading and a weak alarm | #trials #feedback | X, IG reel | firmware_v4/README.md (4.3.2, 4.3.3), commits 1e2b532 / e35bfe9 | drafts/2026-10-battery-buzzer-checks.md |
 
 ## Done
 
