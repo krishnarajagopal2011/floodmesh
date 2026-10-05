@@ -12,13 +12,17 @@ Source commit: `6e68615` on `9th-Sept-2026`.
 The owner asked for this so the site can be reverted if the AI images aren't
 good enough. Either:
 
-- restore the whole site from the commit (keeps later fixes out):
+- copy the files in this folder back over `website/` (preferred), or
+- restore them from the commit (keeps later fixes out):
 
       git checkout 6e68615 -- website/index.html website/assets/css/site.css website/assets/js/site.js website/assets/js/mesh.js website/assets/js/i18n.js
       git commit -m "website: revert to the hero and street map from before the AI images"
 
-- or copy the files in this folder back over `website/` (same result for
-  these files).
+  That commit still has the "Preview: product photos are placeholders and
+  pre-orders are not sent yet." line at the top of every page, which the
+  owner had removed (4 and 5 Oct 2026); this folder no longer has it. After
+  a commit restore, delete the `<div class="ribbon" data-preview-ribbon ...>`
+  line from the three pages.
 
 Open `index.html` here in a browser to see this version locally (the order
 form shows a preview result; nothing is sent).

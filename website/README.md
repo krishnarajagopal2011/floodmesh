@@ -117,7 +117,7 @@ Put files in `assets/img/`.
 
 | Slot | What | Source |
 |---|---|---|
-| Hero background (`assets/img/hero.jpg`) | Flooded Chennai street at dusk, houses on the right, calm water on the left behind the headline | AI scene (in place), no caption |
+| Hero background (`assets/img/hero-lights-off.jpg`) | Flooded Chennai street at dusk, houses on the right, calm water on the left behind the headline; every light off (power cut), to match "when the towers go dark" | AI scene, no caption. The lit original stays as `assets/img/hero.jpg` (owner, 5 Oct) |
 | `story-scene` | A flooded city street at dusk, ground floors under water, one lit window | AI scene (in place), no caption |
 | How it works (`assets/img/rooftops.webp`) | Flooded town in the rain at night; a message ("Need Medicines") hops from roof to roof to a neighbour | AI scene from the owner, 4 Oct, no caption |
 | `product-unit` (also on the pack cards) | The unit on a plain light background | Render, `assets/img/unit.webp` (owner, 4 Oct) |

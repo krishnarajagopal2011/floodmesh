@@ -5,7 +5,6 @@
    included. A key missing from ta or hi falls back to English. */
 window.FM_I18N = {
   en: {
-    "preview.ribbon.live": "Preview: product photos are placeholders. Pre-orders are recorded and we will call you.",
     "media.product": "Product photo to come",
 
     "anim.m1": "A neighbour sends a short message: \"Water at our gate. All safe upstairs.\"",
@@ -126,7 +125,6 @@ window.FM_I18N = {
   // speakers before launch (README go-live checklist).
   ta: {
     "a11y.skip": "உள்ளடக்கத்துக்குச் செல்ல",
-    "preview.ribbon": "முன்னோட்டம்: பொருட்களின் புகைப்படங்கள் தற்காலிகமானவை; முன்பதிவுகள் இன்னும் அனுப்பப்படுவதில்லை.",
     "nav.how": "எப்படி வேலை செய்கிறது",
     "nav.who": "யாருக்கானது",
     "nav.tests": "களச் சோதனைகள்",
@@ -269,7 +267,6 @@ window.FM_I18N = {
     "form.submit": "முன்பதிவை அனுப்பு",
     "foot.home": "முகப்பு",
     "legal.englishonly": "இதன் பொருள் துல்லியமாக இருக்க, இந்தப் பக்கம் ஆங்கிலத்தில் உள்ளது.",
-    "preview.ribbon.live": "முன்னோட்டம்: பொருட்களின் புகைப்படங்கள் தற்காலிகமானவை. முன்பதிவுகள் சேமிக்கப்படும்; உங்களை அழைப்போம்.",
     "media.product": "பொருளின் புகைப்படம் விரைவில் சேர்க்கப்படும்",
     "anim.m1": "பக்கத்து வீட்டுக்காரர் ஒருவர் சிறு செய்தி அனுப்புகிறார்: \"Water at our gate. All safe upstairs.\"",
     "anim.m2": "எட்டும் தூரத்தில் உள்ள கருவிகள் விழித்துக்கொண்டு அதைக் காட்டுகின்றன.",
@@ -374,7 +371,6 @@ window.FM_I18N = {
   },
   hi: {
     "a11y.skip": "मुख्य हिस्से पर जाएँ",
-    "preview.ribbon": "प्रीव्यू: प्रोडक्ट की फ़ोटो सिर्फ़ नमूने के लिए हैं और प्री-ऑर्डर अभी कहीं नहीं भेजे जाते।",
     "nav.how": "कैसे काम करता है",
     "nav.who": "किसके लिए है",
     "nav.tests": "फ़ील्ड टेस्ट",
@@ -517,7 +513,6 @@ window.FM_I18N = {
     "form.submit": "प्री-ऑर्डर भेजें",
     "foot.home": "होम",
     "legal.englishonly": "यह पेज अंग्रेज़ी में है, ताकि इसका मतलब एकदम सटीक रहे।",
-    "preview.ribbon.live": "प्रीव्यू: प्रोडक्ट की फ़ोटो सिर्फ़ नमूने के लिए हैं। प्री-ऑर्डर दर्ज हो जाते हैं और हम आपको फ़ोन करेंगे।",
     "media.product": "प्रोडक्ट की फ़ोटो जल्द आएगी",
     "anim.m1": "एक पड़ोसी छोटा मैसेज भेजता है: \"Water at our gate. All safe upstairs.\"",
     "anim.m2": "पहुँच में मौजूद यूनिट जाग जाती हैं और इसे दिखाती हैं।",
