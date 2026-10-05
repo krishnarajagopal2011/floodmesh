@@ -64,6 +64,23 @@
     var card = el("article", { class: "product", id: p.id, "aria-labelledby": title });
 
     var media = el("figure", { class: "media-slot", "data-asset": p.media });
+    var tiles = p.tile ? el("div", { class: "unit-tiles", role: "img" }) : null;
+    var tilesShown = 0;
+    // One small unit per unit in the pack, in the grid that makes them biggest.
+    function drawTiles(n) {
+      if (!tiles || n === tilesShown) return;
+      tilesShown = n;
+      var best = { c: 1, r: n, h: 0 }, BOX = 1.6, UNIT = 96 / 177;   // card 16:10, unit width/height
+      for (var c = 1; c <= n; c++) {
+        var r = Math.ceil(n / c), h = Math.min(BOX / c / UNIT, 1 / r);
+        if (h > best.h + 1e-9) best = { c: c, r: r, h: h };
+      }
+      tiles.style.setProperty("--c", best.c);
+      tiles.style.setProperty("--r", best.r);
+      tiles.setAttribute("aria-label", T("store.units").replace("{n}", n));
+      tiles.textContent = "";
+      for (var i = 0; i < n; i++) tiles.appendChild(el("img", { src: p.tile, alt: "", decoding: "async", loading: "lazy" }));
+    }
     var srcs = [].concat(p.image || []);   // candidate files, first that loads wins
     var placeholder = function () { media.appendChild(el("span", { class: "tag" }, T("media.product"))); };
     if (srcs.length) {
@@ -75,6 +92,10 @@
         else { img.remove(); placeholder(); }
       });
       media.appendChild(img);
+    } else if (tiles) {
+      media.classList.add("has-tiles");
+      media.appendChild(tiles);
+      drawTiles(p.perUnit ? (parseInt(keep["q-" + p.id], 10) || p.minQty || 10) : p.units);
     } else {
       placeholder();
     }
@@ -128,6 +149,7 @@
       was.hidden = !(full > total);
       priceNum.textContent = money.format(total);
       priceSmall.textContent = priceNote(p, qty, each);
+      if (p.perUnit) drawTiles(qty);   // the custom pack's picture follows the number of units
       if (shown !== null && shown !== total) {
         price.classList.remove("bump");
         void price.offsetWidth;   // restart the highlight on quick repeated clicks

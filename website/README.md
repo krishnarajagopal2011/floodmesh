@@ -120,7 +120,8 @@ Put files in `assets/img/`.
 | Hero background (`assets/img/hero-lights-off.jpg`) | Flooded Chennai street at dusk, houses on the right, calm water on the left behind the headline; every light off (power cut), to match "when the towers go dark" | AI scene, no caption. The lit original stays as `assets/img/hero.jpg` (owner, 5 Oct) |
 | `story-scene` | A flooded city street at dusk, ground floors under water, one lit window | AI scene (in place), no caption |
 | How it works (`assets/img/rooftops.webp`) | Flooded town in the rain at night; a message ("Need Medicines") hops from roof to roof to a neighbour | AI scene from the owner, 4 Oct, no caption |
-| `product-unit` (also on the pack cards) | The unit on a plain light background | Render, `assets/img/unit.webp` (owner, 4 Oct) |
+| `product-unit` | The unit on a plain light background | Render, `assets/img/unit.webp` (owner, 4 Oct) |
+| Pack cards (`product-street` ... `product-custom`) | One small unit per unit in the pack (10, 25, 50, 100, 250; custom follows the number chosen) | The cut-out render shrunk, `assets/img/unit-tile.webp`, drawn by `store.js` (owner, 5 Oct) |
 | `product-street`, `product-neighbourhood`, `product-area`, `product-custom` | Boxed units stacked: 10, 25, 100 (or one photo of a stack for all four) | **Real photo** |
 | `product-antenna` | The 1 m rooftop antenna mounted on a terrace railing, unit beside it | **Real photo** |
 | `product-cable` | The cable coiled, both connectors visible | **Real photo** |

@@ -522,6 +522,10 @@ p { margin: 0; }
 }
 .media-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .media-slot img.product-photo { object-fit: contain; background: #fdfdfd; }   /* whole unit, on the render's own white */
+/* pack cards: one small unit per unit in the pack, centred rows (store.js drawTiles sets --c and --r) */
+.media-slot.has-tiles { background: #fdfdfd; }
+.unit-tiles { position: absolute; inset: 0; padding: 5% 6%; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; }
+.media-slot .unit-tiles img { position: static; box-sizing: border-box; width: calc(100% / var(--c)); height: calc(100% / var(--r)); padding: 1px; object-fit: contain; }
 .media-slot .tag {
   position: relative;
   margin: 12px;
