@@ -16,10 +16,6 @@
   --sos-ink: #ffffff;
   --oled: #0a0e11;
   --oled-text: #c4e8ff;
-  --unit: #2a3338;
-  --unit-edge: #3b474d;
-  --key: #46535a;
-  --key-ink: #e6eef1;
   --ok: #2b7a4b;
   --err: #b42318;
 
@@ -53,10 +49,6 @@
     --sos-ink: #1c0d03;
     --oled: #05080a;
     --oled-text: #c4e8ff;
-    --unit: #1f282d;
-    --unit-edge: #34424a;
-    --key: #3a474e;
-    --key-ink: #e6eef1;
     --ok: #5cc68a;
     --err: #ff7b6b;
     color-scheme: dark;
@@ -75,10 +67,6 @@
   --sos-ink: #1c0d03;
   --oled: #05080a;
   --oled-text: #c4e8ff;
-  --unit: #1f282d;
-  --unit-edge: #34424a;
-  --key: #3a474e;
-  --key-ink: #e6eef1;
   --ok: #5cc68a;
   --err: #ff7b6b;
   color-scheme: dark;
@@ -417,7 +405,6 @@ p { margin: 0; }
 /* ---------------------------------------------------------------- the unit (illustration) */
 .unit-figure { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 10px; }
 .unit-figure figcaption { font-size: 0.78rem; color: var(--muted); }
-.unit-photo { width: min(240px, 60vw); height: auto; filter: drop-shadow(0 22px 28px rgba(5, 20, 28, 0.45)); }   /* the unit render, cut out (assets/img/unit-hero.webp) */
 .hero.has-photo .unit-figure figcaption { position: relative; z-index: 1; padding: 4px 10px; border-radius: 4px; background: color-mix(in srgb, var(--surface) 88%, transparent); max-width: 34ch; text-align: center; }
 .unit {
   position: relative;
@@ -427,8 +414,9 @@ p { margin: 0; }
   padding: 22px 20px 24px;
   margin-top: 70px;
   border-radius: 26px 26px 30px 30px;
-  background: linear-gradient(160deg, var(--unit-edge), var(--unit) 40%);
-  box-shadow: 0 1px 0 var(--unit-edge) inset, 0 24px 40px -24px rgba(5, 20, 28, 0.6);
+  /* the unit's orange case, as in the product render; the same in light and dark */
+  background: linear-gradient(160deg, #f47a45, #e2531e 38%, #cc4512);
+  box-shadow: 0 1px 0 #ff9a6a inset, 0 -3px 0 #a9370b inset, 0 24px 40px -24px rgba(5, 20, 28, 0.6);
 }
 .unit::before {
   /* the antenna */
@@ -470,20 +458,21 @@ p { margin: 0; }
   aspect-ratio: 1.25;
   max-width: 100%;
   border-radius: 7px;
-  background: var(--key);
-  color: var(--key-ink);
+  background: #23282b;   /* black keys on the orange case */
+  color: #f1f4f5;
   font-family: var(--display);
   font-weight: 600;
   font-size: 1.05rem;
-  box-shadow: 0 2px 0 #11181b;
+  box-shadow: 0 2px 0 #7a2a0b;
 }
-.keys .hot { background: var(--sos); color: var(--sos-ink); }
+/* * and # (hold both for SOS): light keys, so they stand out on the orange case */
+.keys .hot { background: #fff4ec; color: #8a2c08; box-shadow: 0 2px 0 #7a2a0b; }
 @media (prefers-reduced-motion: no-preference) {
   .keys .hot.pulse { animation: press 2.4s ease-in-out infinite; }
 }
 @keyframes press {
-  0%, 60%, 100% { transform: translateY(0); box-shadow: 0 2px 0 #11181b; }
-  70%, 90% { transform: translateY(2px); box-shadow: 0 0 0 #11181b; }
+  0%, 60%, 100% { transform: translateY(0); box-shadow: 0 2px 0 #7a2a0b; }
+  70%, 90% { transform: translateY(2px); box-shadow: 0 0 0 #7a2a0b; }
 }
 
 /* ---------------------------------------------------------------- sections */
