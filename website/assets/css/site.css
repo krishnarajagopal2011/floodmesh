@@ -447,15 +447,19 @@ p { margin: 0; }
 .screen .inv { background: var(--oled-text); color: var(--oled); padding: 0 4px; }
 .screen .big { font-size: min(1.9rem, 13.5cqi); line-height: 1.1; margin-top: 6px; }
 .keys {
+  /* phone keypad, as on the unit: 1-9, then * 0 #; letters as in the firmware's
+     multi-tap (1 is punctuation, 0 is space) */
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-top: 18px;
 }
 .keys span {
   display: grid;
   place-items: center;
-  aspect-ratio: 1.25;
+  align-content: center;
+  line-height: 1;
+  aspect-ratio: 1.55;
   max-width: 100%;
   border-radius: 7px;
   background: #23282b;   /* black keys on the orange case */
@@ -466,6 +470,7 @@ p { margin: 0; }
   box-shadow: 0 2px 0 #7a2a0b;
 }
 /* * and # (hold both for SOS): light keys, so they stand out on the orange case */
+.keys small { margin-top: 3px; font-family: var(--body); font-size: 0.56rem; font-weight: 600; letter-spacing: 0.06em; opacity: 0.8; }
 .keys .hot { background: #fff4ec; color: #8a2c08; box-shadow: 0 2px 0 #7a2a0b; }
 @media (prefers-reduced-motion: no-preference) {
   .keys .hot.pulse { animation: press 2.4s ease-in-out infinite; }
