@@ -11,3 +11,4 @@ anything listed here. One line per item, newest at the bottom.
 | 2026-09-30 | — | — | run was empty — no FloodMesh-alerts label/emails and no WebSearch candidate inside the 14-day window scored above 0 (see social/scouting/2026-09-30.md) |
 | 2026-10-02 | — | — | run was empty — no FloodMesh-alerts label/emails and no WebSearch candidate inside the 14-day window scored above 0 (see social/scouting/2026-10-02.md) |
 | 2026-10-05 | — | — | run was empty — no FloodMesh-alerts label/emails and no WebSearch candidate inside the 14-day window scored above 0 (see social/scouting/2026-10-05.md) |
+| 2026-10-07 | — | — | run was empty — no FloodMesh-alerts label/emails and no WebSearch result actually hosted on x.com/instagram.com/linkedin.com/posts scored above 0 (see social/scouting/2026-10-07.md) |
