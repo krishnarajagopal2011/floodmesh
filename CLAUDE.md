@@ -55,8 +55,10 @@ Two boards exist. Check which one a change targets.
   sheet. The radio model in `lib/radio.ts` is fitted to `docs/field-tests.md`;
   refit it when new field results come in. Read its `README.md`.
 - **Public website** (`website/`, static, deployed on Vercel with Root
-  Directory `website`): home page, pre-order store (no payment yet; orders go
-  through `api/preorder.js` to a Google Sheet via `apps-script/`), privacy and
+  Directory `website`, on `floodmesh.tech` plus
+  `floodmesh-website.vercel.app`): home page, pre-order store (no payment
+  yet; orders go through `api/preorder.js` to a Google Sheet via
+  `apps-script/`), privacy and
   pre-order terms, in English with Tamil and Hindi. Read its `README.md`
   first: it has the content rules (no technical detail that helps copying,
   claim only measured results, real photos for the product) and the go-live

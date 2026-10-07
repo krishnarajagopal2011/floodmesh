@@ -60,9 +60,11 @@ and needs a native speaker's check before launch). No build step and no librarie
    in `config.js` (or test the endpoint first on a Vercel preview deployment
    of a branch), and remove the `X-Robots-Tag: noindex, nofollow` header
    from `vercel.json` so search engines can list the site.
-7. Once the domain is known, make the `og:image` URLs in the three pages
-   absolute (`https://<domain>/assets/img/og.png`); WhatsApp and LinkedIn
-   previews need that.
+7. **Done** (7 Oct 2026): the `og:image` URLs in `index.html` and
+   `store.html` are absolute
+   (`https://floodmesh.tech/assets/img/og.png`), which WhatsApp and LinkedIn
+   previews need. `privacy.html` has no `og:` tags at all; add them only if
+   that page is ever shared on its own.
 8. Deploy (below), open `/store` in a private window and send one test
    pre-order. Check that `/README.md` and `/apps-script/Code.gs` return 404.
 
@@ -81,9 +83,10 @@ open (Settings → Deployment Protection).
 
 Until launch the site sends `X-Robots-Tag: noindex, nofollow` (in
 `vercel.json`), so search engines leave it out; `config.js` has
-`preview: true`, so the order form says pre-orders are not sent yet. For now
-the site uses Vercel's free `<project>.vercel.app` address; a custom domain
-can be added later under Settings → Domains. `vercel.json` already sets clean URLs
+`preview: true`, so the order form says pre-orders are not sent yet. The
+site answers on **floodmesh.tech** as well as
+`floodmesh-website.vercel.app` ("The domain" below). `vercel.json` already
+sets clean URLs
 (`/store` instead of `/store.html`; the pages link to `store.html`, which
 costs one redirect but keeps local previews working), the security headers,
 and caching (images for an hour; scripts and styles revalidated on every
@@ -98,10 +101,61 @@ load, so a price or setting change reaches everyone at once).
   function only. A new outside service (Razorpay checkout, Vercel Web
   Analytics or Speed Insights) needs its domain in `vercel.json` and a line on
   the privacy page first.
-- HSTS deliberately leaves out `includeSubDomains`. If the site moves to the
-  company's root domain, every subdomain would then have to serve HTTPS
-  (Google Workspace custom URLs such as mail.<domain> don't). Add it only
-  once the site has a domain of its own or every subdomain has been checked.
+- HSTS deliberately leaves out `includeSubDomains`. On the company's root
+  domain, every subdomain would then have to serve HTTPS (Google Workspace
+  custom URLs such as mail.<domain> don't). `floodmesh.tech` is a domain of
+  its own, so the condition for adding it is met; it is still left out
+  because the choice sticks in browsers for a year (`max-age`) and nothing
+  needs it yet. The owner's call.
+
+## The domain
+
+`floodmesh.tech`, registered at **Namecheap**, on Namecheap's own BasicDNS
+(`dns1.registrar-servers.com`, `dns2.registrar-servers.com`). Added to the
+Vercel project on 7 Oct 2026:
+
+| Vercel domain | Role |
+|---|---|
+| `floodmesh.tech` | serves the site (the primary address) |
+| `www.floodmesh.tech` | 308 redirect to `floodmesh.tech` |
+| `floodmesh-website.vercel.app` | still works; useful while DNS propagates |
+
+Apex-as-primary matches the pages' own relative links and the absolute
+`og:image`. To swap it round later, change both entries in Vercel → Settings
+→ Domains and the `og:image` URLs in `index.html` and `store.html`.
+
+**DNS records at Namecheap** (Domain List → Manage → Advanced DNS). Delete
+the two records Namecheap parks a new domain with — the `www` CNAME to
+`parkingpage.namecheap.com` and the `@` record pointing at `192.64.119.228`
+— then add:
+
+| Type | Host | Value | TTL |
+|---|---|---|---|
+| A | `@` | `216.150.1.1` | Automatic |
+| A | `@` | `216.150.16.1` | Automatic |
+| CNAME | `www` | `e39ce72f0aa1115b.vercel-dns-016.com.` | Automatic |
+
+Two A records for the apex, not one; they are Vercel's current anycast
+addresses (the older single `76.76.21.21` still works). Keep Namecheap's
+`MX`/`TXT` records if email is set up on the domain. Confirm afterwards with
+Vercel → Settings → Domains: both rows should read *Valid Configuration*.
+Propagation is usually minutes, up to 48 h.
+
+**TLS:** nothing to buy or upload. Vercel issues a Let's Encrypt certificate
+for both names automatically once the DNS above resolves, and renews it 14–30
+days before expiry. Uploading a purchased certificate is an Enterprise-only
+feature, so a Namecheap SSL product cannot be used here and is not needed.
+
+Until those DNS records are in place Vercel cannot validate the domain, so it
+cannot issue the certificate and cannot attach the domain to a deployment
+(the API answers `cert_missing`). Nothing more is needed on the Vercel side:
+the project has *Auto-assign Custom Domains* on, so the live deployment picks
+both names up by itself within a minute or two of the records resolving.
+
+**Still unindexed.** The `X-Robots-Tag: noindex, nofollow` header in
+`vercel.json` and `preview: true` in `config.js` are unchanged, so the real
+address serves the site without search engines listing it and without the
+order form sending anything. Go-live is the checklist above.
 
 Preview locally with `npx serve website` or `vercel dev`; opening the files
 directly also works, apart from the order endpoint.
